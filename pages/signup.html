@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>สมัครสมาชิก — GlowGo</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div id="nav"></div>
+
+  <div class="auth-wrap">
+    <div class="card glass reveal">
+      <span class="emotion-tag">ขั้นที่ 2 · ลดช่องกรอกเท่าที่จำเป็น</span>
+      <h1 class="page-title">สมัครสมาชิก</h1>
+      <p class="page-sub">ใช้เวลาไม่ถึง 1 นาที</p>
+
+      <div class="social-btns">
+        <button class="btn btn-outline" onclick="social('Google')">ต่อด้วย Google</button>
+        <button class="btn btn-outline" onclick="social('LINE')">ต่อด้วย LINE</button>
+      </div>
+      <div class="divider">— หรือ —</div>
+
+      <form id="signupForm">
+        <div class="form-group">
+          <label>ชื่อที่ใช้แสดง</label>
+          <input type="text" id="name" placeholder="เช่น มายด์" required>
+        </div>
+        <div class="form-group">
+          <label>อีเมล</label>
+          <input type="email" id="email" placeholder="you@example.com" required>
+        </div>
+        <div class="form-group">
+          <label>รหัสผ่าน</label>
+          <input type="password" id="password" placeholder="อย่างน้อย 6 ตัวอักษร" minlength="6" required>
+          <p class="hint">เราขอแค่ข้อมูลที่จำเป็น เพื่อให้สมัครเสร็จไว</p>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">สร้างบัญชี</button>
+      </form>
+
+      <p class="hint" style="text-align:center;margin-top:16px">
+        มีบัญชีแล้ว? <a href="login.html" style="color:var(--primary);font-weight:700">เข้าสู่ระบบ</a>
+      </p>
+    </div>
+  </div>
+
+  <div id="footer"></div>
+
+  <script src="../js/data.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    initPage("");
+
+    document.getElementById("signupForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      Auth.login(name, email);
+      toast("สมัครสมาชิกสำเร็จ 🎉");
+      setTimeout(() => location.href = "../index.html", 800);
+    });
+
+    function social(provider) {
+      Auth.login("มายด์", "mind@" + provider.toLowerCase() + ".com");
+      toast("สมัครด้วย " + provider);
+      setTimeout(() => location.href = "../index.html", 700);
+    }
+  </script>
+</body>
+</html>
