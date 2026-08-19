@@ -1,0 +1,43 @@
+# ============================================================
+# Dockerfile สำหรับ Hugging Face Space เท่านั้น
+# ============================================================
+#
+# ต่างจาก Dockerfile หลักตรงที่ Space รันได้ container เดียวและเปิดพอร์ตเดียว
+# จึงต้องรวม API กับหน้าเว็บไว้ด้วยกัน แล้วให้ FastAPI เสิร์ฟทั้งสองอย่าง
+#
+# **ห้ามใช้ไฟล์นี้แทน Dockerfile หลัก** — งานส่งอาจารย์ต้องใช้
+# docker-compose.yml ที่แยก 4 service ตามโจทย์
+#
+# วิธีทดสอบในเครื่องก่อนอัป:
+#   docker build -f Dockerfile.hf -t bookvice-hf .
+#   docker run --rm -p 7860:7860 -e DATABASE_URL="..." bookvice-hf
+
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# คัดลอกทั้งฝั่งเซิร์ฟเวอร์และหน้าเว็บ เพราะ container นี้ต้องเสิร์ฟเองทั้งคู่
+COPY ./app ./app
+COPY ./web ./web
+
+# Space รันด้วยผู้ใช้ที่ไม่ใช่ root และเขียนได้เฉพาะบางที่
+# จึงเก็บรูปที่อัปโหลดไว้ใน /tmp แทน /app/uploads
+#
+# ข้อแลกเปลี่ยน: รูปหายทุกครั้งที่ Space รีสตาร์ตหรือ build ใหม่
+# ถ้าต้องการเก็บถาวรต้องซื้อ Persistent Storage แล้วชี้ UPLOAD_DIR ไปที่ /data
+ENV SERVE_WEB=true \
+    UPLOAD_DIR=/tmp/uploads \
+    PORT=7860
+
+RUN mkdir -p /tmp/uploads && chmod 777 /tmp/uploads
+
+EXPOSE 7860
+
+# Space กำหนดให้ฟังที่พอร์ต 7860 (ตั้งค่าได้ผ่าน app_port ใน README)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]

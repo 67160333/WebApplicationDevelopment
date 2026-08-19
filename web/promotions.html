@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ราคาและดีล — Bookvice</title>
+  <meta name="description" content="เปรียบเทียบราคาต่อนาทีของทุกบริการ ดูร้านที่เปิดอยู่ตอนนี้ และร้านที่ได้คะแนนสูงที่สุด" />
+  <meta name="theme-color" content="#16233F" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><defs><linearGradient id='a' x1='11' y1='5' x2='36' y2='27' gradientUnits='userSpaceOnUse'><stop stop-color='%23F9AE8B'/><stop offset='1' stop-color='%23E8785A'/></linearGradient><linearGradient id='b' x1='11' y1='21' x2='38' y2='43' gradientUnits='userSpaceOnUse'><stop stop-color='%233FC0D6'/><stop offset='1' stop-color='%2322A898'/></linearGradient></defs><rect width='48' height='48' rx='11' fill='%23fff'/><path d='M11 5h16a11 11 0 0 1 0 22H11z' fill='url(%23a)'/><path d='M11 21h18a11 11 0 0 1 0 22H11z' fill='url(%23b)'/><path d='m16.5 32.5 4.5 4.5 9-9' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='5' y='5' width='6.5' height='38' rx='3.25' fill='%2316233F'/></svg>" />
+
+  <!-- ข้อมูลตอนแชร์ลิงก์ ให้แอปแชตแสดงชื่อและคำอธิบายแทนลิงก์เปล่า -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Bookvice" />
+  <meta property="og:title" content="ราคาและดีล — Bookvice" />
+  <meta property="og:description" content="เปรียบเทียบราคาต่อนาทีของทุกบริการ ดูร้านที่เปิดอยู่ตอนนี้ และร้านที่ได้คะแนนสูงที่สุด" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
+       IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202608252100" />
+</head>
+<body>
+  <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
+  <div id="navbar"></div>
+
+  <main id="main" class="max-w-6xl mx-auto px-5 py-12">
+    <h1 class="h1">เปรียบเทียบราคา</h1>
+    <p class="text-sm text-muted mt-1.5">
+      คำนวณจากราคาและระยะเวลาจริงของทุกบริการในระบบ ไม่ใช่ส่วนลดที่ตั้งขึ้น
+    </p>
+
+    <div id="content" class="mt-8"></div>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/api.js?v=202608252100"></script>
+  <script src="js/ui.js?v=202608252100"></script>
+  <script>
+    renderNavbar("promo");
+    renderFooter();
+    prefetchOnHover();
+
+    const box = document.getElementById("content");
+    box.innerHTML = skeletonCards(6);
+
+    load();
+
+    async function load() {
+      try {
+        const res = await apiGet("/api/shops?page=1&limit=100");
+        const shops = res.items.filter((s) => s.is_active);
+        if (!shops.length) {
+          box.innerHTML = emptyHTML("info", "ยังไม่มีร้านในระบบ");
+          return;
+        }
+
+        // ดึงบริการของร้านมารวมกัน เพื่อหาบริการที่คุ้มที่สุด
+        // จำกัดไว้ 24 ร้าน เพราะต้องยิงทีละร้าน ถ้าระบบโตขึ้นจะช้าเกินไป
+        const details = await Promise.all(
+          shops.slice(0, 24).map((s) => apiGet(`/api/shops/${s.id}`).catch(() => null))
+        );
+        const deals = [];
+        details.forEach((d) => {
+          if (!d) return;
+          (d.services || []).filter((x) => x.is_active).forEach((sv) =>
+            deals.push({ ...sv, shop: d })
+          );
+        });
+
+        render(shops, details.filter(Boolean), deals);
+      } catch (err) {
+        box.innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`;
+      }
+    }
+
+    function render(shops, details, deals) {
+      // คุ้มที่สุด = ราคาต่อนาทีต่ำสุด ไม่ใช่แค่ราคาถูกสุด
+      // เพราะบริการ 30 นาที 300 บาท แพงกว่า 90 นาที 600 บาทเมื่อเทียบต่อเวลา
+      const value = [...deals]
+        .map((d) => ({ ...d, perMin: Number(d.price) / d.duration_minutes }))
+        .sort((a, b) => a.perMin - b.perMin)
+        .slice(0, 6);
+
+      const topRated = [...shops]
+        .filter((s) => s.rating_count > 0)
+        .sort((a, b) => Number(b.rating_avg) - Number(a.rating_avg))
+        .slice(0, 3);
+
+      const certified = shops.filter((s) => s.is_certified);
+      const openNow = shops.filter((s) => shopStatus(s).cls === "st-open");
+
+      box.innerHTML = `
+        <!-- ---------- สรุปตัวเลข ---------- -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          ${[
+            ["ร้านทั้งหมด", shops.length],
+            ["เปิดอยู่ตอนนี้", openNow.length],
+            ["ผ่านการรับรอง", certified.length],
+            ["บริการให้เลือก", deals.length],
+          ].map(([l, n]) => `
+            <div class="card p-4">
+              <div class="text-xs text-muted">${l}</div>
+              <div class="h2 num mt-0.5">${n}</div>
+            </div>`).join("")}
+        </div>
+
+        <!-- ---------- คุ้มค่าที่สุด ---------- -->
+        <section class="mt-12 reveal">
+          <div class="section-head">
+            <div>
+              <h2 class="h2">คุ้มที่สุดเมื่อเทียบกับเวลาที่ได้</h2>
+            </div>
+            <p class="hint" style="margin:0">คำนวณจากราคาต่อนาทีของบริการ</p>
+          </div>
+          <div class="deal-grid">
+            ${value.map(dealCard).join("")}
+          </div>
+        </section>
+
+        <!-- ---------- เปิดอยู่ตอนนี้ ---------- -->
+        ${openNow.length ? `
+          <section class="mt-12 reveal">
+            <h2 class="h2">ร้านที่เปิดอยู่ตอนนี้</h2>
+            <div class="mt-5 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              ${openNow.slice(0, 6).map(shopCard).join("")}
+            </div>
+          </section>` : ""}
+
+        <!-- ---------- คะแนนสูงสุด ---------- -->
+        ${topRated.length ? `
+          <section class="mt-12 reveal">
+            <h2 class="h2">ร้านที่คนรีวิวดีที่สุด</h2>
+            <div class="mt-5 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              ${topRated.map(shopCard).join("")}
+            </div>
+          </section>` : ""}
+
+        <div class="text-center mt-12">
+          <a href="shops.html" class="btn btn-navy">ดูร้านทั้งหมด ${icon("chevronRight", 15)}</a>
+        </div>`;
+
+      revealOnScroll();
+    }
+
+    // การ์ดดีล — เน้นราคาต่อนาทีให้เห็นว่าทำไมถึงคุ้ม
+    function dealCard(d) {
+      const st = shopStatus(d.shop);
+      return `
+        <a href="shop.html?id=${d.shop.id}" class="card card-link deal-card">
+          <div class="deal-head">
+            <span class="deal-price num">฿${baht(d.price)}</span>
+            <span class="deal-per num">฿${d.perMin.toFixed(1)} / นาที</span>
+          </div>
+          <div class="p-5 pt-0">
+            <h3 class="h3 leading-snug">${esc(d.name)}</h3>
+            <p class="text-sm text-muted mt-1.5">
+              ${esc(d.shop.name)} · ${esc(d.shop.district || "")}
+            </p>
+            <div class="flex items-center gap-3 mt-3 pt-3 text-xs flex-wrap"
+                 style="border-top:1px solid var(--border)">
+              <span class="text-muted num">${d.duration_minutes} นาที</span>
+              <span class="text-muted">มัดจำ ฿${baht(Number(d.price) * 0.2)}</span>
+              <span class="shop-st ${st.cls}" style="margin-left:auto">${st.text}</span>
+            </div>
+          </div>
+        </a>`;
+    }
+
+    function shopCard(s) {
+      const st = shopStatus(s);
+      return `
+        <a href="shop.html?id=${s.id}" class="card card-link overflow-hidden">
+          ${shopArt(s, "h-32", { tag: s.is_certified ? "ผ่านการรับรอง" : null, fontSize: "1.7rem" })}
+          <div class="p-5">
+            <h3 class="h3 leading-snug">${esc(s.name)}</h3>
+            <div class="flex items-center gap-2 mt-2.5">
+              ${starRow(s.rating_avg)}
+              <span class="text-xs text-muted num">${Number(s.rating_avg).toFixed(1)} · ${s.rating_count} รีวิว</span>
+            </div>
+            <div class="flex items-center gap-3 mt-3 pt-3 text-xs text-muted flex-wrap"
+                 style="border-top:1px solid var(--border)">
+              <span class="flex items-center gap-1.5">${icon("mapPin", 13)} ${esc(s.district || "—")}</span>
+              <span class="shop-st ${st.cls}">${st.text}</span>
+            </div>
+          </div>
+        </a>`;
+    }
+  </script>
+</body>
+</html>

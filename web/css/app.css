@@ -1,0 +1,2606 @@
+/* ============================================================
+   ฟอนต์หัวข้อ — FC Mittraphap โดย Fontcraft Studio (Jutipong Poosumas)
+   ============================================================
+   สัญญาอนุญาต: ใช้ฟรีสำหรับงานที่ไม่ใช่เชิงพาณิชย์ — โปรเจกต์รายวิชาเข้าข่ายนี้
+   ถ้านำไปใช้เชิงพาณิชย์ต้องสนับสนุน 500 บาท ที่ fontcraftstudio.com/support
+   สำเนาสัญญาอนุญาตอยู่ที่ web/fonts/LICENSE-FCMittraphap.txt
+
+   **ชุดที่แจกฟรีมีน้ำหนักเดียว และเป็น Heavy (850)** ไม่ใช่ Regular
+   จึงใช้เป็น "ฟอนต์หัวข้อ" อย่างเดียว ถ้าเอามาทำเนื้อความทั้งหน้า
+   ตัวอักษรจะหนาเตอะจนอ่านยาก และไม่เหลือลำดับความสำคัญให้เล่น
+
+   เนื้อความใช้ IBM Plex Sans Thai ซึ่งมีน้ำหนักครบ 400–700
+   การจับคู่ "ฟอนต์หัวข้อหนา + ฟอนต์เนื้อความอ่านง่าย" เป็นวิธีมาตรฐานของงานออกแบบ
+
+   ไฟล์เป็น .ttf ไม่ใช่ .woff2 เพราะเครื่องที่แปลงไม่มีตัวบีบอัด brotli
+   ถ้าอยากให้โหลดเร็วขึ้นราว 60% แปลงเป็น woff2 เพิ่มได้ที่ cloudconvert.com
+*/
+@font-face {
+  font-family: 'FC Mittraphap';
+  src: url('../fonts/FCMittraphap-Heavy.ttf') format('truetype');
+  font-weight: 700 900;
+  font-style: normal;
+  /* swap = แสดงฟอนต์สำรองไปก่อนระหว่างรอโหลด อย่าให้ข้อความหายไป */
+  font-display: swap;
+}
+
+/* ============================================================
+   Bookvice — Design System
+   ตัวอักษร : FC Mittraphap (หัวข้อ) + IBM Plex Sans Thai (เนื้อความ)
+   พาเลตต์  : น้ำเงินกรมท่า (navy) เป็นสีหลัก, ฟ้าสด (blue) สำหรับปุ่มและลิงก์
+   ============================================================ */
+
+/* ============================================================
+   รีเซ็ตพื้นฐาน — แทนส่วน Preflight ของ Tailwind
+   ============================================================
+   ตอนที่ยังโหลด Tailwind จาก CDN มันแถม "Preflight" มาให้ด้วย
+   ซึ่งเป็นชุดรีเซ็ตที่ล้างค่าเริ่มต้นของเบราว์เซอร์ทิ้ง เช่น
+   ระยะห่างของ <p> <h1> <ul> จุดนำหน้ารายการ และหน้าตาปุ่มแบบระบบปฏิบัติการ
+
+   ไฟล์ทั้งหมดของโปรเจกต์นี้เขียนโดยตั้งอยู่บนสมมติฐานว่ามีรีเซ็ตชุดนั้นอยู่
+   ถ้าตัด CDN ทิ้งเฉย ๆ โดยไม่ใส่ส่วนนี้กลับมา ทุกหน้าจะเพี้ยนทันที
+   — ย่อหน้าจะมีช่องว่างบนล่างโผล่มาเอง รายการจะมีจุดดำนำหน้า
+   และปุ่มจะกลายเป็นปุ่มเทา ๆ ของ Windows
+
+   หมายเหตุ: ต้องวางไว้ "ก่อน" สไตล์ของคอมโพเนนต์ทั้งหมดในไฟล์นี้
+   เพราะ CSS ตัวที่มาทีหลังชนะเมื่อความจำเพาะเท่ากัน
+   ============================================================ */
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+  border-width: 0;
+  border-style: solid;
+  border-color: var(--border, #dfe8f4);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  tab-size: 4;
+  line-height: 1.5;
+}
+
+body { margin: 0; line-height: inherit; }
+
+hr { height: 0; color: inherit; border-top-width: 1px; }
+
+/* หัวข้อไม่มีขนาด/ความหนา/ระยะห่างของตัวเอง — ให้คลาส .h1 .h2 .h3 เป็นคนกำหนด */
+h1, h2, h3, h4, h5, h6 { font-size: inherit; font-weight: inherit; margin: 0; }
+
+p, figure, blockquote, dl, dd, pre { margin: 0; }
+
+ol, ul, menu { list-style: none; margin: 0; padding: 0; }
+
+a { color: inherit; text-decoration: inherit; }
+
+b, strong { font-weight: bolder; }
+
+code, kbd, samp, pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1em;
+}
+
+small { font-size: 80%; }
+
+sub, sup { font-size: 75%; line-height: 0; position: relative; vertical-align: baseline; }
+sub { bottom: -0.25em; }
+sup { top: -0.5em; }
+
+table { text-indent: 0; border-color: inherit; border-collapse: collapse; }
+
+/* ช่องกรอกและปุ่มต้องใช้ฟอนต์เดียวกับทั้งหน้า ไม่ใช่ฟอนต์ระบบปฏิบัติการ */
+button, input, optgroup, select, textarea {
+  font-family: inherit;
+  font-feature-settings: inherit;
+  font-variation-settings: inherit;
+  font-size: 100%;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  margin: 0;
+  padding: 0;
+}
+
+button, select { text-transform: none; }
+
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: button;
+  background-color: transparent;
+  background-image: none;
+}
+
+:-moz-focusring { outline: auto; }
+:-moz-ui-invalid { box-shadow: none; }
+
+progress { vertical-align: baseline; }
+
+::-webkit-inner-spin-button,
+::-webkit-outer-spin-button { height: auto; }
+
+[type='search'] { -webkit-appearance: textfield; outline-offset: -2px; }
+
+::-webkit-search-decoration { -webkit-appearance: none; }
+::-webkit-file-upload-button { -webkit-appearance: button; font: inherit; }
+
+summary { display: list-item; }
+
+fieldset { margin: 0; padding: 0; }
+legend { padding: 0; }
+
+textarea { resize: vertical; }
+
+/* ข้อความตัวอย่างในช่องกรอกต้องจางกว่าข้อความจริง ไม่งั้นแยกไม่ออกว่ากรอกแล้วหรือยัง */
+input::placeholder,
+textarea::placeholder { opacity: 1; color: var(--faint, #96a2b4); }
+
+[role="button"], button { cursor: pointer; }
+
+:disabled { cursor: default; }
+
+/* รูปและสื่อเป็นบล็อก กันช่องว่างใต้รูปที่เกิดจากการจัดแบบ inline */
+img, svg, video, canvas, audio, iframe, embed, object { display: block; vertical-align: middle; }
+
+img, video { max-width: 100%; height: auto; }
+
+[hidden] { display: none; }
+
+
+:root {
+  --navy-900: #0c2242;
+  --navy-800: #0f294b;
+  --navy-700: #163461;
+  --navy-100: #dbe7f7;
+  --navy-50:  #eef4fd;
+
+  --blue-600: #1a63d8;
+  --blue-700: #1552b8;
+  --blue-100: #cfe0fb;
+  --blue-50:  #e8f1ff;
+
+  --ink:      #0f1b2d;
+  --ink-soft: #384658;
+  --muted:    #66748a;
+  --faint:    #96a2b4;
+
+  --bg:      #eef7ff;
+  --surface: #ffffff;
+  --border:  #dfe8f4;
+  --border-strong: #c6d5e8;
+
+  --danger:    #b3352f;
+  --danger-bg: #fdf2f1;
+  --success:   #1d7a52;
+  --success-bg:#eef8f3;
+  --warn:      #8a6216;
+  --warn-bg:   #fdf8ee;
+  --gold:      #e0a52b;
+
+  /* ---- สีจากโลโก้ Bookvice ----
+     ส้มปะการังกับเขียวมิ้นต์เป็นสีเสริม ใช้เฉพาะจุดที่ต้องการเน้น
+     สีหลักของหน้าเว็บยังเป็นน้ำเงินกรมท่า ซึ่งตรงกับสีเข้มในโลโก้อยู่แล้ว */
+  --coral-400: #f49b7e;
+  --coral-500: #e8785a;
+  --teal-400:  #33c4b4;
+  --teal-500:  #22a898;
+
+  --r-sm: 4px;
+  --r:    8px;
+  --r-lg: 12px;
+
+  /* เงาซ้อนสองชั้น — ชั้นบางติดขอบให้รูปทรงคม ชั้นกว้างให้ความลึก
+     เงาชั้นเดียวจะดูฟุ้งเหมือนเรืองแสง ซึ่งเป็นสิ่งที่ทำให้งานดูไม่เนี้ยบ */
+  --shadow-sm: 0 1px 1px rgba(12, 34, 66, .04), 0 1px 3px rgba(12, 34, 66, .05);
+  --shadow:    0 1px 2px rgba(12, 34, 66, .05), 0 8px 24px -6px rgba(12, 34, 66, .12);
+  --shadow-lg: 0 2px 4px rgba(12, 34, 66, .05), 0 24px 56px -12px rgba(12, 34, 66, .20);
+
+  /* จังหวะการเคลื่อนไหว — ใช้ชุดเดียวกันทั้งเว็บ
+     งานที่ดูเป็นมืออาชีพมักไม่ได้มีแอนิเมชันเยอะ แต่ทุกอันใช้จังหวะเดียวกัน
+     ถ้าแต่ละที่ใช้ความเร็วต่างกัน สายตาจะจับได้ว่ามันไม่เข้าชุด */
+  --ease:     cubic-bezier(.22, .61, .36, 1);   /* ออกตัวเร็ว จบนุ่ม */
+  --ease-out: cubic-bezier(.16, 1, .3, 1);      /* สำหรับของที่ปรากฏขึ้นมา */
+  --t-fast:   .14s;
+  --t:        .22s;
+  --t-slow:   .38s;
+
+  /* จังหวะช่องว่างระหว่างส่วน — ไล่ตามลำดับ ไม่ใช่ค่าเดียวซ้ำทุกที่ */
+  --gap-section: 72px;
+
+  --ring: 0 0 0 3px var(--blue-100);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+body {
+  margin: 0;
+  /* IBM Plex Sans Thai ครอบคลุมทั้งไทยและละตินในตระกูลเดียว
+     จึงไม่ต้องจับคู่สองฟอนต์ให้ความสูงตัวอักษรไม่ตรงกัน
+     ออกแบบส่วนอักษรไทยโดย Cadson Demak — สัดส่วนไทยกับอังกฤษเข้ากันจริง */
+  font-family: 'IBM Plex Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  font-size: 15px;
+  line-height: 1.7;
+  font-feature-settings: 'kern' 1, 'liga' 1;
+}
+
+/* ---------- ลำดับหัวเรื่อง ----------
+   ระยะห่างระหว่างขนาดต้องมากพอให้ตาแยกออกทันทีว่าอันไหนสำคัญกว่า
+   ของเดิม h1 กับ h2 ต่างกันแค่ 0.67rem ซึ่งใกล้เกินไปจนดูเป็นระนาบเดียวกันหมด */
+/* ฟอนต์หัวข้อใช้ FC Mittraphap — หนักอยู่แล้วในตัว จึงตั้ง 700 ไม่ต้องดันไปมากกว่านี้
+   ตัว f ใน `font-family` ต้องมี IBM Plex ต่อท้ายเสมอ เผื่อไฟล์ฟอนต์โหลดไม่ได้ */
+.h1, .h2, .h3, .hero-title, .section-head h2 {
+  font-family: 'FC Mittraphap', 'IBM Plex Sans Thai', sans-serif;
+  font-weight: 700;
+}
+.h1, .h2, .h3 { margin: 0; color: var(--ink); }
+.h1 { font-size: clamp(1.7rem, 2.8vw, 2.15rem); line-height: 1.3;  letter-spacing: -.008em; }
+.h2 { font-size: clamp(1.3rem, 1.8vw, 1.5rem);  line-height: 1.36; letter-spacing: -.010em; }
+.h3 { font-size: 1.02rem; line-height: 1.5;  letter-spacing: -.008em; }
+
+
+.text-muted { color: var(--muted); }
+.text-ink-soft { color: var(--ink-soft); }
+
+/* ตัวเลขเรียงตรงหลัก อ่านราคาง่าย */
+.num { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.see-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--blue-600);
+  text-decoration: none;
+}
+.see-all:hover { color: var(--blue-700); }
+
+/* ---------- ปุ่ม ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease),
+              border-color var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease),
+              box-shadow var(--t-fast) var(--ease),
+              transform var(--t-fast) var(--ease);
+  text-decoration: none;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.btn:focus-visible { outline: none; box-shadow: var(--ring); }
+/* ยุบลงตอนกด — การตอบสนองทันทีทำให้รู้สึกว่าเว็บไว แม้เซิร์ฟเวอร์จะยังไม่ตอบ */
+.btn:active:not(:disabled) { transform: scale(.975); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.btn-primary { background: var(--blue-600); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--blue-700); }
+
+.btn-navy { background: var(--navy-800); color: #fff; }
+.btn-navy:hover:not(:disabled) { background: var(--navy-900); }
+
+.btn-outline { background: var(--surface); color: var(--ink); border-color: var(--border-strong); }
+.btn-outline:hover:not(:disabled) { background: var(--blue-50); border-color: var(--blue-600); color: var(--blue-700); }
+
+.btn-ghost { background: transparent; color: var(--ink-soft); }
+.btn-ghost:hover:not(:disabled) { background: rgba(15,41,75,.06); }
+
+.btn-danger { background: var(--surface); color: var(--danger); border-color: #edcecb; }
+.btn-danger:hover:not(:disabled) { background: var(--danger-bg); }
+
+.btn-sm { padding: 7px 15px; font-size: 13px; }
+.btn-block { width: 100%; }
+
+/* ---------- ฟอร์ม ---------- */
+.label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+
+.input, .select, .textarea {
+  width: 100%;
+  padding: 10px 13px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  font-family: inherit;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--surface);
+  outline: none;
+  transition: border-color .16s, box-shadow .16s;
+}
+.input::placeholder, .textarea::placeholder { color: var(--faint); }
+.input:focus, .select:focus, .textarea:focus {
+  border-color: var(--blue-600);
+  box-shadow: var(--ring);
+}
+.input:disabled, .select:disabled { background: #f5f7fa; color: var(--muted); }
+.textarea { resize: vertical; }
+.hint { font-size: 12.5px; line-height: 1.55; color: var(--muted); margin: 6px 0 0; }
+
+/* ---------- การ์ด ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.card-pad { padding: 24px; }
+
+.card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow var(--t) var(--ease),
+              transform var(--t) var(--ease),
+              border-color var(--t) var(--ease);
+}
+/* ยกขึ้น 3px พร้อมเงาที่ลึกขึ้น — มากกว่านี้จะดูเด้งเหมือนของเล่น
+   น้อยกว่านี้จะไม่รู้สึกว่ากดได้ */
+.card-link:hover { box-shadow: var(--shadow); transform: translateY(-3px); border-color: var(--border-strong); }
+/* กดค้างแล้วยุบลงเล็กน้อย ให้รู้สึกว่าปุ่มรับแรงกดจริง */
+.card-link:active { transform: translateY(-1px); transition-duration: var(--t-fast); }
+.card-link:focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* ---------- ป้าย ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.badge-pending   { background: var(--warn-bg);    color: var(--warn);     border-color: #ecdcb8; }
+.badge-confirmed { background: var(--blue-50);    color: var(--blue-700); border-color: var(--blue-100); }
+.badge-completed { background: var(--success-bg); color: var(--success);  border-color: #c9e6d8; }
+.badge-cancelled { background: #f1f3f6;           color: var(--muted);    border-color: var(--border); }
+.badge-verified  { background: var(--blue-50);    color: var(--blue-700); border-color: var(--blue-100); }
+.badge-neutral   { background: #f1f4f8;           color: var(--ink-soft); border-color: var(--border); }
+
+/* ---------- แจ้งเตือน ---------- */
+.alert {
+  padding: 12px 15px;
+  border-radius: var(--r);
+  font-size: 14px;
+  line-height: 1.6;
+  border: 1px solid transparent;
+  white-space: pre-line;
+}
+.alert-error   { background: var(--danger-bg);  color: var(--danger);   border-color: #eed3d1; }
+.alert-success { background: var(--success-bg); color: var(--success);  border-color: #c9e6d8; }
+.alert-info    { background: var(--blue-50);    color: var(--blue-700); border-color: var(--blue-100); }
+
+/* ---------- แถบเมนู ---------- */
+.nav-link {
+  padding: 8px 13px;
+  border-radius: var(--r);
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255,255,255,.8);
+  text-decoration: none;
+  transition: color .15s, background-color .15s;
+}
+.nav-link:hover { color: #fff; background: rgba(255,255,255,.09); }
+.nav-link.is-active { color: #fff; background: rgba(255,255,255,.14); }
+
+/* ---------- ดาวคะแนน ---------- */
+.stars { display: inline-flex; gap: 1px; color: var(--gold); line-height: 0; }
+.star-empty { color: var(--border-strong); }
+
+/* ---------- ภาพแทนร้าน ---------- */
+.thumb {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #8ea9d1 0%, #b4c7e4 46%, #ccdaed 100%);
+  color: rgba(255,255,255,.94);
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-shadow: 0 1px 2px rgba(15,41,75,.18);
+}
+
+/* ---------- สปินเนอร์ + โครงโหลด ---------- */
+.spinner {
+  width: 26px; height: 26px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--blue-600);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.skeleton {
+  background: linear-gradient(90deg, #e8eef7 25%, #f2f6fb 37%, #e8eef7 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.3s ease-in-out infinite;
+  border-radius: var(--r-sm);
+}
+@keyframes shimmer { 0% { background-position: 100% 0 } 100% { background-position: 0 0 } }
+
+/* ---------- ส่วนหัวหน้าแรก ---------- */
+.hero {
+  position: relative;
+  background:
+    radial-gradient(1100px 420px at 88% 18%, rgba(53,110,196,.55) 0%, rgba(15,41,75,0) 62%),
+    linear-gradient(180deg, var(--navy-800) 0%, var(--navy-900) 100%);
+}
+
+.search-card {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 14px;
+}
+.search-grid { display: grid; gap: 10px; grid-template-columns: 1fr; }
+@media (min-width: 860px) {
+  .search-grid { grid-template-columns: 1.4fr 1fr 1fr auto; align-items: end; }
+}
+.search-field .label { font-size: 12px; margin-bottom: 4px; }
+.search-field .input,
+.search-field .select { border-color: transparent; background: #f5f8fc; }
+.search-field .input:focus,
+.search-field .select:focus { border-color: var(--blue-600); background: #fff; }
+
+/* ---------- โปรโมชั่น ---------- */
+
+/* ---------- ตาราง ---------- */
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table td { padding: 13px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.table tr:last-child td { border-bottom: 0; }
+.table tbody tr:hover { background: #f8fbff; }
+
+/* ---------- แท็บ ---------- */
+.tabbar { display: flex; gap: 2px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.tab {
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s;
+}
+.tab:hover { color: var(--ink); }
+.tab.is-active { color: var(--blue-700); border-bottom-color: var(--blue-600); font-weight: 600; }
+
+/* ---------- อื่น ๆ ---------- */
+.clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(12,34,66,.5);
+  backdrop-filter: blur(2px);
+  z-index: 50;
+  display: none; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.modal-backdrop.is-open { display: flex; animation: fadeIn .18s ease; }
+.modal-backdrop.is-open .modal { animation: modalIn .24s cubic-bezier(.2,.7,.3,1); }
+@keyframes fadeIn  { from { opacity: 0 } }
+@keyframes modalIn { from { opacity: 0; transform: translateY(10px) scale(.985) } }
+.modal {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%; max-width: 460px; max-height: 90vh;
+  overflow-y: auto;
+}
+
+.star-pick { display: flex; gap: 4px; }
+.star-pick button {
+  background: none; border: 0; padding: 2px; cursor: pointer;
+  color: var(--border-strong); transition: color .12s; line-height: 0;
+}
+.star-pick button svg { width: 26px; height: 26px; }
+.star-pick button.on { color: var(--gold); }
+
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: var(--r-sm);
+}
+
+/* ============================================================
+   ระบบจองแบบเลือกช่วงเวลา (คล้ายเลือกที่นั่งโรงหนัง)
+   ============================================================ */
+
+/* แถบเลือกวัน */
+.date-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.date-strip::-webkit-scrollbar { height: 6px; }
+.date-strip::-webkit-scrollbar-track { background: transparent; }
+.date-strip::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
+.date-strip::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+.date-chip {
+  flex: 0 0 auto;
+  min-width: 64px;
+  padding: 9px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  text-align: center;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color .15s, background-color .15s, color .15s;
+}
+.date-chip:hover { border-color: var(--blue-600); }
+.date-chip .dow { font-size: 11px; color: var(--muted); line-height: 1.4; }
+.date-chip .dnum { font-size: 17px; font-weight: 600; line-height: 1.25; }
+.date-chip .mon { font-size: 10.5px; color: var(--muted); line-height: 1.3; }
+.date-chip.is-active {
+  background: var(--navy-800);
+  border-color: var(--navy-800);
+  color: #fff;
+}
+.date-chip.is-active .dow,
+.date-chip.is-active .mon { color: rgba(255,255,255,.72); }
+
+/* จำนวนคิวว่างที่แสดงใต้ตัวเลขวันที่ */
+.date-chip .dfree {
+  font-size: 10.5px;
+  line-height: 1.5;
+  margin-top: 2px;
+  color: var(--success);
+  font-weight: 600;
+}
+.date-chip.is-active .dfree { color: rgba(255,255,255,.9); }
+.date-chip.is-full {
+  background: #f4f6f9;
+  border-color: var(--border);
+  cursor: not-allowed;
+}
+.date-chip.is-full .dow,
+.date-chip.is-full .dnum,
+.date-chip.is-full .mon { color: var(--faint); }
+.date-chip.is-full .dfree { color: var(--faint); font-weight: 500; }
+.date-chip:disabled:hover { border-color: var(--border); }
+
+/* ---------- ขั้นตอนการจอง 1-2-3 ---------- */
+.booker {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+.bk-step { display: block; padding: 20px 22px; border-top: 1px solid var(--border); }
+.bk-step:first-child { border-top: 0; }
+
+.bk-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+.bk-num {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--navy-800);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+.bk-note { margin-left: auto; font-size: 12.5px; font-weight: 400; color: var(--muted); }
+
+/* เลือกบริการ */
+.svc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.svc {
+  position: relative;
+  text-align: left;
+  padding: 13px 15px 13px 40px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color .15s, background-color .15s, box-shadow .15s;
+}
+.svc:hover { border-color: var(--blue-600); }
+.svc-check {
+  position: absolute;
+  left: 14px;
+  top: 15px;
+  width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: transparent;
+  transition: background-color .15s, border-color .15s, color .15s;
+}
+.svc.is-active { border-color: var(--blue-600); background: var(--blue-50); box-shadow: inset 0 0 0 1px var(--blue-600); }
+.svc.is-active .svc-check { background: var(--blue-600); border-color: var(--blue-600); color: #fff; }
+.svc-name { display: block; font-size: 14.5px; font-weight: 600; line-height: 1.45; }
+.svc-meta { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+
+/* เลือกช่างแบบย่อ อยู่มุมขวาของหัวข้อขั้นที่ 3 */
+.staff-pick {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 400;
+}
+.select-inline {
+  width: auto;
+  padding: 5px 9px;
+  font-size: 13px;
+  border-radius: var(--r-sm);
+}
+
+/* ตารางช่องเวลา */
+.slot-group + .slot-group { margin-top: 16px; }
+.slot-group-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: 7px;
+}
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+}
+.slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 7px 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color .14s, background-color .14s, color .14s;
+}
+.slot-end { font-size: 10.5px; font-weight: 500; color: var(--muted); line-height: 1.4; }
+.slot-end::before { content: "ถึง "; }
+.slot:hover:not(:disabled) { border-color: var(--blue-600); background: var(--blue-50); }
+.slot:hover:not(:disabled) .slot-end { color: var(--blue-700); }
+.slot.is-selected {
+  background: var(--blue-600);
+  border-color: var(--blue-600);
+  color: #fff;
+}
+.slot:disabled {
+  background: #f4f6f9;
+  border-color: var(--border);
+  color: var(--faint);
+  cursor: not-allowed;
+}
+.slot:disabled .slot-end { color: var(--faint); }
+
+.slot-empty {
+  text-align: center;
+  padding: 26px 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r);
+  background: var(--navy-50);
+}
+
+/* ---------- กล่องสรุปในหน้ายืนยัน ---------- */
+.confirm-box {
+  background: var(--navy-50);
+  border: 1px solid var(--navy-100);
+  border-radius: var(--r);
+  padding: 14px 16px;
+}
+.confirm-lines { display: grid; gap: 7px; font-size: 14px; font-weight: 500; color: var(--navy-800); }
+.confirm-lines > div { display: flex; align-items: center; gap: 9px; }
+.confirm-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--navy-100);
+  font-size: 15px;
+}
+
+/* ช่องกรอกเพิ่มเติมที่พับเก็บไว้ */
+.more-fields { margin-top: 12px; }
+.more-fields > summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--blue-600);
+  list-style: none;
+  user-select: none;
+}
+.more-fields > summary::-webkit-details-marker { display: none; }
+.more-fields > summary::before { content: "+ "; font-weight: 600; }
+.more-fields[open] > summary::before { content: "− "; }
+
+/* คำอธิบายสัญลักษณ์ */
+
+/* การ์ดเลือกช่าง */
+.staff-avatar {
+  width: 34px; height: 34px;
+  border-radius: 999px;
+  display: grid; place-items: center;
+  background: var(--navy-50);
+  color: var(--navy-800);
+  font-weight: 600;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+/* ขั้นตอนการจอง */
+
+/* ============================================================
+   ลูกเล่นภาพและการเคลื่อนไหว
+   ============================================================ */
+
+/* ---------- ส่วนหัวแบบมีมิติ ---------- */
+.hero { position: relative; overflow: hidden; }
+
+/* แสงเดียวจากมุมบนขวา — เดิมมีสองวงจากคนละมุมทำให้ทิศทางแสงขัดกันเอง
+   ธรรมชาติมีดวงอาทิตย์ดวงเดียว งานที่ดูแพงจึงมักมีแหล่งแสงเดียว */
+.hero::before {
+  content: "";
+  position: absolute;
+  width: 720px; height: 520px;
+  right: -140px; top: -220px;
+  border-radius: 50%;
+  filter: blur(90px);
+  background: radial-gradient(circle, rgba(58,120,220,.42), transparent 66%);
+  pointer-events: none;
+}
+
+/* เส้นตารางจาง ๆ ให้พื้นหลังไม่ตัน */
+.hero-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 54px 54px;
+  mask-image: radial-gradient(ellipse 74% 58% at 62% 30%, #000 20%, transparent 76%);
+  pointer-events: none;
+}
+.hero > * { position: relative; z-index: 1; }
+
+/* ---------- ข้อความในส่วนหัว ---------- */
+
+/* สโลแกนแบรนด์ — ใช้เขียวมิ้นต์จากโลโก้ ไม่ใช่สีขาว
+   เพื่อให้แยกออกจากหัวข้อหลักโดยไม่ต้องเพิ่มขนาดหรือน้ำหนัก */
+.hero-slogan {
+  margin: 0 0 14px;
+  color: var(--teal-400);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+
+.hero-title {
+  color: #fff;
+  font-size: clamp(2rem, 4.4vw, 3.05rem);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -.012em;
+  margin: 0;
+  max-width: 20ch;
+  /* ไม่ให้ตัดคำกลางคำภาษาไทย ซึ่งอ่านสะดุดมาก */
+  word-break: keep-all;
+}
+.hero-sub {
+  color: rgba(255,255,255,.68);
+  font-size: 1.02rem;
+  line-height: 1.75;
+  max-width: 46ch;
+  margin: 18px 0 0;
+}
+
+/* บรรทัดสร้างความมั่นใจใต้ช่องค้นหา — ข้อเท็จจริงล้วน ไม่ใช่คำโฆษณา */
+.hero-facts {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex-wrap: wrap;
+  margin-top: 26px;
+  color: rgba(255,255,255,.58);
+  font-size: 13px;
+}
+.hero-facts .f { display: inline-flex; align-items: center; gap: 7px; }
+.hero-facts b { color: rgba(255,255,255,.94); font-weight: 600; }
+.hero-facts .sep { width: 1px; height: 13px; background: rgba(255,255,255,.16); }
+@media (max-width: 640px) { .hero-facts .sep { display: none; } }
+
+/* ---------- ภาพประกอบร้าน ---------- */
+.shop-art { position: relative; overflow: hidden; }
+.shop-art svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.card-link .shop-art svg { transition: transform .5s cubic-bezier(.2,.7,.3,1); }
+.card-link:hover .shop-art svg { transform: scale(1.08); }
+
+/* ---------- รูปถ่ายจริงของร้าน ---------- */
+.shop-art.has-photo { background: var(--navy-800); }
+.shop-art.has-photo img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform .5s cubic-bezier(.2,.7,.3,1);
+}
+.card-link:hover .shop-art.has-photo img { transform: scale(1.06); }
+
+/* ไล่สีเข้มบาง ๆ ที่ขอบล่าง ทำให้ป้ายและตัวหนังสือที่วางทับอ่านออกทุกรูป
+   ไม่ว่าลูกค้าจะอัปโหลดรูปสว่างจ้าหรือมืดมาก */
+.art-shade {
+  position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(180deg, rgba(9,20,38,.16) 0%, rgba(9,20,38,0) 42%, rgba(9,20,38,.30) 100%);
+  pointer-events: none;
+}
+
+/* รูปโหลดไม่ขึ้น (ไฟล์หาย/เน็ตพัง) — ซ่อนรูปเสียแล้วโชว์พื้นสีแทนกรอบว่าง */
+.shop-art.img-failed img { display: none; }
+.shop-art.img-failed::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(135deg, var(--navy-700), var(--navy-900));
+}
+
+/* ป้ายมุมภาพ */
+.art-tag {
+  position: absolute; left: 10px; top: 10px; z-index: 2;
+  background: rgba(255,255,255,.92);
+  color: var(--navy-800);
+  font-size: 11px; font-weight: 600;
+  padding: 3px 9px; border-radius: 999px;
+  backdrop-filter: blur(4px);
+}
+
+/* ---------- เผยตอนเลื่อนถึง ---------- */
+.reveal { opacity: 0; transform: translateY(14px); }
+.reveal.is-in {
+  opacity: 1; transform: none;
+  transition: opacity .55s ease, transform .55s cubic-bezier(.2,.7,.3,1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal.is-in { opacity: 1; transform: none; transition: none; }
+  .card-link:hover { transform: none; }
+}
+
+/* ---------- คำถามที่พบบ่อย ---------- */
+.faq { border-bottom: 1px solid var(--border); }
+.faq:last-child { border-bottom: 0; }
+.faq-q {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 17px 4px;
+  background: none; border: 0; cursor: pointer;
+  font-family: inherit; font-size: 15px; font-weight: 500;
+  color: var(--ink); text-align: left;
+}
+.faq-q:hover { color: var(--blue-700); }
+.faq-q .chev { color: var(--muted); transition: transform .22s; flex-shrink: 0; }
+.faq.is-open .faq-q .chev { transform: rotate(90deg); color: var(--blue-600); }
+.faq-a {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows .26s ease;
+}
+.faq.is-open .faq-a { grid-template-rows: 1fr; }
+.faq-a > div { overflow: hidden; }
+.faq-a p { margin: 0 0 17px; font-size: 14px; color: var(--muted); line-height: 1.75; }
+
+/* ---------- รีวิวเด่น ---------- */
+
+/* ---------- แถบชิปบริการยอดนิยม ---------- */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.22);
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.88);
+  font-size: 13px; font-weight: 500;
+  text-decoration: none;
+  transition: background-color .15s, border-color .15s;
+}
+.chip:hover { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.4); color: #fff; }
+
+/* ---------- แถบสถิติแนวนอน ---------- */
+
+/* ============================================================
+   ตารางจองคิวบนหน้าร้าน
+   ============================================================ */
+
+/* แถบเครื่องมือด้านบนตาราง (วันที่ + ช่าง) ติดหนึบตอนเลื่อน */
+
+/* ชิปเลือกช่าง */
+
+/* แถวบริการในตาราง */
+
+/* จำนวนคิวว่างที่เหลือ */
+
+/* ตารางช่องเวลาแบบเรียงชิด */
+
+/* ปุ่มดูช่วงเวลาเพิ่ม */
+
+/* ปุ่มไอคอนกลม (โทร แผนที่ แชร์ บันทึก) */
+.icon-btn {
+  width: 38px; height: 38px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--ink-soft);
+  display: grid; place-items: center;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background-color .15s;
+}
+.icon-btn:hover { border-color: var(--blue-600); color: var(--blue-600); background: var(--blue-50); }
+.icon-btn.is-on { background: var(--blue-600); border-color: var(--blue-600); color: #fff; }
+
+/* ============================================================
+   การเคลื่อนไหว — เน้นน้อยแต่ให้รู้สึกว่าเว็บตอบสนอง
+   ทุกอย่างสั้นกว่า .3 วินาที และปิดทั้งหมดถ้าผู้ใช้ตั้งค่าลดการเคลื่อนไหว
+   ============================================================ */
+
+/* กดแล้วยุบลงนิดเดียว ให้รู้ว่าคลิกติดแล้ว */
+.btn:active:not(:disabled),
+.slot:active:not(:disabled),
+.date-chip:active:not(:disabled),
+.svc:active,
+.icon-btn:active,
+.tab:active {
+  transform: scale(.97);
+  transition: transform .06s;
+}
+.card-link:active { transform: translateY(-1px) scale(.995); }
+
+/* เนื้อหาที่เพิ่งโหลดเสร็จ ค่อย ๆ ลอยขึ้นมาแทนการกระโดดโผล่ */
+@keyframes riseIn { from { opacity: 0; transform: translateY(8px) } }
+.slot-group { animation: riseIn .28s cubic-bezier(.2,.7,.3,1) both; }
+.slot-group:nth-child(2) { animation-delay: .04s; }
+.slot-group:nth-child(3) { animation-delay: .08s; }
+.slot-group:nth-child(4) { animation-delay: .12s; }
+
+/* แถบวันที่เลื่อนตามนิ้วแบบลื่น ๆ */
+.date-strip { scroll-behavior: smooth; }
+.date-chip { transition: border-color .15s, background-color .15s, color .15s, transform .12s; }
+.date-chip:hover:not(:disabled) { transform: translateY(-2px); }
+
+/* ปุ่มเวลาลอยขึ้นนิดเดียวตอนชี้ */
+.slot { transition: border-color .14s, background-color .14s, color .14s, transform .12s; }
+.slot:hover:not(:disabled) { transform: translateY(-2px); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .btn:active, .slot:active, .date-chip:active, .svc:active,
+  .icon-btn:active, .card-link:active { transform: none; }
+}
+
+/* ============================================================
+   โปรไฟล์ช่าง และระบบรีวิวแบบละเอียด
+   ============================================================ */
+
+/* ป้ายคะแนนเล็ก ๆ ข้างชื่อช่าง */
+.rate-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--warn-bg);
+  border: 1px solid #ecdcb8;
+  color: var(--warn);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.rate-chip.is-new { background: #f1f4f8; border-color: var(--border); color: var(--muted); font-weight: 500; }
+
+
+/* ---------- แถบสรุปคะแนนรีวิว ---------- */
+.rv-top { display: grid; grid-template-columns: 128px 1fr; gap: 22px; align-items: center; }
+@media (max-width: 520px) { .rv-top { grid-template-columns: 1fr; gap: 14px; } }
+
+.rv-score { text-align: center; }
+.rv-big {
+  font-size: 2.6rem;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -.03em;
+  color: var(--navy-800);
+}
+
+.rv-dist { display: grid; gap: 5px; }
+.dist-row { display: flex; align-items: center; gap: 7px; color: var(--gold); }
+.dist-label { font-size: 12px; color: var(--ink-soft); width: 8px; text-align: right; }
+.dist-track {
+  flex: 1;
+  height: 7px;
+  border-radius: 999px;
+  background: #eef1f6;
+  overflow: hidden;
+}
+.dist-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--gold);
+  transition: width .5s cubic-bezier(.2,.7,.3,1);
+}
+.dist-num { font-size: 12px; color: var(--muted); width: 24px; text-align: right; }
+
+/* คะแนนย่อยแยกหัวข้อ */
+.aspect-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.aspect { text-align: center; }
+.aspect-val { font-size: 1.15rem; font-weight: 600; color: var(--navy-800); line-height: 1.3; }
+.aspect-label { font-size: 11.5px; color: var(--muted); }
+
+/* ตัวกรองรีวิว */
+.rv-filters { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
+.rv-pick { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+
+/* ป้ายคะแนนย่อยในแต่ละรีวิว */
+.chip-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.mini-chip {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--navy-50);
+  border: 1px solid var(--navy-100);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.mini-chip b { color: var(--navy-800); }
+
+/* คำตอบกลับจากร้าน */
+.rv-reply {
+  margin-top: 12px;
+  padding: 11px 14px;
+  border-left: 3px solid var(--blue-600);
+  border-radius: 0 var(--r) var(--r) 0;
+  background: var(--blue-50);
+}
+.rv-reply-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--blue-700);
+  margin-bottom: 3px;
+}
+.rv-reply p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--ink-soft); }
+
+/* รีวิวย่อในโปรไฟล์ช่าง */
+.mini-review { padding: 11px 0; border-top: 1px solid var(--border); }
+.mini-review:first-of-type { border-top: 0; padding-top: 6px; }
+
+/* แถวให้ดาวในฟอร์มรีวิว */
+.rate-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+}
+.rate-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+.rate-sub { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.star-clear {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  padding: 0 0 0 6px;
+}
+.star-clear:hover { color: var(--danger); }
+
+/* ปุ่มเลือกวันทำงานของช่าง (หน้าจัดการร้าน) */
+.day-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+.day-btn {
+  width: 42px;
+  padding: 8px 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: border-color .14s, background-color .14s, color .14s;
+}
+.day-btn:hover { border-color: var(--blue-600); }
+.day-btn.is-on {
+  background: var(--navy-800);
+  border-color: var(--navy-800);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ============================================================
+   การ์ดช่าง — เน้นให้เห็นชัดว่ากำลังเลือกใครอยู่
+   ============================================================ */
+.staff-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.staff-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  transition: border-color .18s, box-shadow .18s, transform .18s, background-color .18s;
+}
+.staff-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow); transform: translateY(-2px); }
+
+/* สถานะ "เลือกอยู่" — ขอบฟ้าหนา พื้นฟ้าจาง และมีป้ายมุมบน */
+.staff-card.is-picked {
+  border-color: var(--blue-600);
+  background: var(--blue-50);
+  box-shadow: inset 0 0 0 1px var(--blue-600), 0 6px 20px rgba(26,99,216,.12);
+}
+.picked-tag {
+  position: absolute;
+  top: -10px;
+  left: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 11px;
+  border-radius: 999px;
+  background: var(--blue-600);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  box-shadow: 0 2px 8px rgba(26,99,216,.35);
+  animation: tagPop .26s cubic-bezier(.3,1.4,.5,1);
+}
+@keyframes tagPop { from { opacity: 0; transform: translateY(4px) scale(.9) } }
+
+/* รูปแทนตัวช่าง */
+.av-lg, .av-sm {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 600;
+  line-height: 1;
+}
+.av-lg { width: 46px; height: 46px; font-size: 18px; }
+.av-sm { width: 24px; height: 24px; font-size: 11px; }
+
+.av-check {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--blue-600);
+  color: #fff;
+  border: 2px solid var(--surface);
+}
+.staff-card.is-picked .av-check { border-color: var(--blue-50); }
+
+/* แถบวันทำงาน 7 ช่อง */
+.week-dots { display: flex; gap: 3px; }
+.wd {
+  width: 21px;
+  height: 21px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  background: #f1f4f8;
+  color: var(--faint);
+  font-size: 10px;
+  font-weight: 500;
+}
+.wd.is-on { background: var(--navy-100); color: var(--navy-800); font-weight: 600; }
+.staff-card.is-picked .wd { background: #fff; }
+.staff-card.is-picked .wd.is-on { background: var(--blue-600); color: #fff; }
+
+.staff-sched {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid var(--border);
+}
+.staff-card.is-picked .staff-sched { border-top-color: var(--blue-100); }
+
+.staff-actions { display: flex; gap: 8px; margin-top: 14px; }
+.staff-actions .btn:first-child { flex: 1; }
+
+/* แถบบอกว่ากำลังดูคิวของใคร (อยู่ในขั้นที่ 3) */
+.picked-bar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  padding: 8px 8px 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 999px;
+  background: var(--blue-50);
+  border: 1px solid var(--blue-100);
+  font-size: 13px;
+  color: var(--ink-soft);
+  animation: tagPop .24s cubic-bezier(.3,1.4,.5,1);
+}
+.picked-bar b { color: var(--navy-800); }
+.picked-bar .btn { margin-left: auto; }
+
+/* ============================================================
+   ร้านโปรด และป้ายบอกสถานะเปิด-ปิดร้าน
+   ============================================================ */
+.shop-cell { position: relative; }
+
+/* ปุ่มหัวใจลอยอยู่มุมบนขวาของการ์ดร้าน กดได้โดยไม่ต้องเข้าหน้าร้าน */
+.fav-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255,255,255,.92);
+  color: var(--muted);
+  cursor: pointer;
+  backdrop-filter: blur(3px);
+  box-shadow: 0 2px 8px rgba(15,41,75,.18);
+  transition: color .16s, transform .12s, background-color .16s;
+}
+.fav-btn:hover { color: #d2405e; transform: scale(1.08); }
+.fav-btn:active { transform: scale(.92); }
+.fav-btn.is-on { color: #d2405e; }
+.fav-btn.is-on svg { fill: currentColor; }
+
+/* ปุ่มหัวใจในหน้าร้าน (icon-btn) ตอนบันทึกแล้ว */
+.icon-btn.is-on svg { fill: currentColor; }
+
+/* ป้ายสถานะร้าน */
+.shop-st {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.6;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.shop-st::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+}
+.st-open   { background: var(--success-bg); color: var(--success); border-color: #c9e6d8; }
+.st-soon   { background: var(--warn-bg);    color: var(--warn);    border-color: #ecdcb8; }
+.st-closed { background: #f1f3f6;           color: var(--muted);   border-color: var(--border); }
+
+/* ============================================================
+   ความลื่นไหล — แจ้งเตือนลอย โครงร่างระหว่างโหลด และล็อกการเลื่อน
+   ============================================================ */
+
+/* แจ้งเตือนลอยมุมล่าง ไม่ดันเนื้อหาให้กระโดด */
+.toast-box {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  max-width: 90vw;
+  padding: 11px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  background: var(--navy-800);
+  box-shadow: 0 8px 28px rgba(15,41,75,.28);
+  opacity: 0;
+  transform: translateY(14px) scale(.96);
+  transition: opacity .24s, transform .24s cubic-bezier(.2,.8,.3,1);
+}
+.toast.is-in { opacity: 1; transform: none; }
+.toast-success { background: #10603f; }
+.toast-error   { background: #8f2b26; }
+
+/* ล็อกการเลื่อนหน้าหลังตอนเปิดกล่องซ้อน */
+body.no-scroll { overflow: hidden; }
+
+/* โครงร่างการ์ดระหว่างโหลด — วางกริดให้เหมือนของจริง */
+.sk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+/* หน้าเว็บทั้งหน้าเลื่อนแบบนุ่ม ๆ เวลากดลิงก์ในหน้าเดียวกัน */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* ============================================================
+   รายงานยอดขาย และหน้าโปรโมชั่น
+   ============================================================ */
+
+/* กราฟแท่งรายเดือน — วาดด้วย CSS ล้วน ไม่ต้องพึ่งไลบรารีภายนอก */
+.bar-chart {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 10px;
+  align-items: end;
+  height: 190px;
+  margin-top: 20px;
+  padding-top: 22px;
+}
+.bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  min-height: 0;
+}
+.bar {
+  width: 100%;
+  max-width: 46px;
+  min-height: 4px;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, var(--blue-600), var(--navy-800));
+  transition: height .5s cubic-bezier(.2,.7,.3,1);
+}
+.bar-val { font-size: 11px; color: var(--ink-soft); margin-bottom: 5px; white-space: nowrap; }
+.bar-label { font-size: 11.5px; color: var(--muted); margin-top: 7px; }
+
+/* อันดับบริการ/ช่าง */
+.rank-list { margin-top: 14px; }
+.rank-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+  font-size: 13.5px;
+}
+.rank-row:first-child { border-top: 0; }
+.rank-no {
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  background: var(--navy-50);
+  color: var(--navy-800);
+  font-size: 11.5px; font-weight: 600;
+}
+.rank-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-n { font-size: 12px; }
+.rank-sum { font-weight: 600; color: var(--navy-800); }
+
+/* การ์ดดีลในหน้าโปรโมชั่น */
+.deal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: 18px;
+  margin-top: 20px;
+}
+.deal-card { overflow: hidden; }
+.deal-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 18px 20px 14px;
+  background: linear-gradient(135deg, var(--navy-800), var(--blue-600));
+  color: #fff;
+  margin-bottom: 16px;
+}
+.deal-price { font-size: 1.6rem; font-weight: 600; letter-spacing: -.014em; line-height: 1; }
+.deal-per {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.18);
+}
+
+/* ============================================================
+   กระดิ่งแจ้งเตือน และปุ่มลัดคิวว่าง
+   ============================================================ */
+.bell {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255,255,255,.82);
+  cursor: pointer;
+  transition: background-color .15s, color .15s;
+}
+.bell:hover { background: rgba(255,255,255,.12); color: #fff; }
+.bell-dot {
+  position: absolute;
+  top: 3px;
+  right: 2px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #e0453f;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+  border: 2px solid var(--navy-800);
+}
+
+.notif-panel {
+  position: absolute;
+  top: 60px;
+  right: max(20px, calc(50vw - 600px + 20px));
+  width: min(360px, calc(100vw - 32px));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 60;
+  overflow: hidden;
+  animation: modalIn .2s cubic-bezier(.2,.7,.3,1);
+}
+.notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 10px 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 600;
+}
+.notif-list { max-height: 62vh; overflow-y: auto; }
+.notif-empty { padding: 30px 16px; text-align: center; font-size: 13px; color: var(--muted); margin: 0; }
+
+.notif-item {
+  display: flex;
+  gap: 11px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+  transition: background-color .14s;
+}
+.notif-item:last-child { border-bottom: 0; }
+.notif-item:hover { background: var(--navy-50); }
+.notif-item.is-new { background: var(--blue-50); }
+.notif-item.is-new:hover { background: var(--blue-100); }
+
+.notif-ic {
+  width: 30px; height: 30px;
+  flex: 0 0 auto;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  background: var(--navy-50);
+  color: var(--navy-800);
+}
+.notif-item.is-new .notif-ic { background: var(--blue-600); color: #fff; }
+.notif-title { display: block; font-size: 13.5px; font-weight: 600; line-height: 1.5; }
+.notif-body  { display: block; font-size: 12.5px; color: var(--muted); line-height: 1.55; margin-top: 1px; }
+.notif-time  { display: block; font-size: 11px; color: var(--faint); margin-top: 3px; }
+
+/* ปุ่มลัดคิวว่างในหน้าค้นหา */
+.quick-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.quick {
+  padding: 7px 15px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: border-color .15s, background-color .15s, color .15s, transform .1s;
+}
+.quick:hover { border-color: var(--blue-600); }
+.quick:active { transform: scale(.96); }
+.quick.is-active {
+  background: var(--navy-800);
+  border-color: var(--navy-800);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* หน้าเว็บหลักไม่ต้องพิมพ์ — สลิปเปิดหน้าต่างแยกอยู่แล้ว */
+@media print {
+  .bell, .notif-panel, .toast-box, #navbar, #footer { display: none !important; }
+}
+
+/* ============================================================
+   ช่องค้นหาแบบเด่น และแถบเมนูล่างสำหรับมือถือ
+   ============================================================ */
+.search-line { position: relative; }
+.search-ic {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+  line-height: 0;
+}
+.search-input {
+  padding-left: 44px;
+  padding-top: 13px;
+  padding-bottom: 13px;
+  font-size: 15.5px;
+}
+
+/* ---------- แถบเมนูล่าง (เห็นเฉพาะจอเล็ก) ---------- */
+.mnav { display: none; }
+
+@media (max-width: 767px) {
+  .mnav {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 70;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 14px rgba(15,41,75,.07);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .mnav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 9px 2px 8px;
+    text-decoration: none;
+    color: var(--muted);
+    font-size: 10.5px;
+    font-weight: 500;
+    transition: color .15s;
+  }
+  .mnav-item.is-active { color: var(--blue-600); font-weight: 600; }
+  .mnav-item:active { background: var(--navy-50); }
+
+  /* เว้นที่ให้แถบล่างไม่ทับเนื้อหาและปุ่มลอย */
+  body { padding-bottom: 62px; }
+  .toast-box { bottom: 78px; }
+  .notif-panel { right: 12px; left: 12px; width: auto; }
+}
+
+@media print { .mnav { display: none !important; } }
+
+/* บั๊ก: คลาส display ของ Tailwind (เช่น .grid) ชนะกฎซ่อนเนื้อหาของเบราว์เซอร์
+   ทำให้เนื้อหาใน <details> ที่ยังพับอยู่โผล่ออกมาหมด จึงต้องบังคับซ่อนเอง */
+details:not([open]) > *:not(summary) { display: none !important; }
+
+
+/* ตราร้านมุมล่างซ้าย — ดูเป็นงานออกแบบมากกว่าตัวอักษรยักษ์กลางภาพ */
+
+/* ============================================================
+   รายละเอียดปลีกย่อยที่ทำให้เว็บดูเสร็จสมบูรณ์
+   ============================================================ */
+
+/* แถบกระจายดาว: จัดคอลัมน์ให้ตรง และทำแถวที่ไม่มีรีวิวให้จาง */
+.dist-row { transition: opacity .2s; }
+.dist-row.is-zero { opacity: .42; }
+.dist-star { color: var(--gold); line-height: 0; }
+.dist-row.is-zero .dist-star { color: var(--faint); }
+.dist-label { font-variant-numeric: tabular-nums; }
+.dist-num { min-width: 26px; }
+
+/* ---------- ขอบโฟกัสสำหรับคนใช้แป้นพิมพ์ ----------
+   ปุ่มที่เราวาดเองไม่มีขอบโฟกัสมาให้ ถ้าไม่ใส่ คนกด Tab จะไม่รู้ว่าอยู่ตรงไหน */
+.slot:focus-visible,
+.date-chip:focus-visible,
+.quick:focus-visible,
+.svc:focus-visible,
+.icon-btn:focus-visible,
+.fav-btn:focus-visible,
+.day-btn:focus-visible,
+.tab:focus-visible,
+.bell:focus-visible,
+.star-pick button:focus-visible,
+.more-fields > summary:focus-visible,
+.mnav-item:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: var(--r);
+}
+.bell:focus-visible { box-shadow: 0 0 0 3px rgba(255,255,255,.45); }
+
+/* ลิงก์ในเนื้อหาให้เห็นชัดว่าเป็นลิงก์ */
+.notif-item:focus-visible,
+.card-link:focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* ---------- ข้ามไปเนื้อหาหลัก (สำหรับคนใช้แป้นพิมพ์) ---------- */
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 18px;
+  border-radius: var(--r);
+  background: var(--navy-800);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top .18s;
+}
+.skip-link:focus { top: 12px; }
+
+/* ตัวเลือกข้อความให้เป็นสีของแบรนด์ แทนสีฟ้าเริ่มต้นของเบราว์เซอร์ */
+::selection { background: var(--blue-100); color: var(--navy-900); }
+
+/* แถบเลื่อนบาง ๆ ให้เข้ากับดีไซน์ (เฉพาะเบราว์เซอร์ที่รองรับ) */
+@supports (scrollbar-width: thin) {
+  .notif-list, .modal { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+}
+
+/* รูปแทนตัวผู้เขียนรีวิว */
+.rv-avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* การ์ดในกริดสูงเท่ากันทั้งแถว — เดิมสูงไม่เท่ากันเพราะคำอธิบายยาวไม่เท่ากัน */
+.shop-cell { display: flex; }
+.shop-cell > .card-link { display: flex; flex-direction: column; width: 100%; }
+.shop-cell > .card-link > div:last-child { display: flex; flex-direction: column; flex: 1; }
+.shop-cell > .card-link .clamp-2 { flex: 1; }
+
+/* ============================================================
+   ขนาดปุ่มบนอุปกรณ์สัมผัส
+   นิ้วโป้งกดแม่นยำน้อยกว่าเมาส์มาก ปุ่มสูง 31px บนมือถือกดพลาดบ่อย
+   มาตรฐาน Apple/Google แนะนำอย่างน้อย 44px จึงบังคับเฉพาะจอสัมผัส
+   (ใช้ pointer: coarse เพื่อไม่ให้ปุ่มบนคอมพิวเตอร์บวมตามไปด้วย)
+   ============================================================ */
+@media (pointer: coarse) {
+  .btn-sm { min-height: 40px; padding-top: 9px; padding-bottom: 9px; }
+  .btn { min-height: 44px; }
+  .quick { min-height: 40px; }
+  .fav-btn { width: 42px; height: 42px; }
+  .bell { width: 42px; height: 42px; }
+  .icon-btn { width: 42px; height: 42px; }
+  .day-btn { min-height: 42px; }
+  .star-pick button { padding: 4px; }
+  /* ช่องเวลาและชิปวันที่กดง่ายอยู่แล้ว แต่เพิ่มระยะห่างกันกดพลาดข้ามช่อง */
+  .slot-grid { gap: 10px; }
+  .date-strip { gap: 10px; }
+}
+
+/* ============================================================
+   แกลเลอรีรูปร้าน
+   ============================================================ */
+.gallery {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 8px;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+.gallery:has(.gal-main:only-child) { grid-template-columns: 1fr; }
+
+.gal-main, .gal-thumb {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 0;
+  cursor: zoom-in;
+  background: var(--navy-800);
+  overflow: hidden;
+}
+.gal-main { height: 340px; border-radius: var(--r-lg) 0 0 var(--r-lg); }
+.gallery:has(.gal-main:only-child) .gal-main { border-radius: var(--r-lg); }
+
+.gal-main img, .gal-thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform .45s cubic-bezier(.2,.7,.3,1);
+}
+.gal-main:hover img, .gal-thumb:hover img { transform: scale(1.05); }
+
+.gal-side {
+  display: grid;
+  grid-template-rows: repeat(2, 1fr);
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  height: 340px;
+}
+/* มีรูปย่อยแค่รูปเดียวก็ให้กินเต็มช่อง ไม่ต้องเหลือที่ว่าง */
+.gal-side:has(.gal-thumb:only-child) { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.gal-thumb { border-radius: 0; }
+.gal-side .gal-thumb:nth-child(2) { border-top-right-radius: var(--r-lg); }
+.gal-side .gal-thumb:last-child:nth-child(4) { border-bottom-right-radius: var(--r-lg); }
+
+.gal-count {
+  position: absolute; right: 12px; bottom: 12px;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(12,34,66,.78); color: #fff;
+  font-size: 12px; font-weight: 600;
+  padding: 5px 10px; border-radius: 999px;
+  backdrop-filter: blur(4px);
+}
+.gal-more {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(12,34,66,.62);
+  color: #fff; font-size: 19px; font-weight: 700;
+}
+
+@media (max-width: 767px) {
+  .gallery { grid-template-columns: 1fr; }
+  .gal-main { height: 220px; border-radius: var(--r-lg); }
+  .gal-side {
+    height: auto;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: 1fr;
+  }
+  .gal-thumb { height: 72px; border-radius: var(--r-sm) !important; }
+}
+
+/* ---------- กล่องดูรูปเต็มจอ ---------- */
+.lightbox {
+  position: fixed; inset: 0; z-index: 120;
+  display: none;
+  align-items: center; justify-content: center;
+  gap: 8px;
+  background: rgba(8,16,30,.94);
+  padding: 20px;
+}
+.lightbox.is-open { display: flex; animation: fadeIn .18s ease; }
+
+.lb-stage {
+  margin: 0;
+  max-width: min(1100px, 100%);
+  max-height: 100%;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.lb-stage img {
+  max-width: 100%;
+  max-height: calc(100vh - 130px);
+  border-radius: var(--r);
+  object-fit: contain;
+  animation: lbIn .25s cubic-bezier(.2,.7,.3,1);
+}
+@keyframes lbIn { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+
+.lb-cap { color: #cfd9e6; font-size: 13px; text-align: center; }
+
+.lb-close, .lb-nav {
+  display: grid; place-items: center;
+  width: 44px; height: 44px;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  cursor: pointer;
+  transition: background .18s ease, transform .18s ease;
+  flex-shrink: 0;
+}
+.lb-close:hover, .lb-nav:hover { background: rgba(255,255,255,.2); transform: scale(1.06); }
+.lb-close { position: absolute; top: 18px; right: 18px; }
+
+@media (max-width: 640px) {
+  .lb-nav { position: absolute; bottom: 22px; }
+  .lb-prev { left: 22px; }
+  .lb-next { right: 22px; }
+}
+
+/* ============================================================
+   แผนที่
+   ============================================================ */
+.map-box {
+  height: 260px;
+  border-radius: var(--r);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--navy-50);
+  z-index: 0;   /* กันแผนที่ลอยทับกล่องซ้อนและแถบเมนู */
+}
+.leaflet-container { font-family: inherit; }
+.leaflet-control-attribution { font-size: 10px; }
+
+/* ป้ายระยะทางบนการ์ดร้าน */
+.dist-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--blue-50); color: var(--blue-700);
+  font-size: 11.5px; font-weight: 600;
+  padding: 3px 8px; border-radius: 999px;
+}
+
+/* ============================================================
+   จัดการรูปภาพ (หน้าเจ้าของร้าน)
+   ============================================================ */
+.drop-zone {
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--r);
+  padding: 30px 20px;
+  text-align: center;
+  background: var(--navy-50);
+  transition: border-color .18s ease, background .18s ease;
+  cursor: pointer;
+}
+.drop-zone:hover, .drop-zone.is-over {
+  border-color: var(--blue-600);
+  background: var(--blue-50);
+}
+.drop-zone.is-over { transform: scale(1.005); }
+
+.img-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.img-item {
+  position: relative;
+  border-radius: var(--r);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--navy-50);
+  aspect-ratio: 4 / 3;
+}
+.img-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.img-item.is-cover { border-color: var(--blue-600); box-shadow: 0 0 0 2px var(--blue-100); }
+
+.img-actions {
+  position: absolute; inset: auto 0 0 0;
+  display: flex; gap: 6px; justify-content: flex-end;
+  padding: 8px;
+  background: linear-gradient(180deg, rgba(9,20,38,0), rgba(9,20,38,.72));
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+.img-item:hover .img-actions, .img-item:focus-within .img-actions { opacity: 1; }
+/* บนจอสัมผัสไม่มีการชี้เมาส์ ปุ่มต้องแสดงตลอดไม่งั้นกดไม่ได้เลย */
+@media (pointer: coarse) { .img-actions { opacity: 1; } }
+
+.img-btn {
+  display: grid; place-items: center;
+  width: 32px; height: 32px;
+  border-radius: 8px; border: 0;
+  background: rgba(255,255,255,.94);
+  color: var(--navy-800);
+  cursor: pointer;
+  transition: background .16s ease, transform .16s ease;
+}
+.img-btn:hover { transform: translateY(-1px); }
+.img-btn.danger:hover { background: #fde8ea; color: #a8121f; }
+
+.cover-flag {
+  position: absolute; left: 8px; top: 8px;
+  background: var(--blue-600); color: #fff;
+  font-size: 10.5px; font-weight: 600;
+  padding: 3px 8px; border-radius: 999px;
+}
+
+/* แถบความคืบหน้าตอนอัปโหลด */
+.up-bar { height: 5px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.up-bar > span {
+  display: block; height: 100%; width: 0;
+  background: var(--blue-600);
+  transition: width .2s ease;
+}
+
+/* ============================================================
+   ชำระเงิน
+   ============================================================ */
+.pay-methods { display: grid; gap: 10px; }
+.pay-opt {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: border-color .16s ease, background .16s ease;
+}
+.pay-opt:hover { border-color: var(--border-strong); background: var(--navy-50); }
+.pay-opt.is-on { border-color: var(--blue-600); background: var(--blue-50); }
+.pay-opt input { accent-color: var(--blue-600); width: 17px; height: 17px; }
+.pay-opt .t { font-weight: 600; font-size: 14px; }
+.pay-opt .s { font-size: 12px; color: var(--muted); }
+
+/* คิวอาร์จำลอง — วาดด้วย CSS ล้วน ไม่ต้องโหลดไลบรารีเพิ่ม */
+.qr-mock {
+  width: 168px; height: 168px;
+  margin: 0 auto;
+  border-radius: var(--r-sm);
+  background:
+    repeating-linear-gradient(90deg, var(--navy-900) 0 6px, transparent 6px 12px),
+    repeating-linear-gradient(0deg, var(--navy-900) 0 6px, transparent 6px 12px),
+    #fff;
+  border: 6px solid #fff;
+  box-shadow: 0 0 0 1px var(--border);
+  position: relative;
+}
+.qr-mock::after {
+  content: "ตัวอย่าง";
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  background: rgba(255,255,255,.88);
+  color: var(--muted);
+  font-size: 12px; font-weight: 600;
+  letter-spacing: .04em;
+}
+
+.pay-state {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 600;
+  padding: 3px 9px; border-radius: 999px;
+}
+.pay-unpaid { background: #fff4e5; color: #8a5300; }
+.pay-deposit_paid { background: var(--blue-50); color: var(--blue-700); }
+.pay-paid { background: #e6f6ec; color: #1a7340; }
+
+/* ============================================================
+   จังหวะหน้าเว็บ — ปรับให้ดูเป็นงานที่ตั้งใจจัด
+   ============================================================ */
+
+/* ระยะห่างระหว่างส่วนหลัก ใช้ค่าเดียวกันทั้งเว็บ
+   ของเดิมใช้ mt-16 ของ Tailwind ปนกับค่าอื่น ทำให้จังหวะไม่สม่ำเสมอ */
+.sect { margin-top: var(--gap-section); }
+@media (max-width: 767px) { :root { --gap-section: 52px; } }
+
+/* หัวข้อส่วน — เพิ่มน้ำหนักให้ตาจับได้ว่าเริ่มเรื่องใหม่ */
+.section-head { margin-bottom: 22px; }
+.section-head h2 {
+  margin: 0;
+  font-size: clamp(1.3rem, 1.8vw, 1.5rem);
+  font-weight: 600;
+  letter-spacing: -.010em;
+  line-height: 1.36;
+  color: var(--ink);
+}
+.section-head .lede {
+  margin: 7px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 58ch;
+  line-height: 1.65;
+}
+.see-all {
+  transition: color var(--t-fast) var(--ease), gap var(--t-fast) var(--ease);
+}
+/* ลูกศรขยับออกตอนชี้ — บอกทิศทางว่ากดแล้วไปข้างหน้า */
+.see-all:hover { gap: 7px; }
+
+/* ============================================================
+   การ์ดร้าน — จัดลำดับข้อมูลใหม่ให้อ่านได้ใน 1 วินาที
+   ชื่อ → คะแนน → ที่ตั้ง → ราคาเริ่มต้น
+   ============================================================ */
+.shop-card { display: flex; flex-direction: column; height: 100%; }
+.shop-card .body {
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.shop-card h3 {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 600;
+  line-height: 1.42;
+  letter-spacing: -.009em;
+  /* ชื่อร้านยาวไม่เท่ากัน บังคับ 2 บรรทัดเพื่อให้แถวข้อมูลข้างล่างตรงกันทุกใบ */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: calc(15.5px * 1.42 * 2);
+}
+.shop-card .meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 9px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.shop-card .place {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 7px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+/* แถวราคาดันไปติดขอบล่างเสมอ การ์ดจึงจบเท่ากันแม้เนื้อหาสั้นยาวต่างกัน */
+.shop-card .foot {
+  margin-top: auto;
+  padding-top: 13px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.shop-card .from { font-size: 11.5px; color: var(--faint); }
+.shop-card .price {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--navy-800);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.010em;
+}
+
+/* ============================================================
+   หมวดหมู่ — แถวเดียวเรียบ ๆ แทนการ์ดสี่เหลี่ยมใหญ่
+   ============================================================ */
+.cat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.cat-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--t) var(--ease),
+              box-shadow var(--t) var(--ease),
+              transform var(--t) var(--ease);
+}
+.cat-item:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+}
+.cat-item:focus-visible { outline: none; box-shadow: var(--ring); }
+.cat-item .ic {
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  border-radius: var(--r-sm);
+  background: var(--navy-50);
+  color: var(--navy-800);
+  flex-shrink: 0;
+  transition: background var(--t) var(--ease), color var(--t) var(--ease);
+}
+.cat-item:hover .ic { background: var(--blue-600); color: #fff; }
+.cat-item .nm { font-size: 14px; font-weight: 500; }
+
+/* ============================================================
+   คำมั่นสัญญา — เรียงเป็นแถวมีเส้นคั่น ไม่ใช่การ์ดสามใบ
+   การ์ดสามใบเรียงกันคือแพตเทิร์นที่พบในเทมเพลตทุกตัว
+   ============================================================ */
+.pledge {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+.pledge > div { padding: 26px 28px; }
+.pledge > div + div { border-left: 1px solid var(--border); }
+.pledge h3 {
+  margin: 14px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -.008em;
+}
+.pledge p { margin: 7px 0 0; font-size: 13.5px; color: var(--muted); line-height: 1.7; }
+.pledge .ic { color: var(--blue-600); }
+
+@media (max-width: 767px) {
+  .pledge { grid-template-columns: 1fr; }
+  .pledge > div + div { border-left: 0; border-top: 1px solid var(--border); }
+  .pledge > div { padding: 22px; }
+}
+
+/* ============================================================
+   คำพูดจากผู้ใช้ — ทำให้อ่านเหมือนคำพูดจริง ไม่ใช่ป้ายโฆษณา
+   ============================================================ */
+.voice {
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.voice .said {
+  font-size: 14.5px;
+  line-height: 1.8;
+  color: var(--ink-soft);
+  margin: 14px 0 0;
+  flex: 1;
+}
+.voice .who {
+  margin-top: 18px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.voice .who .av {
+  width: 28px; height: 28px;
+  border-radius: 999px;
+  background: var(--navy-50);
+  color: var(--navy-800);
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   ลดการเคลื่อนไหวลงให้เหลือเท่าที่จำเป็น
+   ของที่ขยับตลอดเวลาทำให้เว็บดูไม่นิ่ง ซึ่งตรงข้ามกับความน่าเชื่อถือ
+   ============================================================ */
+.reveal { opacity: 0; transform: translateY(10px); }
+.reveal.is-in {
+  opacity: 1; transform: none;
+  transition: opacity var(--t-slow) var(--ease-out),
+              transform var(--t-slow) var(--ease-out);
+}
+
+/* ชื่อแบรนด์ในแถบเมนูและท้ายเว็บ */
+.brand-name {
+  font-family: 'FC Mittraphap', 'IBM Plex Sans Thai', sans-serif;
+  font-weight: 700;
+  letter-spacing: -.005em;
+}
+
+/* ============================================================
+   สถานะของปุ่มระหว่างรอเซิร์ฟเวอร์ตอบ
+   ------------------------------------------------------------
+   เดิมแต่ละหน้าเขียนเอง เป็นการเปลี่ยนข้อความในปุ่มตรง ๆ
+   ทำให้ไอคอนหายและปุ่มหดจนแถวปุ่มขยับทั้งแถว
+   ตัวช่วย btnBusy() ใน ui.js ตรึงความกว้างเดิมไว้แล้ว เหลือแค่หน้าตา
+   ============================================================ */
+.btn.is-busy {
+  cursor: progress;
+  /* .btn:disabled ทำให้จางลงเหลือครึ่งเดียว ซึ่งอ่านว่า "กดไม่ได้"
+     แต่ปุ่มที่กำลังทำงานอยู่ควรอ่านว่า "กำลังทำอยู่" จึงคืนความเข้มกลับมา */
+  opacity: 1;
+}
+.btn.is-busy:disabled { opacity: 1; }
+.btn.is-busy:active:not(:disabled) { transform: none; }
+
+/* วงกลมหมุนที่ใช้สีเดียวกับตัวอักษรในปุ่ม จึงใช้ได้ทั้งปุ่มทึบและปุ่มโปร่ง */
+.btn-spin {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: .8;
+  animation: spin .65s linear infinite;
+}
+
+/* จังหวะสั้น ๆ ตอนทำสำเร็จ — ยืนยันว่ากดติดจริง โดยไม่ต้องเด้ง toast ทุกครั้ง */
+.btn.is-ok {
+  background: var(--success-bg);
+  border-color: #c9e6d8;
+  color: var(--success);
+}
+.btn.is-ok:hover { background: var(--success-bg); }
+
+/* ============================================================
+   กล่องถามยืนยันและกล่องกรอกข้อความ
+   ใช้แทน confirm() / prompt() ของเบราว์เซอร์ที่หน้าตาไม่เข้ากับเว็บ
+   ============================================================ */
+.dlg-modal { max-width: 420px; }
+.dlg-body { padding: 24px 26px 22px; }
+.dlg-title {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--ink);
+  margin: 0;
+}
+.dlg-msg {
+  margin: 9px 0 0;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--ink-soft);
+  /* ข้อความยืนยันมักมีสองย่อหน้า — บรรทัดที่ทำ กับผลที่ตามมา */
+  white-space: pre-line;
+}
+.dlg-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+/* บนมือถือวางซ้อนกันและให้เต็มความกว้าง นิ้วโป้งจะได้ไม่ต้องเล็ง
+   เรียงปุ่มยืนยันไว้บน เพราะอยู่ใกล้สายตาหลังอ่านข้อความจบ */
+@media (max-width: 480px) {
+  .dlg-actions { flex-direction: column-reverse; }
+  .dlg-actions .btn { width: 100%; }
+}
+
+/* ปุ่มยืนยันของงานที่ย้อนกลับไม่ได้ — ทึบไปเลยเพื่อให้แยกออกจากปุ่มยกเลิกชัด ๆ
+   (.btn-danger เดิมเป็นปุ่มขาวขอบแดง เหมาะกับปุ่มลบในแถวเครื่องมือมากกว่า) */
+.btn-danger-solid { background: var(--danger); color: #fff; }
+.btn-danger-solid:hover:not(:disabled) { background: #952b26; }
+
+/* ============================================================
+   กล่องแจ้งเตือนในหน้า — ให้ค่อย ๆ เลื่อนเข้ามาแทนที่จะกระตุกโผล่
+   ============================================================ */
+.alert.is-in { animation: alertIn var(--t) var(--ease-out); }
+@keyframes alertIn {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+
+/* ============================================================
+   ปุ่มเลื่อนแถบวันที่ (เห็นเฉพาะจอที่ใช้เมาส์)
+   บนจอสัมผัสปัดนิ้วได้อยู่แล้ว แต่บนคอมพิวเตอร์ไม่มีอะไรบอกว่าแถบนี้เลื่อนได้
+   ============================================================ */
+.strip-wrap { position: relative; }
+.strip-nav {
+  position: absolute;
+  /* กึ่งกลางความสูงของชิป — ลบ 4px ชดเชย padding-bottom ที่เว้นไว้ให้แถบเลื่อน */
+  top: calc(50% - 4px);
+  transform: translateY(-50%);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: background-color var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease),
+              opacity var(--t-fast) var(--ease);
+}
+.strip-nav:hover { background: var(--blue-50); color: var(--blue-700); border-color: var(--blue-600); }
+.strip-nav:focus-visible { outline: none; box-shadow: var(--ring); }
+.strip-prev { left: -8px; }
+.strip-next { right: -8px; }
+/* เลื่อนสุดทางแล้วให้จางลงและกดไม่ได้ แทนที่จะหายไปเฉย ๆ จนแถบกระโดด */
+.strip-nav[disabled] { opacity: 0; pointer-events: none; }
+@media (pointer: coarse) { .strip-nav { display: none; } }
+
+/* ============================================================
+   โครงร่างช่องเวลาระหว่างโหลด — ให้รูปร่างตรงกับของจริง
+   เดิมเป็นกล่องสี่เหลี่ยม 10 อันเรียงกัน พอข้อมูลมาถึงหน้าจะกระโดด
+   เพราะของจริงมีหัวข้อช่วงเวลาคั่นอยู่ด้วย
+   ============================================================ */
+.sk-line { display: inline-block; height: 12px; width: 96px; border-radius: var(--r-sm); }
+.sk-slot { height: 46px; border-radius: var(--r); }
+
+/* ============================================================
+   ปุ่มที่ทำหน้าที่เป็นตัวสลับสถานะ — บอกสถานะให้โปรแกรมอ่านหน้าจอด้วย
+   ตาเห็นจากสีอยู่แล้ว แต่คนที่ใช้โปรแกรมอ่านหน้าจอไม่เห็นสี
+   ============================================================ */
+.slot[aria-pressed="true"] {
+  background: var(--blue-600);
+  border-color: var(--blue-600);
+  color: #fff;
+}
+.slot[aria-pressed="true"] .slot-end { color: rgba(255,255,255,.82); }
+
+/* จุดไข่ปลาคั่นเลขหน้าที่ถูกย่อไว้ */
+.page-gap {
+  align-self: center;
+  padding: 0 2px;
+  color: var(--faint);
+  font-size: 13px;
+  user-select: none;
+}
+
+/* ============================================================
+   จองพื้นที่ไว้ล่วงหน้าให้ส่วนที่ JavaScript มาเติมทีหลัง
+   ------------------------------------------------------------
+   แถบเมนู เนื้อหา และส่วนท้าย ถูกวาดด้วย JS หลังหน้าโหลดเสร็จ
+   ระหว่างนั้นกล่องพวกนี้สูง 0 พอเนื้อหาเข้ามาทุกอย่างเลื่อนลงพรวดเดียว
+   วัดค่า CLS ได้ 0.70 ที่หน้าร้าน ซึ่งอยู่ในเกณฑ์ "แย่" ของ Core Web Vitals
+   (เกิน 0.25 ถือว่าแย่) — นี่คือสาเหตุหลักที่รู้สึกว่าเว็บกระตุก
+
+   กันด้วยการจองความสูงขั้นต่ำไว้ตั้งแต่เฟรมแรก เนื้อหาจึงเข้ามาแทนที่
+   ช่องว่างเดิมพอดี ไม่ผลักอะไรให้ขยับ
+   ============================================================ */
+#navbar {
+  min-height: 111px;
+  /* ใส่สีพื้นเดียวกับแถบเมนูจริง จะได้ไม่เห็นแถบขาววาบก่อนเมนูขึ้น */
+  background: var(--navy-800);
+}
+
+/* ส่วนท้ายเว็บสูงราว 620px และอยู่ใต้จอเสมอ
+   การจองพื้นที่ไว้จึงไม่มีใครเห็นช่องว่าง แต่ตัดการกระโดดครั้งใหญ่ที่สุดออกได้ */
+#footer { min-height: 372px; }   /* ความสูงจริงของท้ายเว็บ วัดแล้ว — ถ้าจองเกินจะเหลือช่องว่างเปล่าใต้ท้ายเว็บทุกหน้า */
+
+/* เนื้อหาหลักต้องดันส่วนท้ายให้พ้นจอตั้งแต่แรก
+   ไม่งั้นส่วนท้ายจะโผล่กลางจอก่อน แล้วค่อยถูกดันลงไปตอนข้อมูลมาถึง */
+#main { min-height: 68vh; }
+
+/* กล่องรอโหลดของหน้าร้าน — ต้องสูงใกล้เคียงของจริง
+   ของเดิมเป็นวงกลมหมุนเล็ก ๆ สูงไม่ถึง 100px แล้วกระโดดเป็นหน้าเต็ม */
+.page-loading {
+  min-height: 70vh;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 14px;
+}
+
+/* โครงร่างของหน้าร้านระหว่างโหลด */
+.sk-page { min-height: 1250px; }
+.sk-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 22px;
+}
+.sk-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* โครงร่างแบบรายการเรียงลง — ใช้กับหน้าการจองของฉัน และตารางผู้ใช้ในหน้าผู้ดูแล */
+.sk-rows { display: grid; gap: 16px; }
+
+
+/* ============================================================
+   ยูทิลิตี้แทน Tailwind CDN
+   ============================================================
+   เดิมหน้าเว็บโหลด https://cdn.tailwindcss.com ซึ่งเป็นสคริปต์ที่ต้อง
+   ดาวน์โหลดจากอินเทอร์เน็ตแล้ว "คอมไพล์ CSS ในเบราว์เซอร์" ตอนเปิดหน้า
+   ระหว่างรอ ผู้ใช้จะเห็นหน้าเว็บแบบไม่มีสไตล์แวบหนึ่งก่อนจะจัดใหม่ทั้งหน้า
+   และถ้าเน็ตหลุด หน้าเว็บจะเละทั้งหน้า
+
+   โปรเจกต์นี้ใช้คลาสของ Tailwind จริง ๆ แค่ประมาณ 120 ตัว และไม่มี
+   hover:/focus: เลยสักตัว จึงเขียนลงไฟล์นี้ตรง ๆ ได้ แล้วตัด CDN ทิ้ง
+   ค่าทุกตัวอิงสเกลมาตรฐานของ Tailwind v3 หน้าตาจึงเหมือนเดิมทุกประการ
+
+   ถ้าจะเพิ่มคลาสใหม่ในอนาคต ต้องมาเพิ่มที่นี่ด้วย ไม่งั้นจะไม่มีผล
+   ============================================================ */
+
+.cursor-pointer { cursor:pointer; }
+.flex { display:flex; }
+.flex-wrap { flex-wrap:wrap; }
+.font-medium { font-weight:500; }
+.font-semibold { font-weight:600; }
+.gap-1 { gap:0.25rem; }
+.gap-1\.5 { gap:0.375rem; }
+.gap-10 { gap:2.5rem; }
+.gap-2 { gap:0.5rem; }
+.gap-2\.5 { gap:0.625rem; }
+.gap-3 { gap:0.75rem; }
+.gap-4 { gap:1rem; }
+.gap-5 { gap:1.25rem; }
+.gap-6 { gap:1.5rem; }
+.grid { display:grid; }
+.grid-cols-2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.grid-cols-3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.h-12 { height:3rem; }
+.h-16 { height:4rem; }
+.h-7 { height:1.75rem; }
+.h-8 { height:2rem; }
+.hidden { display:none; }
+.items-baseline { align-items:baseline; }
+.items-center { align-items:center; }
+.items-end { align-items:flex-end; }
+.items-start { align-items:flex-start; }
+.justify-between { justify-content:space-between; }
+.justify-center { justify-content:center; }
+.justify-end { justify-content:flex-end; }
+.leading-snug { line-height:1.375; }
+.list-none { list-style-type:none; }
+.m-0 { margin:0px; }
+.m-4 { margin:1rem; }
+.max-w-2xl { max-width:42rem; }
+.max-w-4xl { max-width:56rem; }
+.max-w-5xl { max-width:64rem; }
+.max-w-6xl { max-width:72rem; }
+.max-w-md { max-width:28rem; }
+.mb-1\.5 { margin-bottom:0.375rem; }
+.mb-2 { margin-bottom:0.5rem; }
+.ml-auto { margin-left:auto; }
+.mt-0\.5 { margin-top:0.125rem; }
+.mt-1 { margin-top:0.25rem; }
+.mt-1\.5 { margin-top:0.375rem; }
+.mt-10 { margin-top:2.5rem; }
+.mt-12 { margin-top:3rem; }
+.mt-2 { margin-top:0.5rem; }
+.mt-2\.5 { margin-top:0.625rem; }
+.mt-20 { margin-top:5rem; }
+.mt-3 { margin-top:0.75rem; }
+.mt-3\.5 { margin-top:0.875rem; }
+.mt-4 { margin-top:1rem; }
+.mt-5 { margin-top:1.25rem; }
+.mt-6 { margin-top:1.5rem; }
+.mt-7 { margin-top:1.75rem; }
+.mt-8 { margin-top:2rem; }
+.mx-auto { margin-left:auto;margin-right:auto; }
+.no-underline { text-decoration-line:none; }
+.overflow-hidden { overflow:hidden; }
+.overflow-x-auto { overflow-x:auto; }
+.p-0 { padding:0px; }
+.p-4 { padding:1rem; }
+.p-5 { padding:1.25rem; }
+.p-6 { padding:1.5rem; }
+.p-8 { padding:2rem; }
+.pb-28 { padding-bottom:7rem; }
+.pb-4 { padding-bottom:1rem; }
+.pb-5 { padding-bottom:1.25rem; }
+.pl-3\.5 { padding-left:0.875rem; }
+.place-items-center { place-items:center; }
+.pr-1\.5 { padding-right:0.375rem; }
+.pt-0 { padding-top:0px; }
+.pt-1 { padding-top:0.25rem; }
+.pt-16 { padding-top:4rem; }
+.pt-2 { padding-top:0.5rem; }
+.pt-20 { padding-top:5rem; }
+.pt-3 { padding-top:0.75rem; }
+.pt-4 { padding-top:1rem; }
+.pt-5 { padding-top:1.25rem; }
+.pt-6 { padding-top:1.5rem; }
+.px-1 { padding-left:0.25rem;padding-right:0.25rem; }
+.px-5 { padding-left:1.25rem;padding-right:1.25rem; }
+.py-1\.5 { padding-top:0.375rem;padding-bottom:0.375rem; }
+.py-12 { padding-top:3rem;padding-bottom:3rem; }
+.py-14 { padding-top:3.5rem;padding-bottom:3.5rem; }
+.py-16 { padding-top:4rem;padding-bottom:4rem; }
+.py-8 { padding-top:2rem;padding-bottom:2rem; }
+.rounded-full { border-radius:9999px; }
+.self-center { align-self:center; }
+.shrink-0 { flex-shrink:0; }
+.sticky { position:sticky; }
+.text-center { text-align:center; }
+.text-lg { font-size:1.125rem;line-height:1.75rem; }
+.text-right { text-align:right; }
+.text-sm { font-size:0.875rem;line-height:1.25rem; }
+.text-white { color:#fff; }
+.text-xl { font-size:1.25rem;line-height:1.75rem; }
+.text-xs { font-size:0.75rem;line-height:1rem; }
+.top-0 { top:0px; }
+.w-12 { width:3rem; }
+.w-7 { width:1.75rem; }
+.w-8 { width:2rem; }
+.z-40 { z-index:40; }
+
+.space-y-1 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.25rem; }
+.space-y-1\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.375rem; }
+.space-y-2\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.625rem; }
+.space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem; }
+.space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
+
+@media (min-width: 640px) {
+  .sm\:block { display:block; }
+  .sm\:col-span-2 { grid-column:span 2/span 2; }
+  .sm\:col-span-3 { grid-column:span 3/span 3; }
+  .sm\:grid-cols-2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .sm\:grid-cols-3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .sm\:grid-cols-4 { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .sm\:grid-cols-\[170px_1fr_auto\] { grid-template-columns:170px 1fr auto; }
+  .sm\:grid-cols-\[220px_1fr\] { grid-template-columns:220px 1fr; }
+  .sm\:inline { display:inline; }
+  .sm\:pb-32 { padding-bottom:8rem; }
+  .sm\:pt-24 { padding-top:6rem; }
+}
+
+@media (min-width: 768px) {
+  .md\:flex { display:flex; }
+  .md\:ml-0 { margin-left:0px; }
+}
+
+@media (min-width: 1024px) {
+  .lg\:grid-cols-3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .lg\:grid-cols-4 { grid-template-columns:repeat(4,minmax(0,1fr)); }
+}

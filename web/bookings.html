@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>การจองของฉัน — Bookvice</title>
+  <meta name="description" content="ดูคิวที่จองไว้ เลื่อนนัด ยกเลิก พิมพ์สลิป และเขียนรีวิวหลังใช้บริการ" />
+  <meta name="theme-color" content="#16233F" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><defs><linearGradient id='a' x1='11' y1='5' x2='36' y2='27' gradientUnits='userSpaceOnUse'><stop stop-color='%23F9AE8B'/><stop offset='1' stop-color='%23E8785A'/></linearGradient><linearGradient id='b' x1='11' y1='21' x2='38' y2='43' gradientUnits='userSpaceOnUse'><stop stop-color='%233FC0D6'/><stop offset='1' stop-color='%2322A898'/></linearGradient></defs><rect width='48' height='48' rx='11' fill='%23fff'/><path d='M11 5h16a11 11 0 0 1 0 22H11z' fill='url(%23a)'/><path d='M11 21h18a11 11 0 0 1 0 22H11z' fill='url(%23b)'/><path d='m16.5 32.5 4.5 4.5 9-9' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='5' y='5' width='6.5' height='38' rx='3.25' fill='%2316233F'/></svg>" />
+
+  <!-- ข้อมูลตอนแชร์ลิงก์ ให้แอปแชตแสดงชื่อและคำอธิบายแทนลิงก์เปล่า -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Bookvice" />
+  <meta property="og:title" content="การจองของฉัน — Bookvice" />
+  <meta property="og:description" content="ดูคิวที่จองไว้ เลื่อนนัด ยกเลิก พิมพ์สลิป และเขียนรีวิวหลังใช้บริการ" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
+       IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202608252100" />
+</head>
+<body>
+  <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
+  <div id="navbar"></div>
+
+  <main id="main" class="max-w-4xl mx-auto px-5 py-12">
+    <h1 class="h1">การจองของฉัน</h1>
+
+    <div id="tabs" class="flex gap-2 mt-6 flex-wrap" style="min-height:32px"></div>
+    <div id="alert" class="alert mt-5" style="display:none"></div>
+    <div id="list" class="mt-5 space-y-4"></div>
+    <div id="pagination" class="mt-10 flex justify-center gap-1.5"></div>
+  </main>
+
+  <div id="footer"></div>
+
+  <!-- กล่องเขียนรีวิว -->
+  <div id="reviewModal" class="modal-backdrop">
+    <div class="modal">
+      <div class="p-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 id="reviewShop" class="h2"></h2>
+          </div>
+          <button id="closeReview" class="btn btn-ghost btn-sm" style="padding:6px" aria-label="ปิด"></button>
+        </div>
+
+        <div id="reviewAlert" class="alert mt-4" style="display:none"></div>
+
+        <form id="reviewForm" class="mt-5">
+          <input type="hidden" id="rBookingId" />
+
+          <div class="rate-line">
+            <div>
+              <div class="rate-title">ภาพรวมของร้าน</div>
+              <div class="rate-sub">คะแนนนี้จะนำไปคิดเป็นคะแนนร้าน</div>
+            </div>
+            <div id="starPicker" class="star-pick"></div>
+            <input type="hidden" id="rRating" value="5" />
+          </div>
+
+          <!-- แถวนี้ซ่อนอัตโนมัติถ้าการจองไม่ได้ระบุผู้ให้บริการ · หัวข้อเปลี่ยนตามประเภทร้าน -->
+          <div class="rate-line" id="staffRateRow">
+            <div>
+              <div class="rate-title">ฝีมือช่าง <span id="rStaffName" class="text-muted" style="font-weight:400"></span></div>
+              <div class="rate-sub">ให้คะแนนเฉพาะคนที่ให้บริการคุณ</div>
+            </div>
+            <div id="staffStars" class="star-pick"></div>
+            <input type="hidden" id="rStaff" value="" />
+          </div>
+
+          <div class="rate-line">
+            <div class="rate-title">ความสะอาด</div>
+            <div id="cleanStars" class="star-pick"></div>
+            <input type="hidden" id="rClean" value="" />
+          </div>
+
+          <div class="rate-line">
+            <div class="rate-title">ตรงต่อเวลา</div>
+            <div id="punctStars" class="star-pick"></div>
+            <input type="hidden" id="rPunct" value="" />
+          </div>
+
+          <div class="rate-line">
+            <div class="rate-title">ความคุ้มค่า</div>
+            <div id="valueStars" class="star-pick"></div>
+            <input type="hidden" id="rValue" value="" />
+          </div>
+
+          <p class="hint" style="margin-bottom:10px">
+            สี่หัวข้อล่างไม่บังคับ ข้ามได้ถ้าไม่อยากให้คะแนน
+          </p>
+
+          <label class="label" for="rComment">เล่าประสบการณ์ <span class="text-muted" style="font-weight:400">(ไม่บังคับ)</span></label>
+          <textarea id="rComment" rows="4" maxlength="1000" class="textarea"
+                    placeholder="เล่าประสบการณ์ของคุณเพื่อช่วยผู้ใช้ท่านอื่นตัดสินใจ"></textarea>
+
+          <button id="reviewBtn" type="submit" class="btn btn-primary btn-block" style="margin-top:16px">ส่งรีวิว</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- กล่องเลื่อนนัด -->
+  <div id="moveModal" class="modal-backdrop">
+    <div class="modal">
+      <div class="p-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 id="mvTitle" class="h2"></h2>
+          </div>
+          <button id="mvClose" class="btn btn-ghost btn-sm" style="padding:6px" aria-label="ปิด"></button>
+        </div>
+        <p id="mvCurrent" class="hint"></p>
+
+        <div id="mvAlert" class="alert mt-4" style="display:none"></div>
+
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          <div>
+            <label class="label" for="mvDate">วันใหม่</label>
+            <input id="mvDate" type="date" class="input" />
+          </div>
+          <div>
+            <label class="label" for="mvStaff">ช่าง</label>
+            <select id="mvStaff" class="select"><option value="">ไม่ระบุ</option></select>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <label class="label">เลือกเวลาใหม่</label>
+          <div id="mvSlots"></div>
+        </div>
+
+        <button id="mvSave" class="btn btn-primary btn-block" style="margin-top:16px" disabled>
+          ยืนยันการเลื่อนนัด
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- กล่องชำระเงิน -->
+  <div id="payModal" class="modal-backdrop">
+    <div class="modal">
+      <div class="p-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 id="payTitle" class="h2">ชำระมัดจำ</h2>
+          </div>
+          <button id="payClose" class="btn btn-ghost btn-sm" style="padding:6px" aria-label="ปิด"></button>
+        </div>
+
+        <div id="payAlert" class="alert mt-4" style="display:none"></div>
+
+        <div class="card p-4 mt-4" style="background:var(--navy-50);border:0">
+          <div class="flex items-baseline justify-between">
+            <span class="text-sm text-muted">ยอดที่ต้องชำระ</span>
+            <span id="payAmount" class="h2 num"></span>
+          </div>
+          <p id="payFor" class="text-xs text-muted mt-1"></p>
+        </div>
+
+        <div class="mt-5">
+          <label class="label">เลือกวิธีชำระเงิน</label>
+          <div class="pay-methods mt-2">
+            <label class="pay-opt is-on">
+              <input type="radio" name="paymethod" value="promptpay" checked />
+              <span>
+                <span class="t">พร้อมเพย์ (QR)</span>
+                <span class="s">สแกนจ่ายผ่านแอปธนาคาร</span>
+              </span>
+            </label>
+            <label class="pay-opt">
+              <input type="radio" name="paymethod" value="card" />
+              <span>
+                <span class="t">บัตรเครดิต / เดบิต</span>
+                <span class="s">Visa, Mastercard, JCB</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div id="qrBox" class="mt-5 text-center">
+          <div class="qr-mock"></div>
+          <p class="hint mt-2">เปิดแอปธนาคารแล้วสแกนคิวอาร์นี้</p>
+        </div>
+
+        <div class="alert alert-info mt-4" style="font-size:12.5px">
+          <b>ระบบทดสอบ</b> — เป็นการชำระเงินจำลองสำหรับงานมหาวิทยาลัย
+          ไม่มีการตัดเงินจริงและไม่ต้องกรอกข้อมูลบัตรใด ๆ
+        </div>
+
+        <button id="payGo" class="btn btn-primary btn-block" style="margin-top:16px">
+          ยืนยันการชำระเงิน
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js?v=202608252100"></script>
+  <script src="js/ui.js?v=202608252100"></script>
+  <script>
+    renderNavbar("bookings");
+    renderFooter();
+    prefetchOnHover();
+    document.getElementById("closeReview").innerHTML = icon("x", 18);
+
+    if (!Auth.requireLogin()) throw new Error("ยังไม่ได้เข้าสู่ระบบ");
+
+    const alertBox = document.getElementById("alert");
+    let currentStatus = "";
+    let lastItems = [];  // รายการจองของหน้าปัจจุบัน
+    const shops = {};   // shop_id -> ข้อมูลร้านเต็ม (ใช้หาชื่อบริการและชื่อผู้ให้บริการด้วย)
+
+    // คำเรียกทรัพยากรที่จองได้ ต่างกันตามประเภทร้าน
+    // หน้านี้แสดงการจองจากหลายร้านพร้อมกัน จึงต้องดูเป็นรายการ ไม่ใช่ค่าเดียวทั้งหน้า
+    const resOf = (shopId) => (shops[shopId] && shops[shopId].resource_label) || "ช่าง";
+
+    const shopOf = (id) => shops[id] || null;
+    const nameOf = (id) => (shops[id] ? shops[id].name : "—");
+    const serviceOf = (b) => {
+      const s = shopOf(b.shop_id);
+      const sv = s && (s.services || []).find((x) => x.id === b.service_id);
+      return sv ? sv.name : null;
+    };
+    const staffOf = (b) => {
+      const s = shopOf(b.shop_id);
+      const st = s && (s.staff || []).find((x) => x.id === b.staff_id);
+      return st ? st.name : null;
+    };
+
+    // เหลืออีกกี่วันถึงวันนัด — ช่วยให้เห็นทันทีว่าคิวไหนใกล้ถึงแล้ว
+    function countdown(b) {
+      if (b.status === "cancelled" || b.status === "completed") return "";
+      const today = new Date(localDate() + "T00:00:00");
+      const day = new Date(b.booking_date + "T00:00:00");
+      const diff = Math.round((day - today) / 86400000);
+      if (diff < 0) return "";
+      const text = diff === 0 ? "วันนี้" : diff === 1 ? "พรุ่งนี้" : `อีก ${diff} วัน`;
+      return `<span class="badge ${diff <= 1 ? "badge-pending" : "badge-neutral"}">${text}</span>`;
+    }
+
+    // ---------- แท็บกรองสถานะ ----------
+    const TABS = [
+      ["", "ทั้งหมด"],
+      ["pending", "รอยืนยัน"],
+      ["confirmed", "ยืนยันแล้ว"],
+      ["completed", "ใช้บริการแล้ว"],
+      ["cancelled", "ยกเลิกแล้ว"],
+    ];
+    function renderTabs() {
+      document.getElementById("tabs").innerHTML = TABS.map(([v, label]) =>
+        `<button data-status="${v}" class="btn btn-sm ${currentStatus === v ? "btn-primary" : "btn-outline"}">${label}</button>`
+      ).join("");
+      document.querySelectorAll("[data-status]").forEach((b) =>
+        b.addEventListener("click", () => {
+          currentStatus = b.dataset.status;
+          renderTabs();
+          load(1);
+        })
+      );
+    }
+
+    async function load(page = 1) {
+      const box = document.getElementById("list");
+      // โครงร่างสูงใกล้ของจริง กันหน้ากระโดดตอนข้อมูลมาถึง
+      box.innerHTML = skeletonRows(3, 360);
+      document.getElementById("pagination").innerHTML = "";
+
+      try {
+        const q = new URLSearchParams({ page, limit: 10 });
+        if (currentStatus) q.set("status", currentStatus);
+        const res = await apiGet(`/api/bookings?${q}`);
+
+        if (!res.items.length) {
+          box.innerHTML = emptyHTML("calendar", "ยังไม่มีรายการจอง", "เริ่มค้นหาร้านที่สนใจแล้วจองคิวได้เลย") +
+            `<div class="text-center"><a href="shops.html" class="btn btn-primary btn-sm">ค้นหาร้าน</a></div>`;
+          return;
+        }
+
+        // ดึงข้อมูลร้านที่ยังไม่รู้จัก (API คืนมาเป็น shop_id) เพื่อแปลงเป็นชื่อร้าน ชื่อบริการ ชื่อช่าง
+        const need = [...new Set(res.items.map((b) => b.shop_id))].filter((id) => !(id in shops));
+        await Promise.all(need.map(async (id) => {
+          try {
+            shops[id] = await apiGet(`/api/shops/${id}`);
+          } catch {
+            shops[id] = { id, name: `ร้าน #${id}`, services: [], staff: [] };
+          }
+        }));
+
+        lastItems = res.items;   // เก็บไว้ให้ปุ่มเขียนรีวิวหยิบข้อมูลการจองไปใช้ได้
+        box.innerHTML = res.items.map(card).join("");
+        bindActions();
+        revealOnScroll("#list .reveal");   // การ์ดการจองไล่ปรากฏทีละใบ
+        renderPagination(res);
+      } catch (err) {
+        box.innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`;
+      }
+    }
+
+    // ป้ายบอกสถานะการชำระเงิน
+    const PAY_STATE = {
+      unpaid: ["ยังไม่ชำระ", "pay-unpaid"],
+      deposit_paid: ["จ่ายมัดจำแล้ว", "pay-deposit_paid"],
+      paid: ["ชำระครบแล้ว", "pay-paid"],
+    };
+
+    function payBadge(b) {
+      // คิวที่ยกเลิกไปแล้วไม่ต้องโชว์ว่า "ยังไม่ชำระ" — ไม่มีอะไรให้จ่ายแล้ว
+      if (b.status === "cancelled" && b.payment_state === "unpaid") return "";
+      const [text, cls] = PAY_STATE[b.payment_state] || PAY_STATE.unpaid;
+      return `<span class="pay-state ${cls}">${text}</span>`;
+    }
+
+    function card(b) {
+      const canCancel = b.status === "pending" || b.status === "confirmed";
+      const canReview = b.status === "completed";
+      const canRebook = b.status === "completed" || b.status === "cancelled";
+      // ยกเลิกแล้วจ่ายไม่ได้ และจ่ายครบแล้วก็ไม่ต้องมีปุ่มอีก
+      const canPay = b.status !== "cancelled" && b.payment_state !== "paid";
+      // งานส่งของด่วนออกรถทันที จึงเลื่อนนัดไม่ได้ — มีแต่ยกเลิก
+      const isDelivery = !!(b.pickup_address || b.dropoff_address);
+      const svName = serviceOf(b);
+      const stName = staffOf(b);
+
+      return `
+        <article class="card reveal">
+          <div class="p-5">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <div class="flex items-center gap-2.5 flex-wrap">
+                  <h3 class="h3">${esc(svName || nameOf(b.shop_id))}</h3>
+                  ${statusBadge(b.status)}
+                  ${countdown(b)}
+                </div>
+                <p class="text-sm text-muted mt-1">
+                  <a href="shop.html?id=${b.shop_id}" style="color:var(--blue-600)">${esc(nameOf(b.shop_id))}</a>
+                  · รหัส ${esc(b.booking_code)}
+                </p>
+              </div>
+              <div class="text-right">
+                <div class="h2 num">฿${baht(b.total_price)}</div>
+                <div class="text-xs text-muted num mt-0.5">มัดจำ ฿${baht(b.deposit_amount)}</div>
+                <div class="mt-1.5">${payBadge(b)}</div>
+              </div>
+            </div>
+
+            <dl class="grid sm:grid-cols-3 gap-4 mt-4 pt-4" style="border-top:1px solid var(--border)">
+              <div class="flex items-center gap-2 text-sm">
+                <span class="text-muted">${icon("calendar", 14)}</span>
+                <span>${thaiDate(b.booking_date)}</span>
+              </div>
+              <div class="flex items-center gap-2 text-sm">
+                <span class="text-muted">${icon("clock", 14)}</span>
+                <span class="num">${shortTime(b.booking_time)}–${shortTime(b.end_time)} น.</span>
+              </div>
+              <div class="flex items-center gap-2 text-sm">
+                <span class="text-muted">${icon("user", 14)}</span>
+                <span>${esc(stName || (isDelivery ? "ระบบจัดพนักงานให้" : `${resOf(b.shop_id)}ไหนก็ได้`))}</span>
+              </div>
+            </dl>
+
+            ${isDelivery ? `
+              <div class="mt-3 pt-3 text-sm space-y-1.5" style="border-top:1px solid var(--border)">
+                <div class="flex gap-2">
+                  <span class="text-muted" style="min-width:64px">รับที่</span>
+                  <span>${esc(b.pickup_address || "—")}</span>
+                </div>
+                <div class="flex gap-2">
+                  <span class="text-muted" style="min-width:64px">ส่งที่</span>
+                  <span>${esc(b.dropoff_address || "—")}</span>
+                </div>
+                <div class="flex gap-2">
+                  <span class="text-muted" style="min-width:64px">ระยะทาง</span>
+                  <span class="num">${b.distance_km ?? "—"} กม.</span>
+                </div>
+              </div>` : ""}
+
+            ${b.requirements || b.health_note || b.reference_url || b.note ? `
+              <div class="mt-3 pt-3 text-sm space-y-1" style="border-top:1px solid var(--border)">
+                ${b.requirements ? `<div><span class="text-muted">สิ่งที่แจ้งไว้:</span> ${esc(b.requirements)}</div>` : ""}
+                ${b.health_note ? `<div><span class="text-muted">ข้อมูลสุขภาพ:</span> ${esc(b.health_note)}</div>` : ""}
+                ${b.reference_url ? `<div><a href="${esc(b.reference_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--blue-600)">ดูรูปตัวอย่างที่แนบไว้</a></div>` : ""}
+                ${b.note ? `<div><span class="text-muted">หมายเหตุ:</span> ${esc(b.note)}</div>` : ""}
+              </div>` : ""}
+
+            ${canPay ? `
+              <div class="mt-3 pt-3" style="border-top:1px solid var(--border)">
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                  <p class="text-sm text-muted" style="margin:0">
+                    ${b.payment_state === "unpaid"
+                      ? `ชำระมัดจำ ฿${baht(b.deposit_amount)} เพื่อยืนยันคิวทันที ไม่ต้องรอร้านตอบกลับ`
+                      : `ชำระแล้ว ฿${baht(b.paid_amount)} · คงเหลือ ฿${baht(Number(b.total_price) - Number(b.paid_amount))} จ่ายที่ร้านได้`}
+                  </p>
+                  <button data-pay="${b.id}" class="btn btn-primary btn-sm">
+                    ${icon("creditCard", 14)}
+                    ${b.payment_state === "unpaid" ? "ชำระมัดจำ" : "ชำระยอดคงเหลือ"}
+                  </button>
+                </div>
+              </div>` : ""}
+
+            ${canCancel || canReview || canRebook ? `
+              <div class="flex gap-2 mt-4 pt-4 flex-wrap" style="border-top:1px solid var(--border)">
+                ${canReview ? `<button data-review="${b.id}" data-shop="${esc(nameOf(b.shop_id))}" class="btn btn-primary btn-sm">${icon("star", 14)} เขียนรีวิว</button>` : ""}
+                ${canCancel && !isDelivery ? `<button data-move="${b.id}" class="btn btn-outline btn-sm">เลื่อนนัด</button>` : ""}
+                <button data-print="${b.id}" class="btn btn-ghost btn-sm" aria-label="พิมพ์สลิปการจอง ${esc(b.booking_code)}">${icon("printer", 14)} พิมพ์สลิป</button>
+                ${b.payment_state !== "unpaid" ? `<button data-receipt="${b.id}" class="btn btn-ghost btn-sm">${icon("receipt", 14)} ใบเสร็จ</button>` : ""}
+                ${canRebook ? `<a href="shop.html?id=${b.shop_id}" class="btn btn-outline btn-sm">จองอีกครั้ง</a>` : ""}
+                ${canCancel ? `<button data-cancel="${b.id}" class="btn btn-danger btn-sm">ยกเลิกการจอง</button>` : ""}
+              </div>` : ""}
+          </div>
+        </article>`;
+    }
+
+    function bindActions() {
+      document.querySelectorAll("[data-pay]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          const b = lastItems.find((x) => x.id === Number(btn.dataset.pay));
+          if (b) openPay(b);
+        })
+      );
+
+      document.querySelectorAll("[data-receipt]").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          // ต้องยิงสองคำขอต่อกันก่อนจะเปิดหน้าพิมพ์ ระหว่างนั้นจอจะนิ่งสนิท
+          // ถ้าไม่บอกอะไรเลย ผู้ใช้จะกดซ้ำจนได้หน้าต่างพิมพ์หลายบาน
+          btnBusy(btn, true, "กำลังเตรียม");
+          try {
+            const sum = await apiGet(`/api/bookings/${btn.dataset.receipt}/payment`);
+            const paid = sum.payments.filter((p) => p.status === "paid");
+            if (!paid.length) return toast("ยังไม่มีใบเสร็จสำหรับคิวนี้", "info");
+            // มีหลายใบก็พิมพ์ใบล่าสุด (ปกติคือมัดจำใบเดียว)
+            const r = await apiGet(`/api/payments/${paid[paid.length - 1].id}/receipt`);
+            printReceipt(r);
+          } catch (err) {
+            toast(err.message, "error");
+          } finally {
+            btnBusy(btn, false);
+          }
+        })
+      );
+
+      document.querySelectorAll("[data-cancel]").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const b = lastItems.find((x) => x.id === Number(btn.dataset.cancel));
+
+          // เตือนแรงขึ้นถ้าใกล้ถึงเวลานัดแล้ว เพราะร้านเสียคิวจริง
+          let title = "ยกเลิกการจองนี้ใช่หรือไม่";
+          let msg = b
+            ? `${serviceOf(b) || "บริการ"} · ${thaiDate(b.booking_date)} ${shortTime(b.booking_time)} น.\n` +
+              "ช่องเวลานี้จะกลับไปเปิดให้คนอื่นจองได้ทันที"
+            : "ช่องเวลานี้จะกลับไปเปิดให้คนอื่นจองได้ทันที";
+
+          if (b) {
+            const hrs = (new Date(`${b.booking_date}T${b.booking_time}`) - new Date()) / 3600000;
+            if (hrs > 0 && hrs < 2) {
+              title = "เหลืออีกไม่ถึง 2 ชั่วโมงก็ถึงเวลานัด";
+              msg = "การยกเลิกกระชั้นชิดทำให้ร้านเสียคิว\n" +
+                    "และคุณอาจไม่ได้รับเงินมัดจำคืน\n\n" +
+                    "ยืนยันยกเลิกใช่หรือไม่";
+            }
+          }
+
+          const ok = await confirmDialog({
+            title, message: msg, confirmText: "ยกเลิกการจอง",
+            cancelText: "เก็บคิวไว้", tone: "danger",
+          });
+          if (!ok) return;
+
+          btnBusy(btn, true, "กำลังยกเลิก");
+          try {
+            await apiDelete(`/api/bookings/${btn.dataset.cancel}`);
+            toast("ยกเลิกการจองเรียบร้อยแล้ว");
+            load(1);   // วาดรายการใหม่ ปุ่มเดิมหายไปพร้อมกัน จึงไม่ต้องคืนสถานะ
+          } catch (err) {
+            btnBusy(btn, false);
+            showAlert(alertBox, err.message);
+            alertBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+        })
+      );
+      document.querySelectorAll("[data-print]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          const b = lastItems.find((x) => x.id === Number(btn.dataset.print));
+          if (!b) return;
+          printSlip({
+            code: b.booking_code,
+            shop: nameOf(b.shop_id),
+            service: serviceOf(b) || "—",
+            date: thaiDate(b.booking_date),
+            time: `${shortTime(b.booking_time)}–${shortTime(b.end_time)} น.`,
+            staffLabel: resOf(b.shop_id),
+            staff: staffOf(b) || `${resOf(b.shop_id)}ไหนก็ได้`,
+            customer: Auth.user.full_name,
+            phone: Auth.user.phone || "",
+            status: STATUS_TEXT[b.status] || b.status,
+            note: b.requirements || b.note || "",
+            price: `฿${baht(b.total_price)}`,
+            deposit: `฿${baht(b.deposit_amount)}`,
+          });
+        })
+      );
+      document.querySelectorAll("[data-move]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          const b = lastItems.find((x) => x.id === Number(btn.dataset.move));
+          if (b) openMove(b);
+        })
+      );
+      document.querySelectorAll("[data-review]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          const b = lastItems.find((x) => x.id === Number(btn.dataset.review));
+          if (b) openReview(b);
+        })
+      );
+    }
+
+    function renderPagination(res) {
+      if (res.total_pages <= 1) return;
+      const box = document.getElementById("pagination");
+      let html = "";
+      for (let p = 1; p <= res.total_pages; p++) {
+        html += `<button data-page="${p}" class="btn btn-sm ${p === res.page ? "btn-primary" : "btn-outline"}">${p}</button>`;
+      }
+      box.innerHTML = html;
+      box.querySelectorAll("button").forEach((b) =>
+        b.addEventListener("click", () => load(Number(b.dataset.page)))
+      );
+    }
+
+    // ============================================================
+    // เลื่อนนัด — ย้ายคิวเดิมไปเวลาใหม่ ไม่ต้องยกเลิกแล้วจองใหม่
+    // ============================================================
+    const moveModal = document.getElementById("moveModal");
+    const mvAlert = document.getElementById("mvAlert");
+    document.getElementById("mvClose").innerHTML = icon("x", 18);
+    const closeMove = () => closeModalEl(moveModal);
+    document.getElementById("mvClose").addEventListener("click", closeMove);
+    moveModal.addEventListener("click", (e) => { if (e.target === moveModal) closeMove(); });
+
+    let moving = null;   // การจองที่กำลังเลื่อน
+
+    function openMove(b) {
+      moving = b;
+      hideAlert(mvAlert);
+      document.getElementById("mvTitle").textContent = serviceOf(b) || nameOf(b.shop_id);
+      document.getElementById("mvCurrent").textContent =
+        `นัดเดิม ${thaiDate(b.booking_date)} ${shortTime(b.booking_time)}–${shortTime(b.end_time)} น.`;
+      document.getElementById("mvDate").min = localDate();
+      document.getElementById("mvDate").value = b.booking_date < localDate() ? localDate() : b.booking_date;
+      document.getElementById("mvSlots").innerHTML = "";
+      document.getElementById("mvSave").disabled = true;
+      document.getElementById("mvSave").textContent = "ยืนยันการเลื่อนนัด";
+
+      const st = (shopOf(b.shop_id) || {}).staff || [];
+      document.querySelector('label[for="mvStaff"]').textContent = resOf(b.shop_id);
+      document.getElementById("mvStaff").innerHTML = '<option value="">ไม่ระบุ</option>' +
+        st.filter((x) => x.is_active)
+          .map((x) => `<option value="${x.id}" ${x.id === b.staff_id ? "selected" : ""}>${esc(x.name)}</option>`)
+          .join("");
+
+      openModal(moveModal);
+      loadMoveSlots();
+    }
+
+    async function loadMoveSlots() {
+      const box = document.getElementById("mvSlots");
+      const day = document.getElementById("mvDate").value;
+      document.getElementById("mvSave").disabled = true;
+      if (!moving || !day) return;
+
+      box.innerHTML = '<p class="hint" style="margin:0">กำลังโหลดช่วงเวลาว่าง</p>';
+      const q = new URLSearchParams({ date: day });
+      const st = document.getElementById("mvStaff").value;
+      if (st) q.set("staff_id", st);
+
+      try {
+        const a = await apiGet(`/api/services/${moving.service_id}/availability?${q}`);
+        // เวลาเดิมของตัวเองยังนับว่าเลือกได้ ถึงระบบจะมองว่าคิวเต็ม
+        const free = a.slots.filter((x) =>
+          x.available || (day === moving.booking_date && x.time === moving.booking_time));
+
+        if (!free.length) {
+          box.innerHTML = `<p class="text-sm" style="color:var(--danger);margin:0">
+            ${esc(a.closed_reason || "วันนี้ไม่มีคิวว่าง ลองเลือกวันอื่น")}</p>`;
+          return;
+        }
+        box.innerHTML = `<div class="slot-grid">${free.map((x) => `
+          <button type="button" class="slot" data-mt="${x.time}" aria-pressed="false"
+                  aria-label="เลื่อนไป ${shortTime(x.time)} ถึง ${shortTime(x.end_time)} น.">
+            <span class="num">${shortTime(x.time)}</span>
+            <span class="slot-end num">${shortTime(x.end_time)}</span>
+          </button>`).join("")}</div>`;
+
+        box.querySelectorAll("[data-mt]").forEach((btn) =>
+          btn.addEventListener("click", () => {
+            box.querySelectorAll(".slot").forEach((x) => {
+              x.classList.remove("is-selected");
+              x.setAttribute("aria-pressed", "false");
+            });
+            btn.classList.add("is-selected");
+            btn.setAttribute("aria-pressed", "true");
+            document.getElementById("mvSave").disabled = false;
+            document.getElementById("mvSave").dataset.time = btn.dataset.mt;
+          })
+        );
+      } catch (err) {
+        box.innerHTML = `<p class="text-sm" style="color:var(--danger);margin:0">${esc(err.message)}</p>`;
+      }
+    }
+
+    ["mvDate", "mvStaff"].forEach((id) =>
+      document.getElementById(id).addEventListener("change", loadMoveSlots)
+    );
+
+    document.getElementById("mvSave").addEventListener("click", async () => {
+      const btn = document.getElementById("mvSave");
+      hideAlert(mvAlert);
+      btnBusy(btn, true, "กำลังเลื่อนนัด");
+
+      const body = {
+        booking_date: document.getElementById("mvDate").value,
+        booking_time: btn.dataset.time,
+      };
+      const st = document.getElementById("mvStaff").value;
+      if (st) body.staff_id = Number(st);
+
+      try {
+        await apiPatch(`/api/bookings/${moving.id}/reschedule`, body);
+        btnBusy(btn, false);
+        closeMove();
+        toast("เลื่อนนัดเรียบร้อยแล้ว รหัสการจองยังเป็นเลขเดิม");
+        load(1);
+      } catch (err) {
+        btnBusy(btn, false);
+        showAlert(mvAlert, err.message);
+        // ช่องเวลาอาจเพิ่งถูกคนอื่นจองไป โหลดตารางใหม่ให้เห็นสถานะล่าสุด
+        loadMoveSlots();
+      }
+    });
+
+    // ---------- รีวิว ----------
+    const reviewModal = document.getElementById("reviewModal");
+    const reviewAlert = document.getElementById("reviewAlert");
+
+    // แถวให้ดาวหนึ่งแถว ใช้ซ้ำได้ทั้งคะแนนรวมและคะแนนย่อย
+    // clearable = true คือกดดาวเดิมซ้ำเพื่อยกเลิกคะแนนได้ (เพราะเป็นหัวข้อไม่บังคับ)
+    function makeStars(boxId, inputId, clearable) {
+      const box = document.getElementById(boxId);
+      const input = document.getElementById(inputId);
+
+      const paint = () => {
+        const n = Number(input.value) || 0;
+        box.innerHTML = [1, 2, 3, 4, 5].map((i) => `
+          <button type="button" data-v="${i}" class="${i <= n ? "on" : ""}" aria-label="${i} ดาว">
+            <svg viewBox="0 0 24 24" fill="${i <= n ? "currentColor" : "none"}" stroke="currentColor"
+                 stroke-width="1.4" stroke-linejoin="round">${ICON.star}</svg>
+          </button>`).join("") +
+          (clearable && n ? `<button type="button" data-v="0" class="star-clear">ล้าง</button>` : "");
+
+        box.querySelectorAll("[data-v]").forEach((b) =>
+          b.addEventListener("click", () => {
+            input.value = b.dataset.v === "0" ? "" : b.dataset.v;
+            paint();
+          })
+        );
+      };
+
+      paint();
+      return { reset: (v = "") => { input.value = v; paint(); } };
+    }
+
+    const starsOverall = makeStars("starPicker", "rRating", false);
+    const starsStaff   = makeStars("staffStars", "rStaff", true);
+    const starsClean   = makeStars("cleanStars", "rClean", true);
+    const starsPunct   = makeStars("punctStars", "rPunct", true);
+    const starsValue   = makeStars("valueStars", "rValue", true);
+
+    function openReview(booking) {
+      document.getElementById("reviewForm").reset();
+      hideAlert(reviewAlert);
+      document.getElementById("rBookingId").value = booking.id;
+      document.getElementById("reviewShop").textContent =
+        serviceOf(booking) || nameOf(booking.shop_id);
+
+      starsOverall.reset(5);
+      starsStaff.reset();
+      starsClean.reset();
+      starsPunct.reset();
+      starsValue.reset();
+
+      // ให้ดาวผู้ให้บริการได้เฉพาะการจองที่ระบุไว้
+      const st = staffOf(booking);
+      const row = document.getElementById("staffRateRow");
+      row.style.display = st ? "" : "none";
+      document.getElementById("rStaffName").textContent = st ? `· ${st}` : "";
+
+      // สนามแบดให้คะแนน "สภาพคอร์ท" ไม่ใช่ "ฝีมือช่าง"
+      const res = resOf(booking.shop_id);
+      const person = ["ช่าง", "ช่างสัก", "แพทย์/ผู้ดูแล", "พนักงานส่ง"].includes(res);
+      // res มาจาก API ต้อง escape ก่อนใส่ลง innerHTML เหมือนข้อมูลตัวอื่น
+      row.querySelector(".rate-title").innerHTML =
+        `${person ? "ฝีมือ" : "สภาพ"}${esc(res)} <span id="rStaffName" class="text-muted" style="font-weight:400">${st ? "· " + esc(st) : ""}</span>`;
+      row.querySelector(".rate-sub").textContent =
+        person ? "ให้คะแนนเฉพาะคนที่ให้บริการคุณ" : `ให้คะแนน${res}ที่คุณใช้`;
+
+      openModal(reviewModal);
+    }
+
+    const closeReview = () => closeModalEl(reviewModal);
+    document.getElementById("closeReview").addEventListener("click", closeReview);
+    reviewModal.addEventListener("click", (e) => { if (e.target === reviewModal) closeReview(); });
+    // ปิดกล่องซ้อนด้วย Esc ให้ครบทุกกล่องในหน้านี้
+    // เดิมมีเฉพาะกล่องรีวิว กล่องเลื่อนนัดกับกล่องชำระเงินกด Esc แล้วไม่มีอะไรเกิดขึ้น
+    // ซึ่งทำให้ผู้ใช้ที่ชินกับ Esc คิดว่าเว็บค้าง
+    // ต้องเช็กว่ากล่องเปิดอยู่จริงก่อน ไม่งั้นการกด Esc ตอนไม่มีกล่องเปิด
+    // จะไปดึงโฟกัสกลับไปที่ปุ่มเก่าโดยไม่มีเหตุผล
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      const open = (el) => el.classList.contains("is-open");
+      if (open(reviewModal)) return closeReview();
+      if (open(moveModal)) return closeMove();
+      if (open(payModal)) return closePay();
+    });
+
+    document.getElementById("reviewForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideAlert(reviewAlert);
+
+      const btn = document.getElementById("reviewBtn");
+      btnBusy(btn, true, "กำลังส่งรีวิว");
+
+      const body = {
+        booking_id: Number(document.getElementById("rBookingId").value),
+        rating: Number(document.getElementById("rRating").value),
+      };
+      // คะแนนย่อยส่งเฉพาะหัวข้อที่ผู้ใช้ให้ดาวไว้จริง
+      const opt = (id, key) => {
+        const v = document.getElementById(id).value;
+        if (v) body[key] = Number(v);
+      };
+      opt("rStaff", "staff_rating");
+      opt("rClean", "rating_cleanliness");
+      opt("rPunct", "rating_punctuality");
+      opt("rValue", "rating_value");
+
+      const comment = document.getElementById("rComment").value.trim();
+      if (comment) body.comment = comment;
+
+      try {
+        await apiPost("/api/reviews", body);
+        closeReview();
+        toast("ขอบคุณสำหรับรีวิว ความคิดเห็นของคุณช่วยผู้ใช้ท่านอื่นได้มาก");
+        load(1);
+      } catch (err) {
+        showAlert(reviewAlert, err.message);
+      } finally {
+        btnBusy(btn, false);
+      }
+    });
+
+    // ================= ชำระเงิน =================
+    const payModal = document.getElementById("payModal");
+    const payAlert = document.getElementById("payAlert");
+    const qrBox = document.getElementById("qrBox");
+    let payingId = null;
+    let payKind = "deposit";
+
+    document.getElementById("payClose").innerHTML = icon("x", 18);
+    document.getElementById("payClose").addEventListener("click", closePay);
+    payModal.addEventListener("click", (e) => { if (e.target === payModal) closePay(); });
+
+    function closePay() {
+      closeModalEl(payModal);
+      payingId = null;
+    }
+
+    function openPay(b) {
+      payingId = b.id;
+      payKind = b.payment_state === "unpaid" ? "deposit" : "balance";
+
+      const due = payKind === "deposit"
+        ? Number(b.deposit_amount)
+        : Number(b.total_price) - Number(b.paid_amount);
+
+      document.getElementById("payTitle").textContent =
+        payKind === "deposit" ? "ชำระมัดจำ" : "ชำระยอดคงเหลือ";
+      document.getElementById("payAmount").textContent = `฿${baht(due)}`;
+      document.getElementById("payFor").textContent =
+        `${serviceOf(b) || "บริการ"} · ${nameOf(b.shop_id)} · รหัส ${b.booking_code}`;
+
+      // รีเซ็ตกลับเป็นพร้อมเพย์ทุกครั้ง ไม่ให้ค้างค่าจากการเปิดครั้งก่อน
+      payModal.querySelector('input[value="promptpay"]').checked = true;
+      syncPayMethod();
+      hideAlert(payAlert);
+      openModal(payModal);
+    }
+
+    function syncPayMethod() {
+      const picked = payModal.querySelector('input[name="paymethod"]:checked').value;
+      payModal.querySelectorAll(".pay-opt").forEach((el) =>
+        el.classList.toggle("is-on", el.querySelector("input").checked)
+      );
+      // คิวอาร์ใช้เฉพาะพร้อมเพย์ จ่ายด้วยบัตรไม่ต้องสแกน
+      qrBox.style.display = picked === "promptpay" ? "" : "none";
+    }
+
+    payModal.querySelectorAll('input[name="paymethod"]').forEach((r) =>
+      r.addEventListener("change", syncPayMethod)
+    );
+
+    document.getElementById("payGo").addEventListener("click", async (e) => {
+      if (!payingId) return;
+      const btn = e.currentTarget;
+      const method = payModal.querySelector('input[name="paymethod"]:checked').value;
+
+      btnBusy(btn, true, "กำลังตัดยอด");
+      hideAlert(payAlert);
+
+      try {
+        const sum = await apiPost(`/api/bookings/${payingId}/payment`, { kind: payKind, method });
+        const last = sum.payments[sum.payments.length - 1];
+        closePay();
+        toast(
+          payKind === "deposit"
+            ? "ชำระมัดจำสำเร็จ — คิวของคุณได้รับการยืนยันแล้ว"
+            : "ชำระยอดคงเหลือเรียบร้อย",
+          "success",
+          4000
+        );
+        // เปิดใบเสร็จให้ทันที ผู้ใช้จะได้มีหลักฐานโดยไม่ต้องไปกดหาเอง
+        if (last) {
+          try {
+            printReceipt(await apiGet(`/api/payments/${last.id}/receipt`));
+          } catch {
+            /* พิมพ์ไม่ได้ก็ไม่เป็นไร ยังกดปุ่มใบเสร็จทีหลังได้ */
+          }
+        }
+        load(1);
+      } catch (err) {
+        showAlert(payAlert, err.message);
+      } finally {
+        btnBusy(btn, false);
+      }
+    });
+
+    renderTabs();
+    load(1);
+  </script>
+</body>
+</html>

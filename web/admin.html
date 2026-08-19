@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ผู้ดูแลระบบ — Bookvice</title>
+  <meta name="description" content="สำหรับผู้ดูแลระบบ Bookvice" />
+  <meta name="theme-color" content="#16233F" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><defs><linearGradient id='a' x1='11' y1='5' x2='36' y2='27' gradientUnits='userSpaceOnUse'><stop stop-color='%23F9AE8B'/><stop offset='1' stop-color='%23E8785A'/></linearGradient><linearGradient id='b' x1='11' y1='21' x2='38' y2='43' gradientUnits='userSpaceOnUse'><stop stop-color='%233FC0D6'/><stop offset='1' stop-color='%2322A898'/></linearGradient></defs><rect width='48' height='48' rx='11' fill='%23fff'/><path d='M11 5h16a11 11 0 0 1 0 22H11z' fill='url(%23a)'/><path d='M11 21h18a11 11 0 0 1 0 22H11z' fill='url(%23b)'/><path d='m16.5 32.5 4.5 4.5 9-9' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='5' y='5' width='6.5' height='38' rx='3.25' fill='%2316233F'/></svg>" />
+
+  <!-- ข้อมูลตอนแชร์ลิงก์ ให้แอปแชตแสดงชื่อและคำอธิบายแทนลิงก์เปล่า -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Bookvice" />
+  <meta property="og:title" content="ผู้ดูแลระบบ — Bookvice" />
+  <meta property="og:description" content="สำหรับผู้ดูแลระบบ Bookvice" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
+       IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202608252100" />
+</head>
+<body>
+  <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
+  <div id="navbar"></div>
+
+  <main id="main" class="max-w-5xl mx-auto px-5 py-12">
+    <h1 class="h1">จัดการผู้ใช้งาน</h1>
+    <p class="text-sm text-muted mt-1.5">ค้นหา แก้ไขสิทธิ์ ระงับการใช้งาน และลบบัญชีผู้ใช้</p>
+
+    <div id="alert" class="alert mt-5" style="display:none"></div>
+
+    <!-- สรุปจำนวนผู้ใช้ตามบทบาท -->
+    <div id="stats" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6"></div>
+
+    <!-- ตัวกรอง -->
+    <div class="card card-pad mt-5">
+      <form id="filterForm" class="grid sm:grid-cols-3 gap-4">
+        <div class="sm:col-span-2">
+          <label class="label" for="fSearch">ค้นหา</label>
+          <input id="fSearch" class="input" placeholder="ชื่อผู้ใช้ อีเมล หรือชื่อ-นามสกุล" />
+        </div>
+        <div>
+          <label class="label" for="fRole">บทบาท</label>
+          <select id="fRole" class="select">
+            <option value="">ทุกบทบาท</option>
+            <option value="customer">ลูกค้า</option>
+            <option value="owner">เจ้าของร้าน</option>
+            <option value="admin">ผู้ดูแลระบบ</option>
+          </select>
+        </div>
+        <div class="sm:col-span-3 flex gap-2 justify-end">
+          <button type="button" id="resetBtn" class="btn btn-ghost btn-sm">ล้างตัวกรอง</button>
+          <button type="submit" class="btn btn-primary btn-sm">ค้นหา</button>
+        </div>
+      </form>
+    </div>
+
+    <p id="resultCount" class="text-sm text-muted mt-6" style="min-height:21px"></p>
+    <div id="list" class="card mt-3 overflow-x-auto"></div>
+    <div id="pagination" class="mt-8 flex justify-center gap-1.5"></div>
+  </main>
+
+  <div id="footer"></div>
+
+  <!-- กล่องแก้ไขผู้ใช้ -->
+  <div id="userModal" class="modal-backdrop">
+    <div class="modal">
+      <div class="p-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 id="uTitle" class="h2 mt-1"></h2>
+          </div>
+          <button id="uClose" class="btn btn-ghost btn-sm" style="padding:6px" aria-label="ปิด"></button>
+        </div>
+        <div id="uAlert" class="alert mt-4" style="display:none"></div>
+        <form id="uForm" class="mt-5 space-y-4">
+          <input type="hidden" id="uId" />
+          <div>
+            <label class="label" for="uName">ชื่อ–นามสกุล</label>
+            <input id="uName" class="input" required minlength="2" />
+          </div>
+          <div>
+            <label class="label" for="uEmail">อีเมล</label>
+            <input id="uEmail" type="email" class="input" required />
+          </div>
+          <div>
+            <label class="label" for="uRole">บทบาท</label>
+            <select id="uRole" class="select">
+              <option value="customer">ลูกค้า</option>
+              <option value="owner">เจ้าของร้าน</option>
+              <option value="admin">ผู้ดูแลระบบ</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2.5">
+            <input type="checkbox" id="uActive" style="width:16px;height:16px;accent-color:var(--blue-600)" />
+            <label for="uActive" class="text-sm">เปิดใช้งานบัญชีนี้</label>
+          </div>
+          <button id="uSave" type="submit" class="btn btn-primary btn-block">บันทึก</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js?v=202608252100"></script>
+  <script src="js/ui.js?v=202608252100"></script>
+  <script>
+    renderNavbar("admin");
+    renderFooter();
+    document.getElementById("uClose").innerHTML = icon("x", 18);
+
+    if (!Auth.requireLogin()) throw new Error("ยังไม่ได้เข้าสู่ระบบ");
+
+    const alertBox = document.getElementById("alert");
+    const ROLE_TEXT = { customer: "ลูกค้า", owner: "เจ้าของร้าน", admin: "ผู้ดูแลระบบ" };
+    const ROLE_BADGE = { customer: "badge-neutral", owner: "badge-confirmed", admin: "badge-completed" };
+
+    // เฉพาะผู้ดูแลระบบเท่านั้น
+    if (Auth.user.role !== "admin") {
+      document.querySelector("main").innerHTML =
+        `<div class="max-w-md mx-auto">` +
+        emptyHTML("lock", "เฉพาะผู้ดูแลระบบเท่านั้น", "บัญชีของคุณไม่มีสิทธิ์เข้าถึงหน้านี้") +
+        `<div class="text-center"><a href="index.html" class="btn btn-primary btn-sm">กลับหน้าแรก</a></div></div>`;
+      throw new Error("ไม่มีสิทธิ์");
+    }
+
+    // ---------- โหลดสรุปจำนวนผู้ใช้ ----------
+    async function loadStats() {
+      // วางโครงร่างก่อน ไม่งั้นแถวนี้สูง 0 แล้วดันทุกอย่างลงตอนตัวเลขมาถึง
+      document.getElementById("stats").innerHTML = skeletonTiles(4);
+      try {
+        const roles = ["customer", "owner", "admin"];
+        const [all, ...byRole] = await Promise.all([
+          apiGet("/api/users?page=1&limit=1"),
+          ...roles.map((r) => apiGet(`/api/users?page=1&limit=1&role=${r}`)),
+        ]);
+        const cards = [["ผู้ใช้ทั้งหมด", all.total], ...roles.map((r, i) => [ROLE_TEXT[r], byRole[i].total])];
+        document.getElementById("stats").innerHTML = cards.map(([l, n]) => `
+          <div class="card p-4">
+            <div class="text-xs text-muted">${l}</div>
+            <div class="h2 num mt-0.5">${n}</div>
+          </div>`).join("");
+      } catch {}
+    }
+
+    // ---------- รายชื่อผู้ใช้ ----------
+    async function load(page = 1) {
+      const box = document.getElementById("list");
+      box.innerHTML = skeletonRows(2, 230);
+      document.getElementById("pagination").innerHTML = "";
+      document.getElementById("resultCount").textContent = "";
+
+      try {
+        const q = new URLSearchParams({ page, limit: 10 });
+        const s = document.getElementById("fSearch").value.trim();
+        const r = document.getElementById("fRole").value;
+        if (s) q.set("search", s);
+        if (r) q.set("role", r);
+
+        const res = await apiGet(`/api/users?${q}`);
+
+        if (!res.items.length) {
+          box.innerHTML = emptyHTML("search", "ไม่พบผู้ใช้ที่ตรงกับเงื่อนไข");
+          return;
+        }
+
+        document.getElementById("resultCount").textContent =
+          `พบ ${res.total} บัญชี · หน้า ${res.page} จาก ${res.total_pages}`;
+
+        box.innerHTML = `
+          <table class="table">
+            <thead>
+              <tr><th>ผู้ใช้</th><th>อีเมล</th><th>บทบาท</th><th>สถานะ</th><th>สมัครเมื่อ</th><th>จัดการ</th></tr>
+            </thead>
+            <tbody>${res.items.map(row).join("")}</tbody>
+          </table>`;
+        bindActions();
+        renderPagination(res);
+      } catch (err) {
+        box.innerHTML = `<div class="alert alert-error m-4">${esc(err.message)}</div>`;
+      }
+    }
+
+    function row(u) {
+      const isSelf = u.id === Auth.user.id;
+      return `
+        <tr>
+          <td>
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 grid place-items-center text-xs font-semibold shrink-0"
+                    style="background:var(--navy-50);color:var(--navy-800);border-radius:999px">
+                ${esc(u.full_name.trim().charAt(0))}
+              </span>
+              <div>
+                <div class="font-medium">${esc(u.full_name)}</div>
+                <div class="text-xs text-muted">@${esc(u.username)}${isSelf ? " · คุณ" : ""}</div>
+              </div>
+            </div>
+          </td>
+          <td class="text-muted">${esc(u.email)}</td>
+          <td><span class="badge ${ROLE_BADGE[u.role]}">${ROLE_TEXT[u.role] || u.role}</span></td>
+          <td>${u.is_active
+            ? '<span class="badge badge-completed">ใช้งานอยู่</span>'
+            : '<span class="badge badge-cancelled">ถูกระงับ</span>'}</td>
+          <td class="text-xs text-muted">${thaiDate(u.created_at.slice(0, 10))}</td>
+          <td>
+            <div class="flex gap-1.5">
+              <button data-edit='${esc(JSON.stringify(u))}' class="btn btn-outline btn-sm">แก้ไข</button>
+              ${isSelf
+                ? '<span class="text-xs text-muted self-center px-1">—</span>'
+                : `<button data-del="${u.id}" data-name="${esc(u.username)}" class="btn btn-danger btn-sm">ลบ</button>`}
+            </div>
+          </td>
+        </tr>`;
+    }
+
+    function bindActions() {
+      document.querySelectorAll("[data-edit]").forEach((b) =>
+        b.addEventListener("click", () => openUser(JSON.parse(b.dataset.edit)))
+      );
+      document.querySelectorAll("[data-del]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          const ok = await confirmDialog({
+            title: `ลบบัญชี @${b.dataset.name}`,
+            message:
+              "ร้าน คิว และรีวิวทั้งหมดของผู้ใช้รายนี้จะถูกลบตามไปด้วย\n" +
+              "การลบนี้ย้อนกลับไม่ได้",
+            confirmText: "ลบบัญชีนี้",
+            tone: "danger",
+          });
+          if (!ok) return;
+
+          btnBusy(b, true, "กำลังลบ");
+          try {
+            await apiDelete(`/api/users/${b.dataset.del}`);
+            toast("ลบบัญชีเรียบร้อยแล้ว");
+            loadStats();
+            load(1);   // วาดตารางใหม่ ปุ่มเดิมหายไปพร้อมกัน จึงไม่ต้องคืนสถานะ
+          } catch (err) {
+            btnBusy(b, false);
+            showAlert(alertBox, err.message);
+          }
+        })
+      );
+    }
+
+    function renderPagination(res) {
+      if (res.total_pages <= 1) return;
+      const box = document.getElementById("pagination");
+      let html = "";
+      for (let p = 1; p <= res.total_pages; p++) {
+        html += `<button data-page="${p}" class="btn btn-sm ${p === res.page ? "btn-primary" : "btn-outline"}">${p}</button>`;
+      }
+      box.innerHTML = html;
+      box.querySelectorAll("button").forEach((b) =>
+        b.addEventListener("click", () => load(Number(b.dataset.page)))
+      );
+    }
+
+    // ---------- กล่องแก้ไข ----------
+    const userModal = document.getElementById("userModal");
+    const uAlert = document.getElementById("uAlert");
+
+    function openUser(u) {
+      document.getElementById("uForm").reset();
+      hideAlert(uAlert);
+      document.getElementById("uTitle").textContent = `@${u.username}`;
+      document.getElementById("uId").value = u.id;
+      document.getElementById("uName").value = u.full_name;
+      document.getElementById("uEmail").value = u.email;
+      document.getElementById("uRole").value = u.role;
+      document.getElementById("uActive").checked = u.is_active;
+      openModal(userModal);
+    }
+    const closeUser = () => closeModalEl(userModal);
+    document.getElementById("uClose").addEventListener("click", closeUser);
+    userModal.addEventListener("click", (e) => { if (e.target === userModal) closeUser(); });
+    // เช็กว่ากล่องเปิดอยู่จริงก่อน ไม่งั้นการกด Esc ตอนไม่มีกล่องเปิด
+    // จะไปดึงโฟกัสกลับไปที่ปุ่มที่เคยกดเปิดกล่องโดยไม่มีเหตุผล
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && userModal.classList.contains("is-open")) closeUser();
+    });
+
+    document.getElementById("uForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideAlert(uAlert);
+      const btn = document.getElementById("uSave");
+      btnBusy(btn, true, "กำลังบันทึก");
+
+      const id = document.getElementById("uId").value;
+      const body = {
+        full_name: document.getElementById("uName").value.trim(),
+        email: document.getElementById("uEmail").value.trim(),
+        role: document.getElementById("uRole").value,
+        is_active: document.getElementById("uActive").checked,
+      };
+
+      try {
+        await apiPut(`/api/users/${id}`, body);
+        closeUser();
+        showAlert(alertBox, "บันทึกข้อมูลผู้ใช้เรียบร้อยแล้ว", "success");
+        loadStats();
+        load(1);
+      } catch (err) {
+        showAlert(uAlert, err.message);
+      } finally {
+        btnBusy(btn, false);
+      }
+    });
+
+    // ---------- ตัวกรอง ----------
+    document.getElementById("filterForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      load(1);
+    });
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      document.getElementById("filterForm").reset();
+      load(1);
+    });
+
+    loadStats();
+    load(1);
+  </script>
+</body>
+</html>

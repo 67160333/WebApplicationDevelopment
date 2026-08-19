@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>เข้าสู่ระบบ — Bookvice</title>
+  <meta name="description" content="เข้าสู่ระบบ Bookvice เพื่อจองคิวและติดตามการจองของคุณ" />
+  <meta name="theme-color" content="#16233F" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><defs><linearGradient id='a' x1='11' y1='5' x2='36' y2='27' gradientUnits='userSpaceOnUse'><stop stop-color='%23F9AE8B'/><stop offset='1' stop-color='%23E8785A'/></linearGradient><linearGradient id='b' x1='11' y1='21' x2='38' y2='43' gradientUnits='userSpaceOnUse'><stop stop-color='%233FC0D6'/><stop offset='1' stop-color='%2322A898'/></linearGradient></defs><rect width='48' height='48' rx='11' fill='%23fff'/><path d='M11 5h16a11 11 0 0 1 0 22H11z' fill='url(%23a)'/><path d='M11 21h18a11 11 0 0 1 0 22H11z' fill='url(%23b)'/><path d='m16.5 32.5 4.5 4.5 9-9' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='5' y='5' width='6.5' height='38' rx='3.25' fill='%2316233F'/></svg>" />
+
+  <!-- ข้อมูลตอนแชร์ลิงก์ ให้แอปแชตแสดงชื่อและคำอธิบายแทนลิงก์เปล่า -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Bookvice" />
+  <meta property="og:title" content="เข้าสู่ระบบ — Bookvice" />
+  <meta property="og:description" content="เข้าสู่ระบบ Bookvice เพื่อจองคิวและติดตามการจองของคุณ" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
+       IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202608252100" />
+</head>
+<body>
+  <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
+  <div id="navbar"></div>
+
+  <main id="main" class="max-w-md mx-auto px-5 py-16">
+    <div class="card card-pad">
+      <h1 class="h1">เข้าสู่ระบบ</h1>
+      <p class="text-sm text-muted mt-1.5">เข้าใช้งานเพื่อจองคิวและจัดการการจองของคุณ</p>
+
+      <div id="alert" class="alert mt-5" style="display:none"></div>
+
+      <form id="loginForm" class="mt-6 space-y-4">
+        <div>
+          <label class="label" for="username">ชื่อผู้ใช้ หรือ อีเมล</label>
+          <input id="username" name="username" class="input" required autocomplete="username" />
+        </div>
+        <div>
+          <label class="label" for="password">รหัสผ่าน</label>
+          <input id="password" name="password" type="password" class="input" required autocomplete="current-password" />
+        </div>
+        <button id="submitBtn" type="submit" class="btn btn-primary btn-block">เข้าสู่ระบบ</button>
+      </form>
+
+      <p class="text-sm text-muted text-center mt-5">
+        ยังไม่มีบัญชี?
+        <a href="register.html" style="color:var(--navy-800);font-weight:600">สมัครสมาชิก</a>
+      </p>
+    </div>
+
+    <!-- บัญชีสำหรับทดสอบระบบ -->
+    <div class="card card-pad mt-4" style="background:var(--navy-50);border-color:var(--navy-100)">
+      <div id="demoInfo"></div>
+    </div>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/api.js?v=202608252100"></script>
+  <script src="js/ui.js?v=202608252100"></script>
+  <script>
+    renderNavbar();
+    renderFooter();
+
+    const alertBox = document.getElementById("alert");
+    const params = new URLSearchParams(location.search);
+
+    if (params.get("expired")) {
+      showAlert(alertBox, "เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง", "info");
+    }
+
+    // ---------- บัญชีทดสอบ ----------
+    const DEMO = [
+      ["mind", "ลูกค้า"],
+      ["spaowner", "เจ้าของร้าน"],
+      ["admin", "ผู้ดูแลระบบ"],
+    ];
+    document.getElementById("demoInfo").innerHTML = `
+      <div class="flex items-center gap-2">
+        <span style="color:var(--navy-800)">${icon("info", 15)}</span>
+        <span class="text-sm font-semibold" style="color:var(--navy-800)">บัญชีสำหรับทดสอบระบบ</span>
+      </div>
+      <p class="text-xs text-muted mt-1.5">รหัสผ่านทุกบัญชีคือ Password123 — กดเพื่อกรอกอัตโนมัติ</p>
+      <div class="flex flex-wrap gap-2 mt-3">
+        ${DEMO.map(([u, role]) => `
+          <button type="button" data-user="${u}" class="btn btn-outline btn-sm">
+            ${u} <span class="text-muted" style="font-weight:400">· ${role}</span>
+          </button>`).join("")}
+      </div>`;
+
+    document.querySelectorAll("[data-user]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.getElementById("username").value = btn.dataset.user;
+        document.getElementById("password").value = "Password123";
+        document.getElementById("username").focus();
+      });
+    });
+
+    // ---------- ส่งฟอร์ม ----------
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideAlert(alertBox);
+
+      const btn = document.getElementById("submitBtn");
+      btnBusy(btn, true, "กำลังเข้าสู่ระบบ");
+
+      try {
+        const res = await apiPost("/api/auth/login", {
+          username: document.getElementById("username").value.trim(),
+          password: document.getElementById("password").value,
+        });
+        Auth.save(res.access_token, res.user);
+
+        // กลับไปหน้าที่ค้างไว้ (รวม query string เช่น shop.html?id=1)
+        location.href = safeNext(params.get("next")) || "index.html";
+      } catch (err) {
+        showAlert(alertBox, err.message);
+        btnBusy(btn, false);
+        // โฟกัสกลับไปที่ช่องรหัสผ่านและคลุมข้อความไว้ พิมพ์ใหม่ได้ทันทีโดยไม่ต้องลบเอง
+        const pw = document.getElementById("password");
+        pw.focus();
+        pw.select();
+      }
+    });
+  </script>
+</body>
+</html>

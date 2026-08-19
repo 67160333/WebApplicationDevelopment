@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ค้นหาร้าน — Bookvice</title>
+  <meta name="description" content="ค้นหาร้านความงาม สนามกีฬา และบริการส่งของในกรุงเทพฯ กรองตามเขต คะแนน ระยะทาง และคิวที่ยังว่างวันนี้" />
+  <meta name="theme-color" content="#16233F" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><defs><linearGradient id='a' x1='11' y1='5' x2='36' y2='27' gradientUnits='userSpaceOnUse'><stop stop-color='%23F9AE8B'/><stop offset='1' stop-color='%23E8785A'/></linearGradient><linearGradient id='b' x1='11' y1='21' x2='38' y2='43' gradientUnits='userSpaceOnUse'><stop stop-color='%233FC0D6'/><stop offset='1' stop-color='%2322A898'/></linearGradient></defs><rect width='48' height='48' rx='11' fill='%23fff'/><path d='M11 5h16a11 11 0 0 1 0 22H11z' fill='url(%23a)'/><path d='M11 21h18a11 11 0 0 1 0 22H11z' fill='url(%23b)'/><path d='m16.5 32.5 4.5 4.5 9-9' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='5' y='5' width='6.5' height='38' rx='3.25' fill='%2316233F'/></svg>" />
+
+  <!-- ข้อมูลตอนแชร์ลิงก์ ให้แอปแชตแสดงชื่อและคำอธิบายแทนลิงก์เปล่า -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Bookvice" />
+  <meta property="og:title" content="ค้นหาร้าน — Bookvice" />
+  <meta property="og:description" content="ค้นหาร้านความงาม สนามกีฬา และบริการส่งของในกรุงเทพฯ กรองตามเขต คะแนน ระยะทาง และคิวที่ยังว่างวันนี้" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
+       IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202608252100" />
+</head>
+<body>
+  <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
+  <div id="navbar"></div>
+
+  <main id="main" class="max-w-6xl mx-auto px-5 py-12">
+    <h1 class="h1">ร้านและผู้ให้บริการ</h1>
+
+    <!-- ตัวกรอง — เห็นแค่ช่องค้นหากับปุ่มลัด ที่เหลือพับไว้ -->
+    <div class="card card-pad mt-6">
+      <form id="filterForm" onsubmit="return false">
+        <div class="search-line">
+          <span class="search-ic"></span>
+          <input id="fSearch" name="search" class="input search-input"
+                 placeholder="ค้นหาชื่อร้าน เช่น สปา ทำเล็บ" autocomplete="off" />
+        </div>
+
+        <div id="availQuick" class="quick-row mt-4">
+          <button type="button" class="quick is-active" data-avail="">ร้านทั้งหมด</button>
+          <button type="button" class="quick" data-avail="today">ว่างวันนี้</button>
+          <button type="button" class="quick" data-avail="tomorrow">ว่างพรุ่งนี้</button>
+          <button type="button" class="quick" id="nearBtn">ใกล้ฉัน</button>
+        </div>
+
+        <details id="moreFilter" class="more-fields" style="margin-top:14px">
+          <summary id="moreSummary">ตัวกรองเพิ่มเติม</summary>
+          <div class="grid sm:grid-cols-3 gap-4 pt-4">
+            <div>
+              <label class="label" for="fCat">ประเภทบริการ</label>
+              <select id="fCat" name="category_id" class="select">
+                <option value="">ทุกประเภท</option>
+              </select>
+            </div>
+            <div>
+              <label class="label" for="fDistrict">โซน / เขต</label>
+              <select id="fDistrict" name="district" class="select">
+                <option value="">ทุกพื้นที่</option>
+              </select>
+            </div>
+            <div>
+              <label class="label" for="fRating">คะแนนขั้นต่ำ</label>
+              <select id="fRating" name="min_rating" class="select">
+                <option value="">ไม่จำกัด</option>
+                <option value="4">4.0 ขึ้นไป</option>
+                <option value="3">3.0 ขึ้นไป</option>
+              </select>
+            </div>
+            <div class="sm:col-span-3 flex items-center justify-between gap-4 flex-wrap">
+              <label class="flex items-center gap-2.5 text-sm cursor-pointer">
+                <input type="checkbox" id="fCert" name="certified"
+                       style="width:16px;height:16px;accent-color:var(--navy-800)" />
+                <span>เฉพาะร้านที่ผ่านการรับรองมาตรฐาน</span>
+              </label>
+              <button type="button" id="resetBtn" class="btn btn-ghost btn-sm">ล้างตัวกรองทั้งหมด</button>
+            </div>
+          </div>
+        </details>
+      </form>
+    </div>
+
+    <div class="flex items-center justify-between gap-3 mt-6 flex-wrap">
+      <p id="resultCount" class="text-sm text-muted" style="margin:0"></p>
+      <button id="favTab" class="btn btn-outline btn-sm" style="display:none"></button>
+    </div>
+    <div id="shops" class="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    <div id="pagination" class="mt-10 flex justify-center items-center gap-1.5"></div>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/api.js?v=202608252100"></script>
+  <script src="js/ui.js?v=202608252100"></script>
+  <script>
+    renderNavbar("shops");
+    renderFooter();
+    prefetchOnHover();
+    document.querySelector(".search-ic").innerHTML = icon("search", 18);
+
+    // บอกจำนวนตัวกรองที่เปิดใช้อยู่ เพื่อไม่ให้ผู้ใช้ลืมว่าซ่อนอะไรไว้
+    function updateMoreSummary() {
+      const n = [
+        document.getElementById("fCat").value,
+        document.getElementById("fDistrict").value,
+        document.getElementById("fRating").value,
+        document.getElementById("fCert").checked ? "1" : "",
+      ].filter(Boolean).length;
+
+      document.getElementById("moreSummary").innerHTML =
+        n ? `ตัวกรองเพิ่มเติม <span class="badge badge-confirmed">${n}</span>` : "ตัวกรองเพิ่มเติม";
+      if (n) document.getElementById("moreFilter").open = true;
+    }
+
+    const form = document.getElementById("filterForm");
+    const params = new URLSearchParams(location.search);
+    let onlyFav = params.get("fav") === "1";   // กำลังดูเฉพาะร้านโปรดอยู่หรือไม่
+    let availMode = params.get("avail") || "";  // "" | today | tomorrow
+    let myPos = null;        // ตำแหน่งผู้ใช้ — มีค่าเมื่อกด "ใกล้ฉัน" เท่านั้น
+    let nearRadius = 20;     // รัศมีค้นหาเป็นกิโลเมตร
+
+    // เติมค่าจาก URL
+    document.getElementById("fSearch").value = params.get("search") || "";
+    document.getElementById("fRating").value = params.get("min_rating") || "";
+    document.getElementById("fCert").checked = params.get("certified") === "true";
+
+    async function loadFilterOptions() {
+      try {
+        const cats = await apiGet("/api/categories");
+        const sel = document.getElementById("fCat");
+        cats.forEach((c) => sel.add(new Option(c.name, c.id)));
+        sel.value = params.get("category_id") || "";
+      } catch {}
+
+      // เติมรายชื่อเขตจากร้านที่มีอยู่จริง
+      try {
+        const all = await apiGet("/api/shops?page=1&limit=100");
+        const sel = document.getElementById("fDistrict");
+        [...new Set(all.items.map((s) => s.district).filter(Boolean))]
+          .sort()
+          .forEach((d) => sel.add(new Option(d, d)));
+        sel.value = params.get("district") || "";
+      } catch {}
+    }
+
+    function buildQuery(page) {
+      const q = new URLSearchParams({ page, limit: 9 });
+      const s = document.getElementById("fSearch").value.trim();
+      const c = document.getElementById("fCat").value;
+      const d = document.getElementById("fDistrict").value;
+      const r = document.getElementById("fRating").value;
+      if (s) q.set("search", s);
+      if (c) q.set("category_id", c);
+      if (d) q.set("district", d);
+      if (r) q.set("min_rating", r);
+      if (document.getElementById("fCert").checked) q.set("certified", "true");
+      // ให้เซิร์ฟเวอร์คัดเฉพาะร้านที่ยังมีช่องเวลาว่างจริงในวันนั้น
+      if (availMode === "today") q.set("available_on", localDate());
+      if (availMode === "tomorrow") q.set("available_on", localDate(dateAfter(1)));
+      // ค้นหาตามระยะทาง — ให้ฐานข้อมูลเรียงร้านที่ใกล้ที่สุดมาก่อน
+      if (myPos) {
+        q.set("near_lat", myPos.lat.toFixed(6));
+        q.set("near_lng", myPos.lng.toFixed(6));
+        q.set("radius_km", nearRadius);
+      }
+      return q;
+    }
+
+    async function loadShops(page = 1) {
+      const box = document.getElementById("shops");
+      const count = document.getElementById("resultCount");
+      box.innerHTML = skeletonCards(6);
+      count.textContent = "กำลังค้นหา";
+      document.getElementById("pagination").innerHTML = "";
+
+      try {
+        const q = buildQuery(page);
+        // โหมดร้านโปรด: ดึงมาให้พอ แล้วค่อยกรองเฉพาะร้านที่บันทึกไว้
+        if (onlyFav) q.set("limit", 100);
+        const res = await apiGet(`/api/shops?${q}`);
+
+        // เก็บตัวกรองไว้ในลิงก์เพื่อให้แชร์และกดย้อนกลับได้
+        // แต่ตัดพิกัดของผู้ใช้ออกก่อนเสมอ — ตำแหน่งที่อยู่เป็นข้อมูลส่วนตัว
+        // ไม่ควรค้างอยู่ในแถบที่อยู่ ประวัติเบราว์เซอร์ หรือลิงก์ที่ถูกส่งต่อ
+        const shown = new URLSearchParams(q);
+        ["near_lat", "near_lng", "radius_km"].forEach((k) => shown.delete(k));
+        history.replaceState(null, "", `shops.html?${shown}`);
+
+        let items = res.items;
+        if (onlyFav) {
+          const fav = Favorites.list();
+          items = items.filter((s) => fav.includes(s.id));
+        }
+
+        if (!items.length) {
+          // ต้องอัปเดตตัวนับด้วย ไม่งั้นค้างคำว่า "กำลังค้นหา" ตลอดไป
+          // แล้วผู้ใช้จะนั่งรอทั้งที่การค้นหาจบไปแล้วและไม่เจออะไรเลย
+          count.textContent = onlyFav
+            ? "ยังไม่มีร้านโปรดที่ตรงกับตัวกรองนี้"
+            : myPos
+            ? `ไม่มีร้านในรัศมี ${nearRadius} กม.`
+            : availMode
+            ? "ไม่มีร้านที่ยังมีคิวว่างในวันนั้น"
+            : "ไม่พบร้านที่ตรงกับเงื่อนไข";
+          box.innerHTML = onlyFav
+            ? emptyHTML("heart", "ยังไม่มีร้านโปรดที่ตรงกับตัวกรองนี้", "กดรูปหัวใจบนการ์ดร้านเพื่อบันทึกไว้ดูทีหลัง")
+            : myPos
+            ? emptyHTML("mapPin", `ไม่มีร้านในรัศมี ${nearRadius} กิโลเมตร`,
+                "กดปุ่มใกล้ฉันอีกครั้งเพื่อดูร้านทั้งหมดโดยไม่จำกัดระยะทาง")
+            : emptyHTML("search",
+                availMode ? "ไม่มีร้านที่ยังมีคิวว่างในวันนั้น" : "ไม่พบร้านที่ตรงกับเงื่อนไข",
+                availMode ? "ลองเลือกวันอื่น หรือกดไม่จำกัดเพื่อดูร้านทั้งหมด" : "ลองปรับตัวกรองหรือใช้คำค้นอื่น");
+          return;
+        }
+
+        count.textContent = onlyFav
+          ? `ร้านโปรดของคุณ ${items.length} ร้าน`
+          : myPos
+          ? `พบ ${res.total} ร้านในรัศมี ${nearRadius} กม. · เรียงจากใกล้ที่สุด`
+          : `พบ ${res.total} ร้าน · แสดงหน้า ${res.page} จาก ${res.total_pages}`;
+        box.innerHTML = items.map(shopCard).join("");
+        bindFavButtons();
+        revealOnScroll("#shops .reveal");   // การ์ดร้านไล่ปรากฏทีละใบ
+        if (!onlyFav) renderPagination(res);
+      } catch (err) {
+        // เดิมตัวนับยังค้างคำว่า "กำลังค้นหา" ไว้ตลอด ทั้งที่การค้นหาจบไปแล้ว
+        // ผู้ใช้จะนั่งรอต่อไปเรื่อย ๆ โดยไม่รู้ว่าต้องกดใหม่
+        count.textContent = "ค้นหาไม่สำเร็จ";
+        box.innerHTML = `
+          <div class="card card-pad text-center">
+            <p class="text-sm" style="color:var(--danger)">${esc(err.message)}</p>
+            <button type="button" id="retryBtn" class="btn btn-outline btn-sm" style="margin-top:12px">
+              ลองใหม่อีกครั้ง
+            </button>
+          </div>`;
+        document.getElementById("retryBtn").addEventListener("click", (e) => {
+          btnBusy(e.currentTarget, true, "กำลังลองใหม่");
+          loadShops(page);
+        });
+      }
+    }
+
+    function shopCard(s) {
+      const st = shopStatus(s);
+      const fav = Favorites.has(s.id);
+      return `
+        <div class="shop-cell reveal">
+          <a href="shop.html?id=${s.id}" class="card card-link overflow-hidden">
+            ${shopArt(s, "h-36", { tag: s.is_certified ? "ผ่านการรับรอง" : null, fontSize: "1.8rem" })}
+            <div class="p-5">
+              <h3 class="h3 leading-snug">${esc(s.name)}</h3>
+              <p class="text-sm text-muted mt-2 clamp-2">${esc(s.description || "")}</p>
+              <div class="flex items-center gap-2 mt-3.5">
+                ${starRow(s.rating_avg)}
+                <span class="text-xs text-muted">${Number(s.rating_avg).toFixed(1)} · ${s.rating_count} รีวิว</span>
+              </div>
+              <div class="flex items-center gap-2.5 mt-3 pt-3 text-xs text-muted flex-wrap"
+                   style="border-top:1px solid var(--border)">
+                <span class="flex items-center gap-1.5">${icon("mapPin", 13)} ${esc(s.district || "—")}</span>
+                ${s.distance_km != null
+                  ? `<span class="dist-chip num">${icon("navigate", 11)} ${distanceText(s.distance_km)}</span>`
+                  : ""}
+                <span class="shop-st ${st.cls}">${st.text}</span>
+              </div>
+            </div>
+          </a>
+          <button type="button" class="fav-btn ${fav ? "is-on" : ""}" data-fav="${s.id}" aria-pressed="${fav}"
+                  title="${fav ? "อยู่ในร้านโปรดแล้ว" : "บันทึกเป็นร้านโปรด"}"
+                  aria-label="${fav ? "เอาออกจากร้านโปรด" : "บันทึกเป็นร้านโปรด"}">${icon("heart", 17)}</button>
+        </div>`;
+    }
+
+    // ปุ่มหัวใจ — กดได้โดยไม่ต้องเปิดหน้าร้าน และไม่ต้องล็อกอิน
+    function bindFavButtons() {
+      document.querySelectorAll("[data-fav]").forEach((b) =>
+        b.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const on = Favorites.toggle(b.dataset.fav);
+          b.classList.toggle("is-on", on);
+          b.title = on ? "อยู่ในร้านโปรดแล้ว" : "บันทึกเป็นร้านโปรด";
+          // เดิมตั้ง aria-pressed ไว้ตอนวาดครั้งแรกแล้วไม่เคยอัปเดตอีกเลย
+          // โปรแกรมอ่านหน้าจอจึงอ่านสถานะผิดทุกครั้งหลังกดปุ่ม
+          b.setAttribute("aria-pressed", String(on));
+          b.setAttribute("aria-label", on ? "เอาออกจากร้านโปรด" : "บันทึกเป็นร้านโปรด");
+          toast(on ? "บันทึกไว้ในร้านโปรดแล้ว" : "เอาออกจากร้านโปรดแล้ว");
+          updateFavTab();
+          if (!on && onlyFav) loadShops(1);   // เอาออกจากรายการโปรดขณะกรองอยู่
+        })
+      );
+    }
+
+    function updateFavTab() {
+      const n = Favorites.count();
+      const btn = document.getElementById("favTab");
+      btn.style.display = n ? "" : "none";
+      btn.innerHTML = `${icon("heart", 14)} ร้านโปรด <span class="num">${n}</span>`;
+      btn.classList.toggle("btn-primary", onlyFav);
+      btn.classList.toggle("btn-outline", !onlyFav);
+    }
+
+    function renderPagination(res) {
+      if (res.total_pages <= 1) return;
+      const box = document.getElementById("pagination");
+      const btn = (label, page, disabled, active, label2) => `
+        <button data-page="${page}" ${disabled ? "disabled" : ""}
+          ${active ? 'aria-current="page"' : ""}
+          ${label2 ? `aria-label="${esc(label2)}"` : ""}
+          class="btn btn-sm ${active ? "btn-primary" : "btn-outline"}"
+          ${disabled ? 'style="opacity:.4;cursor:not-allowed"' : ""}>${label}</button>`;
+
+      // แสดงเลขหน้าแค่ช่วงรอบ ๆ หน้าปัจจุบัน บวกหน้าแรกกับหน้าสุดท้ายเสมอ
+      // ถ้าไล่พิมพ์ทุกหน้า พอร้านเยอะขึ้นแถวปุ่มจะยาวจนล้นออกนอกจอ
+      const cur = res.page;
+      const last = res.total_pages;
+      const around = new Set([1, last, cur - 1, cur, cur + 1]);
+      const pages = [...around].filter((p) => p >= 1 && p <= last).sort((a, b) => a - b);
+
+      let html = btn(icon("chevronLeft", 14), cur - 1, cur <= 1, false, "หน้าก่อนหน้า");
+      let prev = 0;
+      for (const p of pages) {
+        if (p - prev > 1) html += `<span class="page-gap">…</span>`;
+        html += btn(p, p, false, p === cur, `หน้า ${p}`);
+        prev = p;
+      }
+      html += btn(icon("chevronRight", 14), cur + 1, cur >= last, false, "หน้าถัดไป");
+      box.innerHTML = html;
+
+      box.querySelectorAll("button[data-page]").forEach((b) =>
+        b.addEventListener("click", () => {
+          loadShops(Number(b.dataset.page));
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        })
+      );
+    }
+
+    // ค้นหาทันทีขณะพิมพ์ — หน่วงไว้เล็กน้อยกันยิง API ทุกตัวอักษร
+    let typeTimer = null;
+    document.getElementById("fSearch").addEventListener("input", () => {
+      clearTimeout(typeTimer);
+      typeTimer = setTimeout(() => loadShops(1), 350);
+    });
+
+    // เปลี่ยนตัวเลือกในกล่องดรอปดาวน์แล้วค้นทันที ไม่ต้องกดปุ่มค้นหา
+    ["fCat", "fDistrict", "fRating", "fCert"].forEach((id) =>
+      document.getElementById(id).addEventListener("change", () => {
+        updateMoreSummary();
+        loadShops(1);
+      })
+    );
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      form.reset();
+      availMode = "";
+      myPos = null;
+      setNearButton(false);
+      paintAvail();
+      updateMoreSummary();
+      loadShops(1);
+      toast("ล้างตัวกรองแล้ว");
+    });
+
+    // ---------- ร้านใกล้ฉัน ----------
+    const nearBtn = document.getElementById("nearBtn");
+
+    function setNearButton(on) {
+      nearBtn.classList.toggle("is-active", on);
+      nearBtn.setAttribute("aria-pressed", String(on));
+      nearBtn.textContent = on ? `ใกล้ฉัน · ${nearRadius} กม.` : "ใกล้ฉัน";
+      nearBtn.title = on
+        ? "กดอีกครั้งเพื่อเลิกเรียงตามระยะทาง"
+        : "เรียงร้านจากที่ใกล้ตัวคุณที่สุด";
+    }
+
+    nearBtn.addEventListener("click", async () => {
+      // กดซ้ำเพื่อปิดโหมด กลับไปเรียงตามคะแนนเหมือนเดิม
+      if (myPos) {
+        myPos = null;
+        setNearButton(false);
+        loadShops(1);
+        return;
+      }
+
+      // ขอตำแหน่งจากเบราว์เซอร์ใช้เวลาหลายวินาที และผู้ใช้ต้องกดอนุญาตก่อน
+      // ถ้าปุ่มไม่บอกอะไรเลย จะดูเหมือนกดแล้วเว็บค้าง
+      btnBusy(nearBtn, true, "กำลังหาตำแหน่ง");
+      try {
+        myPos = await askLocation();
+        // ปิดตัวกรองเขตไว้ก่อน ไม่งั้นเลือกเขตค้างไว้แล้วจะไม่เจอร้านใกล้ตัวเลย
+        const dist = document.getElementById("fDistrict");
+        if (dist.value) {
+          dist.value = "";
+          updateMoreSummary();
+        }
+        btnBusy(nearBtn, false);
+        setNearButton(true);
+        await loadShops(1);
+      } catch (err) {
+        myPos = null;
+        btnBusy(nearBtn, false);
+        setNearButton(false);
+        toast(err.message, "error", 5000);
+      }
+    });
+
+    document.getElementById("favTab").addEventListener("click", () => {
+      onlyFav = !onlyFav;
+      updateFavTab();
+      loadShops(1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // ปุ่มลัดคิวว่าง
+    const paintAvail = () =>
+      document.querySelectorAll("[data-avail]").forEach((x) => {
+        const on = x.dataset.avail === availMode;
+        x.classList.toggle("is-active", on);
+        x.setAttribute("aria-pressed", String(on));
+      });
+
+    document.querySelectorAll("[data-avail]").forEach((b) =>
+      b.addEventListener("click", () => {
+        availMode = b.dataset.avail;
+        paintAvail();
+        loadShops(1);
+      })
+    );
+    paintAvail();
+
+    updateFavTab();
+    updateMoreSummary();
+    loadFilterOptions().then(() => { updateMoreSummary(); loadShops(Number(params.get("page")) || 1); });
+  </script>
+</body>
+</html>

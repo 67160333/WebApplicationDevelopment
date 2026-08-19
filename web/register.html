@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>สมัครสมาชิก — Bookvice</title>
+  <meta name="description" content="สมัครสมาชิก Bookvice ฟรี เพื่อจองคิวร้านความงาม สนามกีฬา และเรียกส่งของด่วน" />
+  <meta name="theme-color" content="#16233F" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><defs><linearGradient id='a' x1='11' y1='5' x2='36' y2='27' gradientUnits='userSpaceOnUse'><stop stop-color='%23F9AE8B'/><stop offset='1' stop-color='%23E8785A'/></linearGradient><linearGradient id='b' x1='11' y1='21' x2='38' y2='43' gradientUnits='userSpaceOnUse'><stop stop-color='%233FC0D6'/><stop offset='1' stop-color='%2322A898'/></linearGradient></defs><rect width='48' height='48' rx='11' fill='%23fff'/><path d='M11 5h16a11 11 0 0 1 0 22H11z' fill='url(%23a)'/><path d='M11 21h18a11 11 0 0 1 0 22H11z' fill='url(%23b)'/><path d='m16.5 32.5 4.5 4.5 9-9' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='5' y='5' width='6.5' height='38' rx='3.25' fill='%2316233F'/></svg>" />
+
+  <!-- ข้อมูลตอนแชร์ลิงก์ ให้แอปแชตแสดงชื่อและคำอธิบายแทนลิงก์เปล่า -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Bookvice" />
+  <meta property="og:title" content="สมัครสมาชิก — Bookvice" />
+  <meta property="og:description" content="สมัครสมาชิก Bookvice ฟรี เพื่อจองคิวร้านความงาม สนามกีฬา และเรียกส่งของด่วน" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
+       IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202608252100" />
+</head>
+<body>
+  <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
+  <div id="navbar"></div>
+
+  <main id="main" class="max-w-md mx-auto px-5 py-16">
+    <div class="card card-pad">
+      <h1 class="h1">สมัครสมาชิก</h1>
+      <p class="text-sm text-muted mt-1.5">สร้างบัญชีเพื่อจองบริการและติดตามการจองของคุณ</p>
+
+      <div id="alert" class="alert mt-5" style="display:none"></div>
+
+      <form id="registerForm" class="mt-6 space-y-4">
+        <div>
+          <label class="label" for="username">ชื่อผู้ใช้</label>
+          <input id="username" name="username" class="input" required minlength="3" maxlength="50"
+                 pattern="[a-zA-Z0-9_]+" autocomplete="username" />
+          <p id="usernameHint" class="hint" style="min-height:19px">ใช้ได้เฉพาะ a–z, 0–9 และ _</p>
+        </div>
+
+        <div>
+          <label class="label" for="email">อีเมล</label>
+          <input id="email" name="email" type="email" class="input" required autocomplete="email" />
+        </div>
+
+        <div>
+          <label class="label" for="full_name">ชื่อ–นามสกุล</label>
+          <input id="full_name" name="full_name" class="input" required minlength="2" autocomplete="name" />
+        </div>
+
+        <div>
+          <label class="label" for="phone">เบอร์โทรศัพท์ <span class="text-muted" style="font-weight:400">(ไม่บังคับ)</span></label>
+          <input id="phone" name="phone" class="input" pattern="[0-9]{9,15}" placeholder="0891234567" autocomplete="tel" />
+        </div>
+
+        <div>
+          <label class="label" for="password">รหัสผ่าน</label>
+          <input id="password" name="password" type="password" class="input" required minlength="8"
+                 autocomplete="new-password" />
+          <p class="hint">อย่างน้อย 8 ตัวอักษร</p>
+        </div>
+
+        <div>
+          <label class="label" for="role">ประเภทบัญชี</label>
+          <select id="role" name="role" class="select">
+            <option value="customer">ลูกค้า — จองบริการ</option>
+            <option value="owner">เจ้าของร้าน — เปิดร้านรับจอง</option>
+          </select>
+        </div>
+
+        <button id="submitBtn" type="submit" class="btn btn-primary btn-block">สร้างบัญชี</button>
+
+        <p class="hint text-center" style="margin-top:14px">
+          การสมัครถือว่ายอมรับเงื่อนไขการใช้บริการและนโยบายความเป็นส่วนตัว
+        </p>
+      </form>
+
+      <p class="text-sm text-muted text-center mt-5 pt-5" style="border-top:1px solid var(--border)">
+        มีบัญชีอยู่แล้ว?
+        <a href="login.html" style="color:var(--navy-800);font-weight:600">เข้าสู่ระบบ</a>
+      </p>
+    </div>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/api.js?v=202608252100"></script>
+  <script src="js/ui.js?v=202608252100"></script>
+  <script>
+    renderNavbar();
+    renderFooter();
+    const alertBox = document.getElementById("alert");
+
+    // ---------- ตรวจชื่อผู้ใช้ซ้ำแบบเรียลไทม์ ----------
+    const usernameInput = document.getElementById("username");
+    const hint = document.getElementById("usernameHint");
+    let timer = null;
+
+    usernameInput.addEventListener("input", () => {
+      clearTimeout(timer);
+      const name = usernameInput.value.trim();
+
+      if (name.length < 3) {
+        hint.textContent = "ใช้ได้เฉพาะ a–z, 0–9 และ _";
+        hint.style.color = "var(--muted)";
+        return;
+      }
+
+      hint.textContent = "กำลังตรวจสอบ";
+      hint.style.color = "var(--muted)";
+
+      // หน่วงเวลาไม่ให้ยิง API ทุกตัวอักษร
+      timer = setTimeout(async () => {
+        try {
+          const res = await apiGet(`/api/users/check-username/${encodeURIComponent(name)}`);
+          hint.innerHTML = res.available
+            ? `${icon("check", 13)} ชื่อผู้ใช้นี้ใช้ได้`
+            : `${icon("x", 13)} ชื่อผู้ใช้นี้ถูกใช้แล้ว`;
+          hint.style.color = res.available ? "var(--success)" : "var(--danger)";
+        } catch {
+          hint.textContent = "";
+        }
+      }, 400);
+    });
+
+    // ---------- ส่งฟอร์ม ----------
+    document.getElementById("registerForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideAlert(alertBox);
+
+      const btn = document.getElementById("submitBtn");
+      btnBusy(btn, true, "กำลังสร้างบัญชี");
+
+      const body = {
+        username: document.getElementById("username").value.trim(),
+        email: document.getElementById("email").value.trim(),
+        password: document.getElementById("password").value,
+        full_name: document.getElementById("full_name").value.trim(),
+        role: document.getElementById("role").value,
+      };
+      // ส่ง phone เฉพาะตอนกรอก (สตริงว่างจะไม่ผ่าน validation)
+      const phone = document.getElementById("phone").value.trim();
+      if (phone) body.phone = phone;
+
+      try {
+        const res = await apiPost("/api/auth/register", body);
+        Auth.save(res.access_token, res.user);
+        location.href = "index.html";
+      } catch (err) {
+        showAlert(alertBox, err.message);
+        btnBusy(btn, false);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    });
+  </script>
+</body>
+</html>

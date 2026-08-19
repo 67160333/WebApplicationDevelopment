@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bookvice — จองง่าย ได้ครบ จบที่เดียว</title>
+  <meta name="description" content="จองคิวร้านความงาม สนามกีฬา และเรียกส่งของด่วน ในที่เดียว ดูช่วงเวลาที่ว่างจริงแล้วจองได้ทันที" />
+  <meta name="theme-color" content="#16233F" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><defs><linearGradient id='a' x1='11' y1='5' x2='36' y2='27' gradientUnits='userSpaceOnUse'><stop stop-color='%23F9AE8B'/><stop offset='1' stop-color='%23E8785A'/></linearGradient><linearGradient id='b' x1='11' y1='21' x2='38' y2='43' gradientUnits='userSpaceOnUse'><stop stop-color='%233FC0D6'/><stop offset='1' stop-color='%2322A898'/></linearGradient></defs><rect width='48' height='48' rx='11' fill='%23fff'/><path d='M11 5h16a11 11 0 0 1 0 22H11z' fill='url(%23a)'/><path d='M11 21h18a11 11 0 0 1 0 22H11z' fill='url(%23b)'/><path d='m16.5 32.5 4.5 4.5 9-9' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='5' y='5' width='6.5' height='38' rx='3.25' fill='%2316233F'/></svg>" />
+
+  <!-- ข้อมูลตอนแชร์ลิงก์ ให้แอปแชตแสดงชื่อและคำอธิบายแทนลิงก์เปล่า -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Bookvice" />
+  <meta property="og:title" content="Bookvice — จองง่าย ได้ครบ จบที่เดียว" />
+  <meta property="og:description" content="จองคิวร้านความงาม สนามกีฬา และเรียกส่งของด่วน ในที่เดียว ดูช่วงเวลาที่ว่างจริงแล้วจองได้ทันที" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="description" content="จองง่าย ได้ครบ จบที่เดียว — ร้านความงาม สนามฟุตบอล สนามแบดมินตัน และบริการส่งของด่วน" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
+       IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202608252100" />
+</head>
+<body>
+  <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
+  <div id="navbar"></div>
+
+  <!-- ========== ส่วนหัว ========== -->
+  <section class="hero">
+    <div class="hero-grid"></div>
+    <div class="max-w-6xl mx-auto px-5 pt-20 pb-28 sm:pt-24 sm:pb-32">
+      <!-- คุมจุดตัดบรรทัดเอง ไม่ปล่อยให้เบราว์เซอร์ตัดกลางวลีจนอ่านสะดุด -->
+      <p class="hero-slogan">จองง่าย ได้ครบ จบที่เดียว</p>
+      <h1 class="hero-title">
+        จองคิวร้านดูแลตัวเอง<br class="hidden sm:block" />
+        ได้ในไม่กี่นาที
+      </h1>
+      <p class="hero-sub">
+        ดูช่วงเวลาที่ว่างจริงของแต่ละร้าน แต่ละช่าง และแต่ละคอร์ท เลือกเวลาที่สะดวก
+        แล้วยืนยันได้ทันที ไม่ต้องทักไปถามแล้วรอตอบ
+      </p>
+
+      <!-- ข้อเท็จจริงจากฐานข้อมูล ไม่ใช่คำโฆษณา -->
+      <div class="hero-facts" id="heroFacts"></div>
+    </div>
+  </section>
+
+  <!-- การ์ดค้นหา ลอยคร่อมส่วนหัว -->
+  <div class="max-w-6xl mx-auto px-5" style="margin-top:-58px;position:relative;z-index:10">
+    <form id="searchForm" class="search-card">
+      <div class="search-grid">
+        <div class="search-field">
+          <label class="label" for="sCat">บริการที่ต้องการ</label>
+          <select id="sCat" class="select"><option value="">ทุกประเภทบริการ</option></select>
+        </div>
+        <div class="search-field">
+          <label class="label" for="sDistrict">โซน / เขต</label>
+          <select id="sDistrict" class="select"><option value="">ทุกพื้นที่</option></select>
+        </div>
+        <div class="search-field">
+          <label class="label" for="sKeyword">คำค้นหา</label>
+          <input id="sKeyword" class="input" placeholder="ชื่อร้าน" />
+        </div>
+        <button type="submit" class="btn btn-primary" style="height:41px;padding-left:30px;padding-right:30px">
+          ค้นหา
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <main id="main" class="max-w-6xl mx-auto px-5 pt-16 pb-4">
+    <!-- ========== หมวดหมู่ ========== -->
+    <section class="reveal">
+      <div class="section-head">
+        <div>
+          <h2>เลือกตามประเภทบริการ</h2>
+          <p class="lede">ร้านความงาม สนามกีฬา และบริการส่งของด่วน รวมไว้ที่เดียว</p>
+        </div>
+      </div>
+      <div id="categories" class="cat-row"></div>
+    </section>
+
+    <!-- ========== ร้านแนะนำ ========== -->
+    <section class="sect reveal">
+      <div class="section-head">
+        <div>
+          <h2>ร้านที่ได้คะแนนสูงที่สุด</h2>
+          <p class="lede">เรียงตามคะแนนรีวิวจริงของผู้ที่ใช้บริการเสร็จแล้ว</p>
+        </div>
+        <a href="shops.html" class="see-all">ดูร้านทั้งหมด <span id="ic1"></span></a>
+      </div>
+      <div id="shops" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    </section>
+
+    <!-- ========== เสียงจากผู้ใช้จริง ========== -->
+    <section class="sect reveal" id="voices">
+      <div class="section-head">
+        <div>
+          <h2>ความเห็นจากผู้ใช้บริการ</h2>
+          <p class="lede">
+            ทุกข้อความมาจากรีวิวในระบบ เขียนได้เฉพาะผู้ที่จองผ่านเว็บและร้านยืนยันว่าใช้บริการแล้ว
+          </p>
+        </div>
+      </div>
+      <div id="testimonials" class="grid sm:grid-cols-3 gap-5"></div>
+    </section>
+
+    <!-- ========== มาตรฐานของเรา ========== -->
+    <section class="sect reveal">
+      <div class="section-head">
+        <h2>สิ่งที่เรารับประกันให้คุณ</h2>
+      </div>
+      <div id="valueProps" class="pledge"></div>
+    </section>
+
+    <!-- ========== คำถามที่พบบ่อย ========== -->
+    <section class="sect reveal">
+      <div class="section-head">
+        <h2>คำถามที่พบบ่อย</h2>
+      </div>
+      <div id="faq" class="card" style="padding:4px 26px"></div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/api.js?v=202608252100"></script>
+  <script src="js/ui.js?v=202608252100"></script>
+  <script>
+    renderNavbar("home");
+    renderFooter();
+    prefetchOnHover();
+    document.getElementById("ic1").innerHTML = icon("chevronRight", 14);
+
+    // ---------- ค้นหา ----------
+    document.getElementById("searchForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const q = new URLSearchParams();
+      const cat = document.getElementById("sCat").value;
+      const dis = document.getElementById("sDistrict").value;
+      const kw = document.getElementById("sKeyword").value.trim();
+      if (cat) q.set("category_id", cat);
+      if (dis) q.set("district", dis);
+      if (kw) q.set("search", kw);
+      location.href = q.toString() ? `shops.html?${q}` : "shops.html";
+    });
+
+    // ---------- คำถามที่พบบ่อย ----------
+    const FAQ = [
+      ["จองแล้วต้องจ่ายเงินตอนไหน",
+       "ชำระมัดจำ 20% ตอนยืนยันการจองเพื่อล็อกคิวไว้ ส่วนที่เหลือชำระที่ร้านในวันเข้ารับบริการ ยอดทั้งสองส่วนแสดงชัดเจนก่อนกดยืนยันเสมอ"],
+      ["ยกเลิกหรือเลื่อนนัดได้ไหม",
+       "ยกเลิกได้เองผ่านหน้าการจองของฉัน ตราบใดที่สถานะยังเป็นรอยืนยันหรือยืนยันแล้ว เมื่อยกเลิกแล้วช่องเวลานั้นจะกลับไปเปิดให้คนอื่นจองได้ทันที"],
+      ["เลือกช่างหรือคอร์ทที่ต้องการได้จริงไหม",
+       "ได้ ระบบคิดช่วงเวลาว่างแยกรายคน รายคอร์ท และรายสนาม ถ้าคนหรือคอร์ทที่ต้องการไม่ว่างในเวลานั้น ระบบจะปิดช่องเวลาให้เห็นทันทีโดยไม่ต้องทักไปถาม หรือจะให้ร้านจัดให้ก็ได้"],
+      ["จองสนามฟุตบอลกับสนามแบดมินตันได้ด้วยไหม",
+       "ได้ ใช้ระบบเดียวกับการจองร้าน แต่เปลี่ยนเป็นเลือกสนามหรือคอร์ทแทนการเลือกช่าง รองรับสนามที่เปิดถึงดึกและเปิดตลอด 24 ชั่วโมงด้วย"],
+      ["บริการส่งของด่วนจองล่วงหน้าได้ไหม",
+       "บริการส่งของเป็นแบบเรียกใช้ทันที ไม่ต้องเลือกวันและเวลา แค่กรอกที่อยู่ต้นทาง-ปลายทางแล้วกดเรียก ระบบคิดค่าบริการตามระยะทางและยืนยันงานให้ทันที"],
+      ["รีวิวในเว็บเชื่อถือได้แค่ไหน",
+       "เขียนรีวิวได้เฉพาะผู้ที่จองผ่านระบบและร้านปิดงานว่าใช้บริการเสร็จแล้วเท่านั้น และรีวิวได้ครั้งเดียวต่อการจอง จึงไม่มีรีวิวปลอมหรือรีวิวซ้ำ"],
+      ["ตรารับรองมาตรฐานหมายถึงอะไร",
+       "ร้านที่มีตรานี้ผ่านการตรวจสอบสุขอนามัยและอุปกรณ์ตามเกณฑ์ที่กำหนด สถานะนี้กำหนดโดยผู้ดูแลระบบเท่านั้น ร้านตั้งเองไม่ได้"],
+    ];
+    document.getElementById("faq").innerHTML = FAQ.map(([q, a], i) => `
+      <div class="faq">
+        <button type="button" class="faq-q" aria-expanded="false" aria-controls="faqA${i}">
+          <span>${q}</span>
+          <span class="chev">${icon("chevronRight", 16)}</span>
+        </button>
+        <div class="faq-a" id="faqA${i}" role="region"><div><p>${a}</p></div></div>
+      </div>`).join("");
+
+    // aria-expanded ต้องเปลี่ยนตามทุกครั้งที่พับหรือกาง ไม่งั้นโปรแกรมอ่านหน้าจอ
+    // จะบอกว่ายังพับอยู่ ทั้งที่คำตอบกางออกมาให้เห็นแล้ว
+    const paintFaq = () =>
+      document.querySelectorAll(".faq").forEach((f) =>
+        f.querySelector(".faq-q")
+          .setAttribute("aria-expanded", String(f.classList.contains("is-open"))));
+
+    document.querySelectorAll(".faq-q").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const item = btn.parentElement;
+        const wasOpen = item.classList.contains("is-open");
+        document.querySelectorAll(".faq").forEach((f) => f.classList.remove("is-open"));
+        if (!wasOpen) item.classList.add("is-open");
+        paintFaq();
+      })
+    );
+
+    // ---------- สิ่งที่รับประกัน — ทุกข้อต้องเป็นสิ่งที่ระบบทำได้จริง ----------
+    const PROPS = [
+      ["calendar", "ช่องเวลาที่เห็นคือของจริง",
+       "ระบบคำนวณจากตารางงานของแต่ละคน แต่ละคอร์ท และคิวที่ถูกจองไปแล้ว ช่องที่กดได้คือช่องที่ว่างจริง"],
+      ["star", "รีวิวมาจากคนที่ใช้บริการแล้วเท่านั้น",
+       "เขียนได้เมื่อร้านยืนยันว่าให้บริการเสร็จ และเขียนได้ครั้งเดียวต่อการจอง จึงไม่มีรีวิวปลอมหรือรีวิวซ้ำ"],
+      ["creditCard", "เห็นยอดทั้งหมดก่อนกดยืนยัน",
+       "ราคาเต็มและยอดมัดจำแสดงชัดเจนตั้งแต่ก่อนจอง และออกใบเสร็จให้ทุกครั้งที่ชำระเงิน"],
+    ];
+    document.getElementById("valueProps").innerHTML = PROPS.map(([ic, title, desc]) => `
+      <div>
+        <span class="ic">${icon(ic, 21)}</span>
+        <h3>${title}</h3>
+        <p>${desc}</p>
+      </div>`).join("");
+
+    // ---------- หมวดหมู่ ----------
+    async function loadCategories() {
+      const box = document.getElementById("categories");
+      try {
+        const cats = await apiGet("/api/categories");
+        const sel = document.getElementById("sCat");
+        cats.forEach((c) => sel.add(new Option(c.name, c.id)));
+
+        box.innerHTML = cats.map((c) => `
+          <a href="shops.html?category_id=${c.id}" class="cat-item">
+            <span class="ic">${icon(CATEGORY_ICON[c.slug] || "sparkle", 18)}</span>
+            <span class="nm">${esc(c.name)}</span>
+          </a>`).join("");
+      } catch (err) {
+        box.innerHTML = `
+          <div class="card card-pad text-center" style="grid-column:1/-1">
+            <p class="text-sm" style="color:var(--danger)">${esc(err.message)}</p>
+            <button type="button" id="retryCats" class="btn btn-outline btn-sm" style="margin-top:12px">
+              ลองใหม่อีกครั้ง
+            </button>
+          </div>`;
+        document.getElementById("retryCats").addEventListener("click", (e) => {
+          btnBusy(e.currentTarget, true, "กำลังลองใหม่");
+          loadCategories();
+        });
+      }
+    }
+
+    // ---------- ร้านคะแนนสูง + ข้อเท็จจริงในส่วนหัว ----------
+    async function loadShops() {
+      const box = document.getElementById("shops");
+      box.innerHTML = skeletonCards(3);
+      try {
+        const res = await apiGet("/api/shops?page=1&limit=12");
+
+        // เติมรายชื่อเขตลงช่องค้นหา
+        const sel = document.getElementById("sDistrict");
+        [...new Set(res.items.map((s) => s.district).filter(Boolean))]
+          .sort()
+          .forEach((d) => sel.add(new Option(d, d)));
+
+        if (!res.items.length) {
+          box.innerHTML = emptyHTML("search", "ยังไม่มีร้านในระบบ");
+          document.getElementById("voices").style.display = "none";
+          return;
+        }
+
+        // ดึงรายละเอียดร้านเพื่อเอาราคาเริ่มต้นมาแสดงบนการ์ด
+        // ลูกค้าตัดสินใจจากราคาเป็นอันดับต้น ๆ การซ่อนไว้ทำให้ต้องกดเข้าไปดูทีละร้าน
+        const top = res.items.slice(0, 6);
+        const detail = await Promise.all(
+          top.map((s) => apiGet(`/api/shops/${s.id}`).catch(() => null))
+        );
+        const priced = top.map((s, i) => {
+          const d = detail[i];
+          const active = (d?.services || []).filter((x) => x.is_active);
+          return { ...s, priceFrom: active.length ? Math.min(...active.map((x) => Number(x.price))) : null };
+        });
+
+        box.innerHTML = priced.map(shopCard).join("");
+        revealOnScroll("#shops .reveal");
+
+        paintFacts(res, detail.filter(Boolean));
+        loadVoices(res.items);
+      } catch (err) {
+        // ต้องมีทางไปต่อเสมอ — เน็ตสะดุดครั้งเดียวไม่ควรบังคับให้ผู้ใช้รีเฟรชทั้งหน้า
+        box.innerHTML = `
+          <div class="card card-pad text-center" style="grid-column:1/-1">
+            <p class="text-sm" style="color:var(--danger)">${esc(err.message)}</p>
+            <button type="button" id="retryShops" class="btn btn-outline btn-sm" style="margin-top:12px">
+              ลองใหม่อีกครั้ง
+            </button>
+          </div>`;
+        document.getElementById("retryShops").addEventListener("click", (e) => {
+          btnBusy(e.currentTarget, true, "กำลังลองใหม่");
+          loadShops();
+        });
+      }
+    }
+
+    // ข้อเท็จจริงใต้ส่วนหัว — บอกสิ่งที่ตรวจสอบได้ ไม่ใช่ตัวเลขอวดขนาด
+    function paintFacts(res, details) {
+      const rated = res.items.filter((s) => s.rating_count > 0);
+      const reviews = res.items.reduce((a, s) => a + s.rating_count, 0);
+      const certified = res.items.filter((s) => s.is_certified).length;
+      const staff = details.reduce((a, d) => a + (d.staff || []).length, 0);
+
+      const bits = [
+        [icon("star", 14), `คะแนนเฉลี่ย <b>${rated.length
+          ? (rated.reduce((a, s) => a + Number(s.rating_avg), 0) / rated.length).toFixed(1) : "—"}</b> จาก <b>${reviews}</b> รีวิว`],
+        [icon("shield", 14), `<b>${certified}</b> ร้านผ่านการตรวจมาตรฐาน`],
+        [icon("user", 14), `เลือกผู้ให้บริการและคอร์ทได้เอง <b>${staff}</b> รายการ`],
+      ];
+      document.getElementById("heroFacts").innerHTML =
+        bits.map(([ic, t]) => `<span class="f">${ic} <span>${t}</span></span>`)
+            .join('<span class="sep"></span>');
+    }
+
+    function shopCard(s) {
+      return `
+        <a href="shop.html?id=${s.id}" class="card card-link overflow-hidden shop-card reveal">
+          ${shopArt(s, "h-40", { tag: s.is_certified ? "ผ่านการรับรอง" : null })}
+          <div class="body">
+            <h3>${esc(s.name)}</h3>
+            <div class="meta">
+              ${starRow(s.rating_avg, 13)}
+              <span class="num">${Number(s.rating_avg).toFixed(1)}</span>
+              <span>· ${s.rating_count} รีวิว</span>
+            </div>
+            <div class="place">${icon("mapPin", 13)} ${esc(s.district || "—")}</div>
+            <div class="foot" style="border-top:1px solid var(--border)">
+              <span class="from">เริ่มต้น</span>
+              <span class="price">${s.priceFrom !== null ? "฿" + baht(s.priceFrom) : "—"}</span>
+            </div>
+          </div>
+        </a>`;
+    }
+
+    // ---------- ความเห็นจริงจากฐานข้อมูล ----------
+    async function loadVoices(shops) {
+      const box = document.getElementById("testimonials");
+      const section = document.getElementById("voices");
+      box.innerHTML = skeletonCards(3);
+
+      try {
+        const withReviews = shops.filter((s) => s.rating_count > 0).slice(0, 6);
+        const results = await Promise.all(
+          withReviews.map((s) =>
+            apiGet(`/api/shops/${s.id}/reviews?page=1&limit=3`)
+              .then((r) => r.items.map((rv) => ({ ...rv, shopName: s.name })))
+              .catch(() => [])
+          )
+        );
+        // เอาเฉพาะรีวิวที่เขียนยาวพอจะมีเนื้อหา ข้อความสั้น ๆ ไม่ช่วยให้ใครตัดสินใจ
+        // และหยิบร้านละไม่เกิน 1 รีวิว — สามรีวิวจากร้านเดียวกันดูเหมือนรีวิวปั้น
+        const seen = new Set();
+        const all = [];
+        for (const r of results.flat()) {
+          if (!r.comment || r.comment.length < 40) continue;
+          if (seen.has(r.shopName)) continue;
+          seen.add(r.shopName);
+          all.push(r);
+          if (all.length === 3) break;
+        }
+
+        if (!all.length) {
+          section.style.display = "none";
+          return;
+        }
+        box.innerHTML = all.map((r) => `
+          <blockquote class="card voice">
+            ${starRow(r.rating, 15)}
+            <p class="said">${esc(r.comment)}</p>
+            <footer class="who">
+              <span class="av">${esc((r.user_name || "?").trim().charAt(0))}</span>
+              <span>${esc(r.user_name || "ผู้ใช้บริการ")} · ${esc(r.shopName)}</span>
+            </footer>
+          </blockquote>`).join("");
+      } catch {
+        section.style.display = "none";
+      }
+    }
+
+    loadCategories();
+    loadShops();
+    revealOnScroll();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>จัดการร้าน — Bookvice</title>
+  <meta name="description" content="สำหรับเจ้าของร้าน — ดูแลคิว บริการ ทีมงาน วันหยุด และรายงานยอดขาย" />
+  <meta name="theme-color" content="#16233F" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><defs><linearGradient id='a' x1='11' y1='5' x2='36' y2='27' gradientUnits='userSpaceOnUse'><stop stop-color='%23F9AE8B'/><stop offset='1' stop-color='%23E8785A'/></linearGradient><linearGradient id='b' x1='11' y1='21' x2='38' y2='43' gradientUnits='userSpaceOnUse'><stop stop-color='%233FC0D6'/><stop offset='1' stop-color='%2322A898'/></linearGradient></defs><rect width='48' height='48' rx='11' fill='%23fff'/><path d='M11 5h16a11 11 0 0 1 0 22H11z' fill='url(%23a)'/><path d='M11 21h18a11 11 0 0 1 0 22H11z' fill='url(%23b)'/><path d='m16.5 32.5 4.5 4.5 9-9' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='5' y='5' width='6.5' height='38' rx='3.25' fill='%2316233F'/></svg>" />
+
+  <!-- ข้อมูลตอนแชร์ลิงก์ ให้แอปแชตแสดงชื่อและคำอธิบายแทนลิงก์เปล่า -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Bookvice" />
+  <meta property="og:title" content="จัดการร้าน — Bookvice" />
+  <meta property="og:description" content="สำหรับเจ้าของร้าน — ดูแลคิว บริการ ทีมงาน วันหยุด และรายงานยอดขาย" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
+       IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202608252100" />
+</head>
+<body>
+  <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
+  <div id="navbar"></div>
+
+  <main id="main" class="max-w-5xl mx-auto px-5 py-12">
+    <h1 class="h1">จัดการร้านของคุณ</h1>
+    <p class="text-sm text-muted mt-1.5">แก้ไขข้อมูลร้าน จัดการบริการ และดูแลคิวที่ลูกค้าจองเข้ามา</p>
+
+    <div id="alert" class="alert mt-5" style="display:none"></div>
+
+    <!-- เลือกร้าน (กรณีมีหลายร้าน) -->
+    <div id="shopPicker" class="mt-6"></div>
+
+    <!-- แท็บ -->
+    <div class="tabbar mt-7">
+      <button class="tab is-active" data-tab="bookings">คิวที่จองเข้ามา</button>
+      <button class="tab" data-tab="services">บริการของร้าน</button>
+      <button class="tab" data-tab="staff">ช่างประจำร้าน</button>
+      <button class="tab" data-tab="photos">รูปภาพ</button>
+      <button class="tab" data-tab="closures">วันหยุดร้าน</button>
+      <button class="tab" data-tab="report">รายงานยอดขาย</button>
+      <button class="tab" data-tab="info">ข้อมูลร้าน</button>
+    </div>
+
+    <div id="panel" class="mt-6"></div>
+  </main>
+
+  <div id="footer"></div>
+
+  <!-- กล่องเพิ่ม/แก้ไขบริการ -->
+  <div id="svcModal" class="modal-backdrop">
+    <div class="modal">
+      <div class="p-6">
+        <div class="flex items-start justify-between gap-4">
+          <h2 id="svcTitle" class="h2">เพิ่มบริการ</h2>
+          <button id="svcClose" class="btn btn-ghost btn-sm" style="padding:6px" aria-label="ปิด"></button>
+        </div>
+        <div id="svcAlert" class="alert mt-4" style="display:none"></div>
+        <form id="svcForm" class="mt-5 space-y-4">
+          <input type="hidden" id="svcId" />
+          <div>
+            <label class="label" for="svcName">ชื่อบริการ</label>
+            <input id="svcName" class="input" required minlength="2" maxlength="150" />
+          </div>
+          <div>
+            <label class="label" for="svcDesc">รายละเอียด</label>
+            <textarea id="svcDesc" class="textarea" rows="2" maxlength="1000"></textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="label" for="svcPrice">ราคา (บาท)</label>
+              <input id="svcPrice" type="number" class="input num" required min="0" step="1" />
+            </div>
+            <div>
+              <label class="label" for="svcDur">ระยะเวลา (นาที)</label>
+              <input id="svcDur" type="number" class="input num" required min="15" max="600" step="15" value="60" />
+            </div>
+          </div>
+          <button id="svcSave" type="submit" class="btn btn-primary btn-block">บันทึก</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- กล่องเพิ่ม/แก้ไขช่าง -->
+  <div id="stfModal" class="modal-backdrop">
+    <div class="modal">
+      <div class="p-6">
+        <div class="flex items-start justify-between gap-4">
+          <h2 id="stfTitle" class="h2">เพิ่มช่าง</h2>
+          <button id="stfClose" class="btn btn-ghost btn-sm" style="padding:6px" aria-label="ปิด"></button>
+        </div>
+        <div id="stfAlert" class="alert mt-4" style="display:none"></div>
+        <form id="stfForm" class="mt-5 space-y-4">
+          <input type="hidden" id="stfId" />
+          <div>
+            <label class="label" for="stfName">ชื่อช่าง</label>
+            <input id="stfName" class="input" required minlength="2" maxlength="100" placeholder="เช่น ช่างมิ้น" />
+          </div>
+          <div>
+            <label class="label" for="stfPos">ตำแหน่ง / ความถนัด</label>
+            <input id="stfPos" class="input" maxlength="100" placeholder="เช่น นักบำบัดอาวุโส" />
+          </div>
+          <div>
+            <label class="label" for="stfBio">ประวัติโดยย่อ</label>
+            <textarea id="stfBio" class="textarea" rows="2" maxlength="500"
+                      placeholder="ประสบการณ์หรือความเชี่ยวชาญ ให้ลูกค้าตัดสินใจเลือกได้ง่ายขึ้น"></textarea>
+          </div>
+
+          <div class="pt-4" style="border-top:1px solid var(--border)">
+            <label class="label">วันที่เข้างาน</label>
+            <p class="hint" style="margin:0 0 8px">
+              ไม่เลือกเลย = เปิดทุกวันที่ร้านเปิด · วันที่ไม่ได้เลือกลูกค้าจะจองไม่ได้
+            </p>
+            <div id="stfDays" class="day-picker"></div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="label" for="stfStart">เวลาเข้างาน</label>
+              <input id="stfStart" type="time" class="input" />
+            </div>
+            <div>
+              <label class="label" for="stfEnd">เวลาเลิกงาน</label>
+              <input id="stfEnd" type="time" class="input" />
+            </div>
+          </div>
+          <p class="hint" style="margin-top:-6px">เว้นว่างไว้ = ใช้เวลาเปิด-ปิดของร้าน</p>
+
+          <button id="stfSave" type="submit" class="btn btn-primary btn-block">บันทึก</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- กล่องจองแทนลูกค้า (walk-in) -->
+  <div id="wiModal" class="modal-backdrop">
+    <div class="modal">
+      <div class="p-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="h2">จองแทนลูกค้า</h2>
+          </div>
+          <button id="wiClose" class="btn btn-ghost btn-sm" style="padding:6px" aria-label="ปิด"></button>
+        </div>
+        <p class="hint">สำหรับลูกค้าที่โทรมาหรือเดินเข้าร้าน โดยไม่มีบัญชีในระบบ</p>
+
+        <div id="wiAlert" class="alert mt-4" style="display:none"></div>
+
+        <form id="wiForm" class="mt-5 space-y-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="label" for="wiName">ชื่อลูกค้า</label>
+              <input id="wiName" class="input" required minlength="2" maxlength="150" placeholder="เช่น คุณส้ม" />
+            </div>
+            <div>
+              <label class="label" for="wiPhone">เบอร์โทร</label>
+              <input id="wiPhone" class="input num" pattern="[0-9]{9,15}" placeholder="0891234567" />
+            </div>
+          </div>
+          <div>
+            <label class="label" for="wiSvc">บริการ</label>
+            <select id="wiSvc" class="select" required></select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="label" for="wiDate">วันที่</label>
+              <input id="wiDate" type="date" class="input" required />
+            </div>
+            <div>
+              <label class="label" for="wiStaff">ผู้ให้บริการ</label>
+              <select id="wiStaff" class="select"><option value="">ไม่ระบุ</option></select>
+            </div>
+          </div>
+          <div>
+            <label class="label">ช่วงเวลาที่ว่าง</label>
+            <div id="wiSlots"><p class="hint" style="margin:0">เลือกบริการและวันที่ก่อน</p></div>
+            <input type="hidden" id="wiTime" />
+          </div>
+          <div>
+            <label class="label" for="wiNote">หมายเหตุ</label>
+            <input id="wiNote" class="input" maxlength="500" placeholder="เช่น ขอห้องส่วนตัว" />
+          </div>
+          <button id="wiSave" type="submit" class="btn btn-primary btn-block">บันทึกคิว</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js?v=202608252100"></script>
+  <script src="js/ui.js?v=202608252100"></script>
+  <script>
+    renderNavbar("manage");
+    renderFooter();
+    document.getElementById("svcClose").innerHTML = icon("x", 18);
+
+    if (!Auth.requireLogin()) throw new Error("ยังไม่ได้เข้าสู่ระบบ");
+
+    const alertBox = document.getElementById("alert");
+    const panel = document.getElementById("panel");
+    let myShops = [];
+    let shop = null;              // ร้านที่กำลังจัดการ
+    let currentTab = "bookings";
+
+    // คำเรียกทรัพยากรที่จองได้ของร้านนี้ — backend ส่งมากับข้อมูลร้าน
+    // ร้านความงามเรียก "ช่าง" สนามแบดเรียก "คอร์ท" สนามบอลเรียก "สนาม"
+    // เจ้าของสนามแบดไม่ควรเห็นคำว่า "ช่างประจำร้าน" ในหน้าจัดการของตัวเอง
+    // ค่านี้มาจาก API แล้วถูกเขียนลง innerHTML หลายสิบจุด ต้อง escape ที่ต้นทาง
+    // ไม่งั้นถ้าค่าในฐานข้อมูลมีแท็กปนมา จะกลายเป็นช่องโหว่ XSS ทั้งหน้า
+    const RES_RAW = () => (shop && shop.resource_label) || "ช่าง";
+    const RES = () => esc(RES_RAW());
+    // ทรัพยากรบางประเภทเป็น "สิ่งของ" ไม่ใช่ "คน" คำลักษณนามจึงต่างกัน
+    const isPerson = () => ["ช่าง", "ช่างสัก", "แพทย์/ผู้ดูแล", "พนักงานส่ง"].includes(RES_RAW());
+    const unit = () => (isPerson() ? "คน" : "แห่ง");
+
+    // ต้องเป็นเจ้าของร้านหรือผู้ดูแลระบบเท่านั้น
+    if (!["owner", "admin"].includes(Auth.user.role)) {
+      panel.innerHTML = "";
+      document.querySelector(".tabbar").style.display = "none";
+      showAlert(alertBox, "หน้านี้สำหรับเจ้าของร้านเท่านั้น", "info");
+    } else {
+      init();
+    }
+
+    async function init() {
+      try {
+        // API ไม่มี endpoint "ร้านของฉัน" จึงดึงร้านทั้งหมดแล้วกรองด้วย owner_id
+        const res = await apiGet("/api/shops?page=1&limit=100");
+        myShops = Auth.user.role === "admin"
+          ? res.items
+          : res.items.filter((s) => s.owner_id === Auth.user.id);
+
+        if (!myShops.length) {
+          document.querySelector(".tabbar").style.display = "none";
+          panel.innerHTML = emptyHTML("info", "คุณยังไม่มีร้านในระบบ",
+            "ติดต่อผู้ดูแลระบบเพื่อเปิดร้าน หรือสร้างร้านผ่าน POST /api/shops");
+          return;
+        }
+
+        renderShopPicker();
+        shop = myShops[0];
+        syncLabels();
+        renderPanel();
+      } catch (err) {
+        showAlert(alertBox, err.message);
+      }
+    }
+
+    function renderShopPicker() {
+      if (myShops.length < 2) {
+        document.getElementById("shopPicker").innerHTML = "";
+        return;
+      }
+      document.getElementById("shopPicker").innerHTML = `
+        <label class="label" for="shopSel">เลือกร้านที่ต้องการจัดการ</label>
+        <select id="shopSel" class="select" style="max-width:420px">
+          ${myShops.map((s, i) => `<option value="${i}">${esc(s.name)}</option>`).join("")}
+        </select>`;
+      document.getElementById("shopSel").addEventListener("change", (e) => {
+        shop = myShops[Number(e.target.value)];
+        syncLabels();   // สลับร้านข้ามประเภทได้ คำเรียกต้องเปลี่ยนตาม
+        renderPanel();
+      });
+    }
+
+    // เปลี่ยนข้อความคงที่ในหน้าให้ตรงกับประเภทของร้านที่เลือกอยู่
+    function syncLabels() {
+      const tab = document.querySelector('.tab[data-tab="staff"]');
+      if (tab) tab.textContent = `${RES()}ในร้าน`;
+      const wi = document.querySelector('label[for="wiStaff"]');
+      if (wi) wi.textContent = RES();
+    }
+
+    // ---------- แท็บ ----------
+    document.querySelectorAll(".tab").forEach((t) =>
+      t.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((x) => x.classList.remove("is-active"));
+        t.classList.add("is-active");
+        currentTab = t.dataset.tab;
+        renderPanel();
+      })
+    );
+
+    function renderPanel() {
+      if (!shop) return;
+      hideAlert(alertBox);
+      if (currentTab === "bookings") renderBookings();
+      else if (currentTab === "services") renderServices();
+      else if (currentTab === "staff") renderStaff();
+      else if (currentTab === "photos") renderPhotos();
+      else if (currentTab === "closures") renderClosures();
+      else if (currentTab === "report") renderReport();
+      else renderInfo();
+    }
+
+    // ================= รูปภาพของร้าน =================
+    const MAX_PHOTOS = 8;
+
+    async function renderPhotos() {
+      panel.innerHTML = loadingHTML();
+      let images;
+      try {
+        images = await apiGet(`/api/shops/${shop.id}/images`);
+      } catch (err) {
+        panel.innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`;
+        return;
+      }
+      paintPhotos(images);
+    }
+
+    function paintPhotos(images) {
+      const left = MAX_PHOTOS - images.length;
+
+      panel.innerHTML = `
+        <div class="card p-6">
+          <div class="section-head" style="margin-bottom:16px">
+            <div>
+              <h2 class="h2">รูปภาพร้าน</h2>
+              <p class="text-sm text-muted mt-1">
+                รูปแรกจะถูกใช้เป็นภาพหน้าปกในหน้าค้นหา ลูกค้าเห็นรูปนี้ก่อนอย่างอื่น
+              </p>
+            </div>
+            <span class="text-sm text-muted num">${images.length} / ${MAX_PHOTOS} รูป</span>
+          </div>
+
+          ${left > 0 ? `
+            <div class="drop-zone" id="drop" tabindex="0" role="button"
+                 aria-label="เลือกรูปเพื่ออัปโหลด">
+              <div style="color:var(--blue-600)">${icon("upload", 26)}</div>
+              <p class="mt-2" style="font-weight:600">ลากรูปมาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</p>
+              <p class="hint mt-1">
+                รองรับ JPG, PNG, WebP, GIF · ไม่เกิน 5 MB ต่อรูป · เพิ่มได้อีก ${left} รูป
+              </p>
+              <input type="file" id="picker" accept="image/*" multiple hidden />
+            </div>` : `
+            <div class="alert alert-info" style="margin:0">
+              ครบ ${MAX_PHOTOS} รูปแล้ว ถ้าต้องการเพิ่มรูปใหม่ กรุณาลบรูปเก่าออกก่อน
+            </div>`}
+
+          <div id="upStatus" class="mt-4" style="display:none">
+            <div class="flex items-center justify-between text-sm mb-1.5">
+              <span id="upName" class="text-muted"></span>
+              <span id="upPct" class="num text-muted"></span>
+            </div>
+            <div class="up-bar"><span id="upFill"></span></div>
+          </div>
+
+          <div class="mt-6">
+            ${images.length
+              ? `<div class="img-grid">${images.map(photoCard).join("")}</div>`
+              : `<p class="text-sm text-muted text-center py-8">
+                   ยังไม่มีรูป — ร้านที่มีรูปจริงได้รับการจองมากกว่าร้านที่ไม่มีรูปอย่างชัดเจน
+                 </p>`}
+          </div>
+        </div>`;
+
+      bindPhotoEvents(images);
+    }
+
+    function photoCard(im) {
+      return `
+        <figure class="img-item ${im.is_cover ? "is-cover" : ""}">
+          <img src="${esc(fileUrl(im.url))}" alt="${esc(im.caption || "รูปร้าน")}" loading="lazy" />
+          ${im.is_cover ? `<span class="cover-flag">รูปปก</span>` : ""}
+          <div class="img-actions">
+            ${im.is_cover ? "" : `
+              <button class="img-btn" data-cover="${im.id}"
+                      title="ตั้งเป็นรูปปก" aria-label="ตั้งเป็นรูปปก">${icon("star", 15)}</button>`}
+            <button class="img-btn danger" data-del="${im.id}"
+                    title="ลบรูปนี้" aria-label="ลบรูปนี้">${icon("trash", 15)}</button>
+          </div>
+        </figure>`;
+    }
+
+    function bindPhotoEvents(images) {
+      const drop = document.getElementById("drop");
+      const picker = document.getElementById("picker");
+
+      if (drop && picker) {
+        drop.addEventListener("click", () => picker.click());
+        drop.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); picker.click(); }
+        });
+
+        // ต้องกัน default ทั้ง dragover และ drop ไม่งั้นเบราว์เซอร์จะเปิดไฟล์นั้นแทนหน้าเว็บ
+        ["dragenter", "dragover"].forEach((ev) =>
+          drop.addEventListener(ev, (e) => {
+            e.preventDefault();
+            drop.classList.add("is-over");
+          })
+        );
+        ["dragleave", "drop"].forEach((ev) =>
+          drop.addEventListener(ev, (e) => {
+            e.preventDefault();
+            drop.classList.remove("is-over");
+          })
+        );
+
+        drop.addEventListener("drop", (e) => uploadMany([...e.dataTransfer.files], images.length));
+        picker.addEventListener("change", () => {
+          uploadMany([...picker.files], images.length);
+          picker.value = "";   // เคลียร์เพื่อให้เลือกไฟล์เดิมซ้ำได้
+        });
+      }
+
+      panel.querySelectorAll("[data-cover]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          btnBusy(b, true, "กำลังตั้ง");
+          try {
+            await apiPatch(`/api/shop-images/${b.dataset.cover}`, { is_cover: true });
+            toast("ตั้งเป็นรูปปกแล้ว");
+            renderPhotos();   // วาดใหม่ทั้งแผง ปุ่มเดิมหายไปพร้อมกัน
+          } catch (err) {
+            toast(err.message, "error");
+            btnBusy(b, false);
+          }
+        })
+      );
+
+      panel.querySelectorAll("[data-del]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          const ok = await confirmDialog({
+            title: "ลบรูปนี้ออกจากร้าน",
+            message: "รูปที่ลบแล้วกู้คืนไม่ได้ ต้องอัปโหลดใหม่เท่านั้น",
+            confirmText: "ลบรูป",
+            tone: "danger",
+          });
+          if (!ok) return;
+
+          btnBusy(b, true, "กำลังลบ");
+          try {
+            await apiDelete(`/api/shop-images/${b.dataset.del}`);
+            toast("ลบรูปแล้ว");
+            renderPhotos();
+          } catch (err) {
+            toast(err.message, "error");
+            btnBusy(b, false);
+          }
+        })
+      );
+    }
+
+    // อัปโหลดทีละไฟล์ตามลำดับ ไม่ยิงพร้อมกัน
+    // เพราะเซิร์ฟเวอร์นับจำนวนรูปก่อนบันทึก ถ้ายิงพร้อมกันจะนับพลาดและเกินโควตาได้
+    async function uploadMany(files, already) {
+      const images = files.filter((f) => f.type.startsWith("image/"));
+      if (files.length && !images.length) {
+        return toast("กรุณาเลือกไฟล์รูปภาพเท่านั้น", "error");
+      }
+
+      const room = MAX_PHOTOS - already;
+      const queue = images.slice(0, room);
+      if (images.length > room) {
+        toast(`เพิ่มได้อีก ${room} รูป ระบบจะอัปโหลดให้เท่าที่เหลือ`, "info");
+      }
+
+      const box = document.getElementById("upStatus");
+      const name = document.getElementById("upName");
+      const pct = document.getElementById("upPct");
+      const fill = document.getElementById("upFill");
+      box.style.display = "";
+
+      let done = 0;
+      for (const file of queue) {
+        name.textContent = `${file.name} (${done + 1}/${queue.length})`;
+        fill.style.width = "0%";
+        try {
+          await apiUpload(`/api/shops/${shop.id}/images`, file, (p) => {
+            fill.style.width = `${p}%`;
+            pct.textContent = `${p}%`;
+          });
+          done++;
+        } catch (err) {
+          toast(`${file.name}: ${err.message}`, "error", 5000);
+        }
+      }
+
+      box.style.display = "none";
+      if (done) toast(`อัปโหลดสำเร็จ ${done} รูป`);
+      renderPhotos();
+    }
+
+    // ================= คิวที่จองเข้ามา =================
+    let staffNames = {};
+    let svcNames = {};
+
+    // ---------- คิวที่จองเข้ามา ----------
+    let allBookings = [];
+    let dayFilter = "today";   // today | tomorrow | upcoming | all
+
+    const DAY_TABS = [
+      ["today", "วันนี้"],
+      ["tomorrow", "พรุ่งนี้"],
+      ["upcoming", "ที่จะถึง"],
+      ["all", "ทั้งหมด"],
+    ];
+
+    function inDayFilter(b) {
+      const today = localDate();
+      if (dayFilter === "today") return b.booking_date === today;
+      if (dayFilter === "tomorrow") return b.booking_date === localDate(dateAfter(1));
+      if (dayFilter === "upcoming")
+        return b.booking_date >= today && ["pending", "confirmed"].includes(b.status);
+      return true;
+    }
+
+    // วาดตารางคิวใหม่จากข้อมูลที่โหลดไว้แล้ว ไม่ต้องยิง API ซ้ำตอนสลับแท็บ
+    function paintBookings() {
+      // ร้านที่ยังไม่มีคิวเลยก็ต้องเห็นปุ่มจองแทนลูกค้า จึงวาดหน้าเต็มเสมอ
+      const rows = allBookings.filter(inDayFilter)
+        .sort((a, b) => (a.booking_date + a.booking_time).localeCompare(b.booking_date + b.booking_time));
+
+      // เงินที่จะได้รับจากคิวที่ยังไม่ถูกยกเลิก
+      const live = rows.filter((b) => b.status !== "cancelled");
+      const income = live.reduce((sum, b) => sum + Number(b.total_price), 0);
+      const count = (st) => rows.filter((b) => b.status === st).length;
+      const waiting = allBookings.filter((b) => b.status === "pending").length;
+
+      panel.innerHTML = `
+        <div class="flex items-center justify-between gap-3 flex-wrap" style="margin-bottom:14px">
+          <p class="text-sm text-muted" style="margin:0">
+            ลูกค้าโทรมาจองหรือเดินเข้าร้าน กดปุ่มขวาเพื่อบันทึกคิวให้ได้เลย
+          </p>
+          <button id="walkinBtn" class="btn btn-primary btn-sm">+ จองแทนลูกค้า</button>
+        </div>
+
+        ${waiting ? `
+          <div class="alert alert-info" style="margin-bottom:16px">
+            มี ${waiting} คิวรอคุณกดยืนยัน — ลูกค้ากำลังรออยู่
+          </div>` : ""}
+
+        <div class="tabbar" style="margin-bottom:16px">
+          ${DAY_TABS.map(([v, l]) => {
+            const n = allBookings.filter((b) => {
+              const keep = dayFilter; dayFilter = v;
+              const r = inDayFilter(b); dayFilter = keep; return r;
+            }).length;
+            return `<button class="tab ${dayFilter === v ? "is-active" : ""}" data-day="${v}">
+              ${l}${n ? ` <span class="num" style="opacity:.6">${n}</span>` : ""}
+            </button>`;
+          }).join("")}
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          ${[["รอยืนยัน", count("pending")], ["ยืนยันแล้ว", count("confirmed")],
+             ["ใช้บริการแล้ว", count("completed")], ["ยอดรวมช่วงนี้", "฿" + baht(income)]]
+            .map(([l, n]) => `
+              <div class="card p-4">
+                <div class="text-xs text-muted">${l}</div>
+                <div class="h2 num mt-0.5">${n}</div>
+              </div>`).join("")}
+        </div>
+
+        ${!allBookings.length
+          ? `<div class="card mt-5">${emptyHTML("calendar", "ยังไม่มีคิวที่จองเข้ามา",
+              "กดปุ่มจองแทนลูกค้าด้านบนเพื่อบันทึกคิวให้ลูกค้าที่ติดต่อเข้ามาเอง")}</div>`
+          : rows.length ? `
+          <div class="card mt-5 overflow-x-auto">
+            <table class="table">
+              <thead>
+                <tr><th>รหัส / ความต้องการ</th><th>วันเวลา</th><th>${RES()}</th><th>ยอด</th><th>สถานะ</th><th>จัดการ</th></tr>
+              </thead>
+              <tbody>${rows.map(bookingRow).join("")}</tbody>
+            </table>
+          </div>`
+          : `<div class="card mt-5">${emptyHTML("calendar", "ไม่มีคิวในช่วงนี้")}</div>`}`;
+
+      panel.querySelectorAll("[data-day]").forEach((b) =>
+        b.addEventListener("click", () => { dayFilter = b.dataset.day; paintBookings(); })
+      );
+      // ปุ่มนี้ต้องรอ API สองเส้นก่อนกล่องจะเปิด ถ้าไม่บอกอะไรเลยจอจะนิ่งสนิท
+      // แล้วผู้ใช้จะกดซ้ำ ซึ่งยิงคำขอเพิ่มรอบละสองเส้น
+      document.getElementById("walkinBtn").addEventListener("click", (e) =>
+        withBusy(e.currentTarget, "กำลังเตรียมข้อมูล", () => openWalkin()));
+      bindBookingActions();
+    }
+
+    async function renderBookings() {
+      panel.innerHTML = loadingHTML();
+      try {
+        const [res, staffList] = await Promise.all([
+          apiGet("/api/bookings?page=1&limit=100"),
+          apiGet(`/api/shops/${shop.id}/staff`).catch(() => []),
+        ]);
+        staffNames = Object.fromEntries(staffList.map((s) => [s.id, s.name]));
+        try {
+          const svc = await apiGet(`/api/shops/${shop.id}/services`);
+          svcNames = Object.fromEntries(svc.map((s) => [s.id, s.name]));
+        } catch { svcNames = {}; }
+        const rows = res.items.filter((b) => b.shop_id === shop.id);
+
+        allBookings = rows;
+        // เปิดมาให้เห็นคิววันนี้ก่อน แต่ถ้าวันนี้ว่าง ให้เด้งไปแท็บที่มีของ
+        if (!rows.some((b) => b.booking_date === localDate())) {
+          dayFilter = rows.some((b) => b.booking_date >= localDate()) ? "upcoming" : "all";
+        }
+        paintBookings();
+      } catch (err) {
+        panel.innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`;
+      }
+    }
+
+    function bookingRow(b) {
+      const actions = [];
+      if (b.status === "pending") actions.push(["confirmed", "ยืนยันคิว", "btn-primary"]);
+      if (b.status === "confirmed") actions.push(["completed", "ปิดงาน", "btn-primary"]);
+      if (b.status === "pending" || b.status === "confirmed") actions.push(["cancelled", "ยกเลิก", "btn-danger"]);
+
+      // แสดงสิ่งที่ลูกค้าแจ้งไว้ ร้านจะได้เตรียมตัวถูก
+      const detail = [
+        b.requirements ? `<div class="text-xs mt-1"><span class="text-muted">ต้องการ:</span> ${esc(b.requirements)}</div>` : "",
+        b.health_note ? `<div class="text-xs mt-0.5" style="color:var(--warn)">ข้อควรระวัง: ${esc(b.health_note)}</div>` : "",
+        b.reference_url ? `<div class="text-xs mt-0.5"><a href="${esc(b.reference_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--blue-600)">ดูรูปตัวอย่าง</a></div>` : "",
+        b.note ? `<div class="text-xs text-muted mt-0.5">หมายเหตุ: ${esc(b.note)}</div>` : "",
+      ].join("");
+
+      return `
+        <tr>
+          <td style="min-width:230px">
+            <span class="num font-medium">${esc(b.booking_code)}${b.guest_name ? ` <span class="badge badge-neutral">หน้าร้าน · ${esc(b.guest_name)}${b.guest_phone ? " · " + esc(b.guest_phone) : ""}</span>` : ""}</span>
+            ${detail}
+          </td>
+          <td>${thaiDate(b.booking_date)}
+            <div class="text-xs text-muted num">${shortTime(b.booking_time)}–${shortTime(b.end_time)} น.</div></td>
+          <td class="text-muted">${b.staff_id ? esc(staffNames[b.staff_id] || `#${b.staff_id}`) : "ไม่ระบุ"}</td>
+          <td class="num">฿${baht(b.total_price)}
+            <div class="text-xs text-muted">มัดจำ ฿${baht(b.deposit_amount)}</div>
+            ${b.status !== "cancelled" ? `<div class="mt-1">${payBadge(b)}</div>` : ""}</td>
+          <td>${statusBadge(b.status)}</td>
+          <td>
+            <div class="flex gap-1.5 flex-wrap">
+              ${actions.map(([st, label, cls]) =>
+                `<button data-set="${b.id}" data-status="${st}" class="btn ${cls} btn-sm">${label}</button>`).join("")}
+              ${b.status !== "cancelled" && b.payment_state !== "paid"
+                ? `<button data-cash="${b.id}" class="btn btn-outline btn-sm">รับเงินสด</button>` : ""}
+              ${b.payment_state !== "unpaid"
+                ? `<button data-rc="${b.id}" class="btn btn-ghost btn-sm" title="พิมพ์ใบเสร็จ" aria-label="พิมพ์ใบเสร็จ">${icon("receipt", 14)}</button>` : ""}
+              <button data-pr="${b.id}" class="btn btn-ghost btn-sm" title="พิมพ์สลิป"
+                      aria-label="พิมพ์สลิปการจอง ${esc(b.booking_code)}">${icon("printer", 14)}</button>
+              ${!actions.length && b.status === "cancelled" ? '<span class="text-xs text-muted">—</span>' : ""}
+            </div>
+          </td>
+        </tr>`;
+    }
+
+    // ป้ายสถานะการชำระเงิน
+    const PAY_STATE = {
+      unpaid: ["ยังไม่ชำระ", "pay-unpaid"],
+      deposit_paid: ["มัดจำแล้ว", "pay-deposit_paid"],
+      paid: ["ชำระครบ", "pay-paid"],
+    };
+
+    function payBadge(b) {
+      const [text, cls] = PAY_STATE[b.payment_state] || PAY_STATE.unpaid;
+      return `<span class="pay-state ${cls}">${text}</span>`;
+    }
+
+    function bindBookingActions() {
+      // ---------- รับเงินสดหน้าร้าน ----------
+      panel.querySelectorAll("[data-cash]").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const b = allBookings.find((x) => x.id === Number(btn.dataset.cash));
+          if (!b) return;
+
+          const kind = b.payment_state === "unpaid" ? "deposit" : "balance";
+          const due = kind === "deposit"
+            ? Number(b.deposit_amount)
+            : Number(b.total_price) - Number(b.paid_amount);
+
+          const ok = await confirmDialog({
+            title: `รับเงินสด ฿${baht(due)} จากลูกค้า`,
+            message:
+              `${kind === "deposit" ? "ค่ามัดจำ" : "ยอดคงเหลือ"} · ${b.booking_code}\n` +
+              "ระบบจะออกใบเสร็จให้ทันทีเมื่อกดยืนยัน",
+            confirmText: "รับเงินแล้ว",
+          });
+          if (!ok) return;
+
+          btnBusy(btn, true, "กำลังบันทึก");
+          try {
+            const sum = await apiPost(`/api/bookings/${b.id}/payment`, { kind, method: "cash" });
+            toast(`รับเงินสด ฿${baht(due)} เรียบร้อย`);
+            const last = sum.payments[sum.payments.length - 1];
+            if (last) {
+              try {
+                printReceipt(await apiGet(`/api/payments/${last.id}/receipt`));
+              } catch { /* พิมพ์ไม่ได้ก็ยังกดปุ่มใบเสร็จทีหลังได้ */ }
+            }
+            renderBookings();
+          } catch (err) {
+            toast(err.message, "error", 5000);
+            btnBusy(btn, false);
+          }
+        })
+      );
+
+      // ---------- พิมพ์ใบเสร็จย้อนหลัง ----------
+      panel.querySelectorAll("[data-rc]").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          btnBusy(btn, true, "กำลังเตรียม");
+          try {
+            const sum = await apiGet(`/api/bookings/${btn.dataset.rc}/payment`);
+            const paid = sum.payments.filter((p) => p.status === "paid");
+            if (!paid.length) return toast("ยังไม่มีใบเสร็จสำหรับคิวนี้", "info");
+            printReceipt(await apiGet(`/api/payments/${paid[paid.length - 1].id}/receipt`));
+          } catch (err) {
+            toast(err.message, "error");
+          } finally {
+            btnBusy(btn, false);
+          }
+        })
+      );
+
+      panel.querySelectorAll("[data-pr]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          const b = allBookings.find((x) => x.id === Number(btn.dataset.pr));
+          if (!b) return;
+          const sv = (svcNames[b.service_id] || `บริการ #${b.service_id}`);
+          printSlip({
+            code: b.booking_code,
+            shop: shop.name,
+            service: sv,
+            date: thaiDate(b.booking_date),
+            time: `${shortTime(b.booking_time)}–${shortTime(b.end_time)} น.`,
+            staffLabel: RES_RAW(),
+            staff: b.staff_id ? (staffNames[b.staff_id] || "") : `${RES_RAW()}ไหนก็ได้`,
+            customer: b.guest_name || "ลูกค้าในระบบ",
+            phone: b.guest_phone || "",
+            status: STATUS_TEXT[b.status] || b.status,
+            note: b.requirements || b.note || "",
+            price: `฿${baht(b.total_price)}`,
+            deposit: `฿${baht(b.deposit_amount)}`,
+          });
+        })
+      );
+      document.querySelectorAll("[data-set]").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const label = btn.textContent.trim();
+          // ยกเลิกคิวเป็นการกระทบลูกค้าโดยตรง ต้องเตือนให้หนักกว่าการกดยืนยันหรือปิดงาน
+          const cancelling = btn.dataset.status === "cancelled";
+          const ok = await confirmDialog({
+            title: `${label}ใช่หรือไม่`,
+            message: cancelling
+              ? "ลูกค้าจะได้รับแจ้งเตือนทันที และช่องเวลานี้จะกลับไปเปิดให้คนอื่นจอง"
+              : "ลูกค้าจะได้รับแจ้งเตือนการเปลี่ยนสถานะนี้ทันที",
+            confirmText: label,
+            tone: cancelling ? "danger" : "default",
+          });
+          if (!ok) return;
+
+          btnBusy(btn, true, "กำลังบันทึก");
+          try {
+            await apiPatch(`/api/bookings/${btn.dataset.set}/status`, { status: btn.dataset.status });
+            showAlert(alertBox, "อัปเดตสถานะเรียบร้อยแล้ว", "success");
+            renderBookings();
+          } catch (err) {
+            showAlert(alertBox, err.message);
+            btnBusy(btn, false);
+          }
+        })
+      );
+    }
+
+    // ================= บริการของร้าน =================
+    async function renderServices() {
+      panel.innerHTML = loadingHTML();
+      try {
+        const list = await apiGet(`/api/shops/${shop.id}/services`);
+        panel.innerHTML = `
+          <div class="flex items-center justify-between gap-4 flex-wrap">
+            <p class="text-sm text-muted">มีบริการทั้งหมด ${list.length} รายการ</p>
+            <button id="addSvc" class="btn btn-primary btn-sm">${icon("check", 14)} เพิ่มบริการ</button>
+          </div>
+
+          <div class="card mt-4 overflow-x-auto">
+            ${list.length ? `
+              <table class="table">
+                <thead><tr><th>ชื่อบริการ</th><th>ราคา</th><th>เวลา</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+                <tbody>
+                  ${list.map((sv) => `
+                    <tr>
+                      <td>
+                        <div class="font-medium">${esc(sv.name)}</div>
+                        ${sv.description ? `<div class="text-xs text-muted mt-0.5">${esc(sv.description)}</div>` : ""}
+                      </td>
+                      <td class="num">฿${baht(sv.price)}</td>
+                      <td class="num">${sv.duration_minutes} นาที</td>
+                      <td>${sv.is_active
+                        ? '<span class="badge badge-completed">เปิดรับจอง</span>'
+                        : '<span class="badge badge-cancelled">ปิดชั่วคราว</span>'}</td>
+                      <td>
+                        <div class="flex gap-1.5 flex-wrap">
+                          <button data-edit='${esc(JSON.stringify(sv))}' class="btn btn-outline btn-sm">แก้ไข</button>
+                          <button data-del="${sv.id}" class="btn btn-danger btn-sm">ลบ</button>
+                        </div>
+                      </td>
+                    </tr>`).join("")}
+                </tbody>
+              </table>`
+              : '<p class="text-sm text-muted p-8 text-center">ยังไม่มีบริการ กดปุ่มเพิ่มบริการเพื่อเริ่มรับจอง</p>'}
+          </div>`;
+
+        document.getElementById("addSvc").addEventListener("click", () => openSvc(null));
+        document.querySelectorAll("[data-edit]").forEach((b) =>
+          b.addEventListener("click", () => openSvc(JSON.parse(b.dataset.edit)))
+        );
+        document.querySelectorAll("[data-del]").forEach((b) =>
+          b.addEventListener("click", async () => {
+            const ok = await confirmDialog({
+              title: "ลบบริการนี้ใช่หรือไม่",
+              message:
+                "คิวที่ลูกค้าจองบริการนี้ไว้จะถูกลบตามไปด้วย\n" +
+                "ถ้าแค่อยากหยุดรับจองชั่วคราว ให้กดแก้ไขแล้วปิดสถานะแทน",
+              confirmText: "ลบบริการ",
+              tone: "danger",
+            });
+            if (!ok) return;
+
+            btnBusy(b, true, "กำลังลบ");
+            try {
+              await apiDelete(`/api/services/${b.dataset.del}`);
+              showAlert(alertBox, "ลบบริการเรียบร้อยแล้ว", "success");
+              renderServices();
+            } catch (err) {
+              showAlert(alertBox, err.message);
+              btnBusy(b, false);
+            }
+          })
+        );
+      } catch (err) {
+        panel.innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`;
+      }
+    }
+
+    // ============================================================
+    // วันหยุดพิเศษของร้าน
+    // ============================================================
+    async function renderClosures() {
+      panel.innerHTML = loadingHTML();
+      try {
+        const list = await apiGet(`/api/shops/${shop.id}/closures`);
+        panel.innerHTML = `
+          <div class="card card-pad">
+            <h2 class="h2">ประกาศวันหยุด</h2>
+            <p class="hint">วันที่บันทึกไว้ ระบบจะปิดรับจองทั้งวันทันที และลูกค้าจะเห็นเหตุผลที่คุณระบุ</p>
+            <form id="clForm" class="grid sm:grid-cols-[170px_1fr_auto] gap-3 mt-5 items-end">
+              <div>
+                <label class="label" for="clDate">วันที่ปิด</label>
+                <input id="clDate" type="date" class="input" required min="${localDate()}" />
+              </div>
+              <div>
+                <label class="label" for="clReason">เหตุผล <span class="text-muted" style="font-weight:400">(ไม่บังคับ)</span></label>
+                <input id="clReason" class="input" maxlength="200" placeholder="เช่น หยุดสงกรานต์ · ปิดปรับปรุงร้าน" />
+              </div>
+              <button type="submit" class="btn btn-primary">เพิ่ม</button>
+            </form>
+          </div>
+
+          <div class="card mt-5">
+            ${list.length ? `
+              <table class="table">
+                <thead><tr><th>วันที่</th><th>เหตุผล</th><th>จัดการ</th></tr></thead>
+                <tbody>
+                  ${list.map((c) => `
+                    <tr>
+                      <td class="font-medium">${thaiDate(c.closed_date)}</td>
+                      <td class="text-muted">${esc(c.reason || "—")}</td>
+                      <td><button data-delcl="${c.id}" class="btn btn-danger btn-sm">เปิดรับจองอีกครั้ง</button></td>
+                    </tr>`).join("")}
+                </tbody>
+              </table>`
+              : emptyHTML("calendar", "ยังไม่มีวันหยุดที่ประกาศไว้", "ร้านเปิดรับจองตามเวลาทำการปกติทุกวัน")}
+          </div>`;
+
+        document.getElementById("clForm").addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const body = { closed_date: document.getElementById("clDate").value };
+          const r = document.getElementById("clReason").value.trim();
+          if (r) body.reason = r;
+          try {
+            await apiPost(`/api/shops/${shop.id}/closures`, body);
+            toast("บันทึกวันหยุดแล้ว ระบบปิดรับจองวันนั้นทันที");
+            renderClosures();
+          } catch (err) { showAlert(alertBox, err.message); }
+        });
+
+        panel.querySelectorAll("[data-delcl]").forEach((b) =>
+          b.addEventListener("click", async () => {
+            try {
+              await apiDelete(`/api/closures/${b.dataset.delcl}`);
+              toast("เปิดรับจองวันดังกล่าวอีกครั้งแล้ว");
+              renderClosures();
+            } catch (err) { showAlert(alertBox, err.message); }
+          })
+        );
+      } catch (err) {
+        panel.innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`;
+      }
+    }
+
+    // ============================================================
+    // รายงานยอดขาย — คำนวณจากคิวทั้งหมดของร้าน
+    // ============================================================
+    async function renderReport() {
+      panel.innerHTML = loadingHTML();
+      try {
+        const [res, svcList, stfList, money] = await Promise.all([
+          apiGet("/api/bookings?page=1&limit=100"),
+          apiGet(`/api/shops/${shop.id}/services`).catch(() => []),
+          apiGet(`/api/shops/${shop.id}/staff`).catch(() => []),
+          apiGet(`/api/shops/${shop.id}/revenue`).catch(() => null),
+        ]);
+        const rows = res.items.filter((b) => b.shop_id === shop.id);
+        const paid = rows.filter((b) => b.status !== "cancelled");
+
+        // ---------- ยอดรายเดือน 6 เดือนล่าสุด ----------
+        const MON = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+        const months = [];
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(1);
+          d.setMonth(d.getMonth() - i);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          months.push({ key, label: MON[d.getMonth()], total: 0, n: 0 });
+        }
+        paid.forEach((b) => {
+          const m = months.find((x) => b.booking_date.startsWith(x.key));
+          if (m) { m.total += Number(b.total_price); m.n++; }
+        });
+        const peak = Math.max(...months.map((m) => m.total), 1);
+
+        // ---------- บริการและช่างที่ทำเงินมากที่สุด ----------
+        const rank = (list, keyOf, nameOf) => {
+          const map = new Map();
+          paid.forEach((b) => {
+            const k = keyOf(b);
+            if (k == null) return;
+            const cur = map.get(k) || { n: 0, sum: 0 };
+            cur.n++; cur.sum += Number(b.total_price);
+            map.set(k, cur);
+          });
+          return [...map.entries()]
+            .map(([k, v]) => ({ name: nameOf(k), ...v }))
+            .sort((a, b) => b.sum - a.sum);
+        };
+        const byService = rank(paid, (b) => b.service_id,
+          (id) => (svcList.find((x) => x.id === id) || {}).name || `บริการ #${id}`);
+        const byStaff = rank(paid, (b) => b.staff_id,
+          (id) => (stfList.find((x) => x.id === id) || {}).name || `${RES()} #${id}`);
+
+        const cancelRate = rows.length
+          ? Math.round((rows.filter((b) => b.status === "cancelled").length / rows.length) * 100) : 0;
+        const income = paid.reduce((s, b) => s + Number(b.total_price), 0);
+        const avg = paid.length ? Math.round(income / paid.length) : 0;
+
+        const table = (title, list, unit) => `
+          <div class="card card-pad">
+            <h3 class="h3">${title}</h3>
+            ${list.length ? `
+              <div class="rank-list">
+                ${list.slice(0, 5).map((x, i) => `
+                  <div class="rank-row">
+                    <span class="rank-no num">${i + 1}</span>
+                    <span class="rank-name">${esc(x.name)}</span>
+                    <span class="rank-n text-muted num">${x.n} ${unit}</span>
+                    <span class="rank-sum num">฿${baht(x.sum)}</span>
+                  </div>`).join("")}
+              </div>`
+              : `<p class="text-sm text-muted mt-3">ยังไม่มีข้อมูล</p>`}
+          </div>`;
+
+        // ---------- เงินที่รับเข้ามาจริง ----------
+        const METHOD_TH = { promptpay: "พร้อมเพย์", card: "บัตร", cash: "เงินสด" };
+        const cashBlock = money ? `
+          <div class="card card-pad mt-5">
+            <div class="section-head" style="margin-bottom:14px">
+              <div>
+                <h3 class="h3">เงินที่รับเข้ามาจริง</h3>
+                <p class="hint mt-1">
+                  นับเฉพาะเงินที่ชำระผ่านระบบแล้ว ต่างจาก "รายได้รวม" ด้านบนที่นับมูลค่าคิวทั้งหมด
+                </p>
+              </div>
+              <span class="h2 num" style="color:var(--success)">฿${baht(money.net)}</span>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+              ${[["รับชำระแล้ว", money.received], ["คืนเงินไป", money.refunded], ["คงเหลือสุทธิ", money.net]]
+                .map(([l, v]) => `
+                  <div>
+                    <div class="text-xs text-muted">${l}</div>
+                    <div class="num" style="font-weight:600;font-size:15px">฿${baht(v)}</div>
+                  </div>`).join("")}
+            </div>
+
+            ${money.by_method.length ? `
+              <div class="mt-4 pt-4" style="border-top:1px solid var(--border)">
+                <div class="text-xs text-muted mb-2">แยกตามช่องทาง</div>
+                <div class="flex gap-2 flex-wrap">
+                  ${money.by_method.map((m) => `
+                    <span class="badge badge-neutral num">
+                      ${METHOD_TH[m.method] || m.method} · ${m.count} ครั้ง · ฿${baht(m.amount)}
+                    </span>`).join("")}
+                </div>
+              </div>` : ""}
+          </div>` : "";
+
+        panel.innerHTML = `
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            ${[["มูลค่าคิวทั้งหมด", "฿" + baht(income)], ["คิวทั้งหมด", paid.length],
+               ["เฉลี่ยต่อคิว", "฿" + baht(avg)], ["อัตรายกเลิก", cancelRate + "%"]]
+              .map(([l, v]) => `
+                <div class="card p-4">
+                  <div class="text-xs text-muted">${l}</div>
+                  <div class="h2 num mt-0.5">${v}</div>
+                </div>`).join("")}
+          </div>
+
+          ${cashBlock}
+
+          <div class="card card-pad mt-5">
+            <h3 class="h3">รายได้ 6 เดือนล่าสุด</h3>
+            <div class="bar-chart">
+              ${months.map((m) => `
+                <div class="bar-col" title="${m.n} คิว">
+                  <span class="bar-val num">${m.total ? "฿" + baht(m.total) : ""}</span>
+                  <span class="bar" style="height:${Math.round((m.total / peak) * 100)}%"></span>
+                  <span class="bar-label">${m.label}</span>
+                </div>`).join("")}
+            </div>
+          </div>
+
+          <div class="grid sm:grid-cols-2 gap-5 mt-5">
+            ${table("บริการที่ทำเงินมากที่สุด", byService, "คิว")}
+            ${table(`${RES()}ที่ถูกจองมากที่สุด`, byStaff, "คิว")}
+          </div>
+
+          <p class="hint mt-4">
+            คำนวณจากคิว ${rows.length} รายการล่าสุดของร้าน ไม่นับคิวที่ถูกยกเลิก
+          </p>`;
+      } catch (err) {
+        panel.innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`;
+      }
+    }
+
+    // ============================================================
+    // จองแทนลูกค้า (walk-in)
+    // ============================================================
+    const wiModal = document.getElementById("wiModal");
+    const wiAlert = document.getElementById("wiAlert");
+    document.getElementById("wiClose").innerHTML = icon("x", 18);
+    const closeWi = () => closeModalEl(wiModal);
+    document.getElementById("wiClose").addEventListener("click", closeWi);
+    wiModal.addEventListener("click", (e) => { if (e.target === wiModal) closeWi(); });
+
+    async function openWalkin() {
+      document.getElementById("wiForm").reset();
+      hideAlert(wiAlert);
+      document.getElementById("wiTime").value = "";
+      document.getElementById("wiSlots").innerHTML = '<p class="hint" style="margin:0">เลือกบริการและวันที่ก่อน</p>';
+      document.getElementById("wiDate").value = localDate();
+      document.getElementById("wiDate").min = localDate();
+
+      const [svc, stf] = await Promise.all([
+        apiGet(`/api/shops/${shop.id}/services`).catch(() => []),
+        apiGet(`/api/shops/${shop.id}/staff`).catch(() => []),
+      ]);
+      document.getElementById("wiSvc").innerHTML = svc.filter((x) => x.is_active)
+        .map((x) => `<option value="${x.id}">${esc(x.name)} · ฿${baht(x.price)}</option>`).join("");
+      document.getElementById("wiStaff").innerHTML = '<option value="">ไม่ระบุ</option>' +
+        stf.filter((x) => x.is_active).map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
+
+      openModal(wiModal);
+      loadWalkinSlots();
+    }
+
+    // ดึงช่วงเวลาว่างมาให้เลือก ใช้ endpoint เดียวกับฝั่งลูกค้า
+    async function loadWalkinSlots() {
+      const box = document.getElementById("wiSlots");
+      const sv = document.getElementById("wiSvc").value;
+      const day = document.getElementById("wiDate").value;
+      document.getElementById("wiTime").value = "";
+      if (!sv || !day) return;
+
+      box.innerHTML = '<p class="hint" style="margin:0">กำลังโหลด</p>';
+      const q = new URLSearchParams({ date: day });
+      const st = document.getElementById("wiStaff").value;
+      if (st) q.set("staff_id", st);
+
+      try {
+        const a = await apiGet(`/api/services/${sv}/availability?${q}`);
+        const free = a.slots.filter((x) => x.available);
+        if (!free.length) {
+          box.innerHTML = `<p class="text-sm" style="color:var(--danger);margin:0">
+            ${esc(a.closed_reason || "วันนี้ไม่มีคิวว่าง")}</p>`;
+          return;
+        }
+        box.innerHTML = `<div class="slot-grid">${free.map((x) => `
+          <button type="button" class="slot" data-wt="${x.time}" aria-pressed="false"
+                  aria-label="จองเวลา ${shortTime(x.time)} ถึง ${shortTime(x.end_time)} น.">
+            <span class="num">${shortTime(x.time)}</span>
+            <span class="slot-end num">${shortTime(x.end_time)}</span>
+          </button>`).join("")}</div>`;
+
+        box.querySelectorAll("[data-wt]").forEach((b) =>
+          b.addEventListener("click", () => {
+            box.querySelectorAll(".slot").forEach((x) => {
+              x.classList.remove("is-selected");
+              x.setAttribute("aria-pressed", "false");
+            });
+            b.classList.add("is-selected");
+            b.setAttribute("aria-pressed", "true");
+            document.getElementById("wiTime").value = b.dataset.wt;
+          })
+        );
+      } catch (err) {
+        box.innerHTML = `<p class="text-sm" style="color:var(--danger);margin:0">${esc(err.message)}</p>`;
+      }
+    }
+
+    ["wiSvc", "wiDate", "wiStaff"].forEach((id) =>
+      document.getElementById(id).addEventListener("change", loadWalkinSlots)
+    );
+
+    document.getElementById("wiForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideAlert(wiAlert);
+      const time = document.getElementById("wiTime").value;
+      if (!time) { showAlert(wiAlert, "กรุณาเลือกช่วงเวลา"); return; }
+
+      const btn = document.getElementById("wiSave");
+      btnBusy(btn, true, "กำลังบันทึก");
+
+      const body = {
+        service_id: Number(document.getElementById("wiSvc").value),
+        booking_date: document.getElementById("wiDate").value,
+        booking_time: time,
+        guest_name: document.getElementById("wiName").value.trim(),
+      };
+      const phone = document.getElementById("wiPhone").value.trim();
+      const staff = document.getElementById("wiStaff").value;
+      const note = document.getElementById("wiNote").value.trim();
+      if (phone) body.guest_phone = phone;
+      if (staff) body.staff_id = Number(staff);
+      if (note) body.note = note;
+
+      try {
+        const r = await apiPost("/api/bookings", body);
+        closeWi();
+        toast(`บันทึกคิวให้ ${body.guest_name} แล้ว · ${r.booking_code}`);
+        renderBookings();
+      } catch (err) {
+        showAlert(wiAlert, err.message);
+      } finally {
+        btnBusy(btn, false);
+      }
+    });
+
+    // ---------- กล่องเพิ่ม/แก้ไขบริการ ----------
+    const svcModal = document.getElementById("svcModal");
+    const svcAlert = document.getElementById("svcAlert");
+
+    function openSvc(sv) {
+      document.getElementById("svcForm").reset();
+      hideAlert(svcAlert);
+      document.getElementById("svcTitle").textContent = sv ? "แก้ไขบริการ" : "เพิ่มบริการ";
+      document.getElementById("svcId").value = sv ? sv.id : "";
+      if (sv) {
+        document.getElementById("svcName").value = sv.name;
+        document.getElementById("svcDesc").value = sv.description || "";
+        document.getElementById("svcPrice").value = Number(sv.price);
+        document.getElementById("svcDur").value = sv.duration_minutes;
+      }
+      openModal(svcModal);
+    }
+    const closeSvc = () => closeModalEl(svcModal);
+    document.getElementById("svcClose").addEventListener("click", closeSvc);
+    svcModal.addEventListener("click", (e) => { if (e.target === svcModal) closeSvc(); });
+    // ปิดกล่องซ้อนด้วย Esc ให้ครบทุกกล่องในหน้านี้
+    // เดิมมีเฉพาะกล่องบริการ กล่องช่างกับกล่องบันทึกคิวหน้าร้านกด Esc แล้วไม่มีอะไรเกิดขึ้น
+    // ต้องเช็กว่ากล่องเปิดอยู่จริงก่อน ไม่งั้นการกด Esc ตอนไม่มีกล่องเปิด
+    // จะไปดึงโฟกัสกลับไปที่ปุ่มเก่าโดยไม่มีเหตุผล
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      const open = (el) => el.classList.contains("is-open");
+      if (open(svcModal)) return closeSvc();
+      if (open(stfModal)) return closeStf();
+      if (open(wiModal)) return closeWi();
+    });
+
+    document.getElementById("svcForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideAlert(svcAlert);
+      const btn = document.getElementById("svcSave");
+      btnBusy(btn, true, "กำลังบันทึก");
+
+      const id = document.getElementById("svcId").value;
+      const body = {
+        name: document.getElementById("svcName").value.trim(),
+        price: Number(document.getElementById("svcPrice").value),
+        duration_minutes: Number(document.getElementById("svcDur").value),
+      };
+      const desc = document.getElementById("svcDesc").value.trim();
+      if (desc) body.description = desc;
+
+      try {
+        if (id) await apiPut(`/api/services/${id}`, body);
+        else await apiPost(`/api/shops/${shop.id}/services`, body);
+        closeSvc();
+        showAlert(alertBox, id ? "แก้ไขบริการเรียบร้อยแล้ว" : "เพิ่มบริการเรียบร้อยแล้ว", "success");
+        renderServices();
+      } catch (err) {
+        showAlert(svcAlert, err.message);
+      } finally {
+        btnBusy(btn, false);
+      }
+    });
+
+    // ================= ช่างประจำร้าน =================
+    // ---------- ตารางเวลาทำงานของช่าง ----------
+    const DOW_S = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
+
+    function workDaysText(st) {
+      if (!st.work_days) return "ทุกวันที่ร้านเปิด";
+      const days = st.work_days.split(",").map(Number).sort((a, b) => a - b);
+      if (days.length === 7) return "ทุกวัน";
+      const run = days.every((d, i) => i === 0 || d === days[i - 1] + 1);
+      return run && days.length > 2
+        ? `${DOW_S[days[0]]}–${DOW_S[days[days.length - 1]]}`
+        : days.map((d) => DOW_S[d]).join(" ");
+    }
+
+    function workTimeText(st) {
+      const a = st.work_start ? shortTime(st.work_start) : shortTime(shop.open_time);
+      const b = st.work_end ? shortTime(st.work_end) : shortTime(shop.close_time);
+      return `${a}–${b} น.`;
+    }
+
+    async function renderStaff() {
+      panel.innerHTML = loadingHTML();
+      try {
+        const list = await apiGet(`/api/shops/${shop.id}/staff`);
+        panel.innerHTML = `
+          <div class="flex items-center justify-between gap-4 flex-wrap">
+            <p class="text-sm text-muted">
+              มีทั้งหมด ${list.length} ${unit()} · ลูกค้าเลือก${RES()}ได้ตอนจองคิว
+              และระบบจะคิดคิวว่างแยกราย${RES()}ให้อัตโนมัติ
+            </p>
+            <button id="addStf" class="btn btn-primary btn-sm">เพิ่ม${RES()}</button>
+          </div>
+
+          <div class="card mt-4 overflow-x-auto">
+            ${list.length ? `
+              <table class="table">
+                <thead><tr><th>${RES()}</th><th>ประเภท</th><th>วันเวลาที่เปิด</th><th>คะแนน</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+                <tbody>
+                  ${list.map((st) => `
+                    <tr>
+                      <td>
+                        <div class="flex items-center gap-2.5">
+                          <span class="staff-avatar">${esc(st.name.trim().charAt(0))}</span>
+                          <div>
+                            <div class="font-medium">${esc(st.name)}</div>
+                            ${st.bio ? `<div class="text-xs text-muted mt-0.5">${esc(st.bio)}</div>` : ""}
+                          </div>
+                        </div>
+                      </td>
+                      <td class="text-muted">${esc(st.position || "—")}</td>
+                      <td class="text-sm">
+                        ${workDaysText(st)}
+                        ${st.work_start || st.work_end
+                          ? `<div class="text-xs text-muted num">${workTimeText(st)}</div>` : ""}
+                      </td>
+                      <td class="num">${st.rating_count
+                        ? `${Number(st.rating_avg).toFixed(1)} <span class="text-xs text-muted">(${st.rating_count})</span>`
+                        : '<span class="text-muted text-xs">—</span>'}</td>
+                      <td>${st.is_active
+                        ? '<span class="badge badge-completed">รับคิวอยู่</span>'
+                        : '<span class="badge badge-cancelled">พักงาน</span>'}</td>
+                      <td>
+                        <div class="flex gap-1.5">
+                          <button data-tstf="${st.id}" data-active="${st.is_active}" class="btn btn-outline btn-sm">
+                            ${st.is_active ? "พักงาน" : "กลับมารับคิว"}
+                          </button>
+                          <button data-estf='${esc(JSON.stringify(st))}' class="btn btn-outline btn-sm">แก้ไข</button>
+                          <button data-dstf="${st.id}" class="btn btn-danger btn-sm">ลบ</button>
+                        </div>
+                      </td>
+                    </tr>`).join("")}
+                </tbody>
+              </table>`
+              : `<div class="p-8 text-center">
+                   <p class="text-sm text-muted">ยังไม่มี${RES()}ในร้าน</p>
+                   <p class="hint">เพิ่ม${RES()}เพื่อให้ลูกค้าเลือกได้ตอนจอง และให้ระบบจัดคิวแยกราย${RES()}</p>
+                 </div>`}
+          </div>`;
+
+        document.getElementById("addStf").addEventListener("click", () => openStf(null));
+        document.querySelectorAll("[data-estf]").forEach((b) =>
+          b.addEventListener("click", () => openStf(JSON.parse(b.dataset.estf)))
+        );
+        document.querySelectorAll("[data-tstf]").forEach((b) =>
+          b.addEventListener("click", async () => {
+            try {
+              await apiPut(`/api/staff/${b.dataset.tstf}`, { is_active: b.dataset.active !== "true" });
+              renderStaff();
+            } catch (err) {
+              showAlert(alertBox, err.message);
+            }
+          })
+        );
+        document.querySelectorAll("[data-dstf]").forEach((b) =>
+          b.addEventListener("click", async () => {
+            const ok = await confirmDialog({
+              title: `ลบ${RES()}นี้ใช่หรือไม่`,
+              message:
+                `คิวที่ลูกค้าจองไว้กับ${RES()}นี้จะเปลี่ยนเป็น "ไม่ระบุ" ไม่ได้ถูกยกเลิก\n` +
+                `ถ้าแค่อยากพักงานชั่วคราว ให้กดแก้ไขแล้วปิดสถานะแทน`,
+              confirmText: `ลบ${RES()}`,
+              tone: "danger",
+            });
+            if (!ok) return;
+
+            btnBusy(b, true, "กำลังลบ");
+            try {
+              await apiDelete(`/api/staff/${b.dataset.dstf}`);
+              showAlert(alertBox, `ลบ${RES()}เรียบร้อยแล้ว`, "success");
+              renderStaff();
+            } catch (err) {
+              showAlert(alertBox, err.message);
+              btnBusy(b, false);
+            }
+          })
+        );
+      } catch (err) {
+        panel.innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`;
+      }
+    }
+
+    // ---------- กล่องเพิ่ม/แก้ไขช่าง ----------
+    const stfModal = document.getElementById("stfModal");
+    const stfAlert = document.getElementById("stfAlert");
+    document.getElementById("stfClose").innerHTML = icon("x", 18);
+
+    // ปุ่มเลือกวันทำงาน — กดสลับเปิด/ปิดทีละวัน
+    function renderDayPicker(selected = []) {
+      const box = document.getElementById("stfDays");
+      box.innerHTML = DOW_S.map((d, i) => `
+        <button type="button" data-day="${i}" class="day-btn ${selected.includes(i) ? "is-on" : ""}">
+          ${d}
+        </button>`).join("");
+      box.querySelectorAll("[data-day]").forEach((b) =>
+        b.addEventListener("click", () => b.classList.toggle("is-on"))
+      );
+    }
+
+    function openStf(st) {
+      document.getElementById("stfForm").reset();
+      hideAlert(stfAlert);
+      document.getElementById("stfTitle").textContent = st ? `แก้ไขข้อมูล${RES()}` : `เพิ่ม${RES()}`;
+      document.querySelector('label[for="stfName"]').textContent = `ชื่อ${RES()}`;
+      document.getElementById("stfName").placeholder = isPerson() ? "เช่น ช่างมิ้น" : "เช่น คอร์ท 1";
+      document.getElementById("stfId").value = st ? st.id : "";
+      if (st) {
+        document.getElementById("stfName").value = st.name;
+        document.getElementById("stfPos").value = st.position || "";
+        document.getElementById("stfBio").value = st.bio || "";
+        document.getElementById("stfStart").value = st.work_start ? shortTime(st.work_start) : "";
+        document.getElementById("stfEnd").value = st.work_end ? shortTime(st.work_end) : "";
+      } else {
+        document.getElementById("stfStart").value = "";
+        document.getElementById("stfEnd").value = "";
+      }
+      renderDayPicker(st && st.work_days ? st.work_days.split(",").map(Number) : []);
+      openModal(stfModal);
+    }
+    const closeStf = () => closeModalEl(stfModal);
+    document.getElementById("stfClose").addEventListener("click", closeStf);
+    stfModal.addEventListener("click", (e) => { if (e.target === stfModal) closeStf(); });
+
+    document.getElementById("stfForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideAlert(stfAlert);
+      const btn = document.getElementById("stfSave");
+      btnBusy(btn, true, "กำลังบันทึก");
+
+      const id = document.getElementById("stfId").value;
+      const body = { name: document.getElementById("stfName").value.trim() };
+      const pos = document.getElementById("stfPos").value.trim();
+      const bio = document.getElementById("stfBio").value.trim();
+      if (pos) body.position = pos;
+      if (bio) body.bio = bio;
+
+      // ตารางเวลา — ส่ง null เพื่อล้างค่าเดิม (ไม่ส่งเลยแปลว่า "ไม่แก้")
+      const days = [...document.querySelectorAll("#stfDays [data-day].is-on")]
+        .map((b) => b.dataset.day).sort();
+      body.work_days = days.length && days.length < 7 ? days.join(",") : null;
+      body.work_start = document.getElementById("stfStart").value || null;
+      body.work_end = document.getElementById("stfEnd").value || null;
+
+      if (body.work_start && body.work_end && body.work_start >= body.work_end) {
+        showAlert(stfAlert, "เวลาเลิกงานต้องอยู่หลังเวลาเข้างาน");
+        btnBusy(btn, false);
+        return;
+      }
+
+      try {
+        if (id) await apiPut(`/api/staff/${id}`, body);
+        else await apiPost(`/api/shops/${shop.id}/staff`, body);
+        closeStf();
+        showAlert(alertBox, id ? `แก้ไขข้อมูล${RES()}เรียบร้อยแล้ว` : `เพิ่ม${RES()}เรียบร้อยแล้ว`, "success");
+        renderStaff();
+      } catch (err) {
+        showAlert(stfAlert, err.message);
+      } finally {
+        btnBusy(btn, false);
+      }
+    });
+
+    // ================= ข้อมูลร้าน =================
+    function renderInfo() {
+      panel.innerHTML = `
+        <div class="card card-pad">
+          <form id="infoForm" class="space-y-4">
+            <div>
+              <label class="label" for="iName">ชื่อร้าน</label>
+              <input id="iName" class="input" value="${esc(shop.name)}" required minlength="2" />
+            </div>
+            <div>
+              <label class="label" for="iDesc">คำอธิบายร้าน</label>
+              <textarea id="iDesc" class="textarea" rows="3" maxlength="1000">${esc(shop.description || "")}</textarea>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label class="label" for="iAddr">ที่อยู่</label>
+                <input id="iAddr" class="input" value="${esc(shop.address || "")}" />
+              </div>
+              <div>
+                <label class="label" for="iDist">เขต / อำเภอ</label>
+                <input id="iDist" class="input" value="${esc(shop.district || "")}" />
+              </div>
+              <div>
+                <label class="label" for="iPhone">เบอร์ติดต่อ</label>
+                <input id="iPhone" class="input num" value="${esc(shop.phone || "")}" pattern="[0-9]{9,15}" />
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="label" for="iOpen">เวลาเปิด</label>
+                  <input id="iOpen" type="time" class="input" value="${shortTime(shop.open_time)}" />
+                </div>
+                <div>
+                  <label class="label" for="iClose">เวลาปิด</label>
+                  <input id="iClose" type="time" class="input" value="${shortTime(shop.close_time)}" />
+                </div>
+              </div>
+            </div>
+
+            <!-- ---------- ตำแหน่งบนแผนที่ ---------- -->
+            <div class="pt-2" style="border-top:1px solid var(--border)">
+              <div class="flex items-center justify-between gap-3 flex-wrap mt-4">
+                <div>
+                  <label class="label" style="margin:0">ตำแหน่งร้านบนแผนที่</label>
+                  <p class="hint mt-1">
+                    คลิกบนแผนที่เพื่อย้ายหมุด — ลูกค้าใช้ตำแหน่งนี้ค้นหาร้านใกล้ตัว
+                  </p>
+                </div>
+                <button type="button" id="iHere" class="btn btn-ghost btn-sm">
+                  ${icon("crosshair", 14)} ใช้ตำแหน่งปัจจุบัน
+                </button>
+              </div>
+
+              <div id="pinMap" class="map-box mt-3" style="height:230px"></div>
+
+              <div class="grid grid-cols-2 gap-3 mt-3">
+                <div>
+                  <label class="label" for="iLat">ละติจูด</label>
+                  <input id="iLat" class="input num" inputmode="decimal"
+                         value="${shop.latitude ?? ""}" placeholder="13.779800" />
+                </div>
+                <div>
+                  <label class="label" for="iLng">ลองจิจูด</label>
+                  <input id="iLng" class="input num" inputmode="decimal"
+                         value="${shop.longitude ?? ""}" placeholder="100.544600" />
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2.5 pt-1">
+              <input type="checkbox" id="iActive" ${shop.is_active ? "checked" : ""}
+                     style="width:16px;height:16px;accent-color:var(--blue-600)" />
+              <label for="iActive" class="text-sm">เปิดร้านให้ลูกค้าค้นหาเจอ</label>
+            </div>
+
+            <div class="flex items-center gap-2.5">
+              ${shop.is_certified
+                ? `<span class="badge badge-verified">${icon("shield", 12)} ผ่านการรับรองมาตรฐาน</span>`
+                : '<span class="badge badge-neutral">ยังไม่ผ่านการรับรอง</span>'}
+              <span class="text-xs text-muted">สถานะรับรองกำหนดโดยผู้ดูแลระบบเท่านั้น</span>
+            </div>
+
+            <button id="infoSave" type="submit" class="btn btn-primary">บันทึกข้อมูลร้าน</button>
+          </form>
+        </div>`;
+
+      setupPinMap();
+
+      document.getElementById("infoForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        hideAlert(alertBox);
+        const btn = document.getElementById("infoSave");
+        btnBusy(btn, true, "กำลังบันทึก");
+
+        const body = {
+          name: document.getElementById("iName").value.trim(),
+          description: document.getElementById("iDesc").value.trim(),
+          address: document.getElementById("iAddr").value.trim(),
+          district: document.getElementById("iDist").value.trim(),
+          open_time: document.getElementById("iOpen").value + ":00",
+          close_time: document.getElementById("iClose").value + ":00",
+          is_active: document.getElementById("iActive").checked,
+        };
+        const phone = document.getElementById("iPhone").value.trim();
+        if (phone) body.phone = phone;
+
+        // ส่งพิกัดไปก็ต่อเมื่อกรอกครบทั้งคู่และเป็นตัวเลขที่ใช้ได้จริง
+        const lat = parseFloat(document.getElementById("iLat").value);
+        const lng = parseFloat(document.getElementById("iLng").value);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          if (Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+            btnBusy(btn, false);
+            return showAlert(alertBox, "พิกัดไม่ถูกต้อง ละติจูดต้องอยู่ระหว่าง -90 ถึง 90 และลองจิจูด -180 ถึง 180");
+          }
+          body.latitude = Number(lat.toFixed(6));
+          body.longitude = Number(lng.toFixed(6));
+        }
+
+        try {
+          const updated = await apiPut(`/api/shops/${shop.id}`, body);
+          Object.assign(shop, updated);
+          const i = myShops.findIndex((s) => s.id === shop.id);
+          if (i >= 0) myShops[i] = shop;
+          renderShopPicker();
+          showAlert(alertBox, "บันทึกข้อมูลร้านเรียบร้อยแล้ว", "success");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        } catch (err) {
+          showAlert(alertBox, err.message);
+        } finally {
+          btnBusy(btn, false);
+        }
+      });
+    }
+
+    // แผนที่ปักหมุด — คลิกที่ไหนหมุดย้ายไปที่นั่น และช่องตัวเลขอัปเดตตาม
+    //
+    // Leaflet ผูก listener ของตัวเองไว้ที่ window และถอดออกเฉพาะตอนเรียก map.remove()
+    // ถ้าไม่ทำลายของเก่า สลับแท็บกลับไปกลับมาจะสะสม instance ค้างจนหน้าหน่วง
+    let pinMap = null;
+
+    async function setupPinMap() {
+      const el = document.getElementById("pinMap");
+      const latIn = document.getElementById("iLat");
+      const lngIn = document.getElementById("iLng");
+      if (!el) return;
+
+      let L;
+      try {
+        L = await loadLeaflet();
+      } catch {
+        el.innerHTML = `<p class="hint" style="margin:0;padding:20px">
+          โหลดแผนที่ไม่สำเร็จ — กรอกพิกัดในช่องด้านล่างได้โดยตรง</p>`;
+        return;
+      }
+
+      // ไม่มีพิกัดเดิม เริ่มที่กลางกรุงเทพฯ ให้ผู้ใช้ลากหาเอง
+      // ผู้ใช้อาจสลับแท็บไปแล้วระหว่างรอ Leaflet โหลด ถ้าวาดต่อจะไปวาดบนกล่องที่หลุดจากหน้าไปแล้ว
+      if (!document.contains(el)) return;
+      // ทำลายแผนที่ของรอบก่อนเสมอ ไม่งั้น listener ของ Leaflet ค้างสะสมทุกครั้งที่สลับแท็บ
+      if (pinMap) { pinMap.remove(); pinMap = null; }
+
+      const start = [Number(latIn.value) || 13.7563, Number(lngIn.value) || 100.5018];
+      const map = L.map(el, { center: start, zoom: latIn.value ? 16 : 12, scrollWheelZoom: false });
+      pinMap = map;
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; ผู้ร่วมสร้าง OpenStreetMap",
+      }).addTo(map);
+
+      const marker = L.marker(start, { draggable: true }).addTo(map);
+
+      const sync = (ll) => {
+        latIn.value = ll.lat.toFixed(6);
+        lngIn.value = ll.lng.toFixed(6);
+      };
+
+      map.on("click", (e) => { marker.setLatLng(e.latlng); sync(e.latlng); });
+      marker.on("dragend", () => sync(marker.getLatLng()));
+      map.once("click", () => map.scrollWheelZoom.enable());
+
+      // พิมพ์พิกัดเองแล้วหมุดต้องขยับตาม ไม่งั้นสองฝั่งจะไม่ตรงกัน
+      [latIn, lngIn].forEach((input) =>
+        input.addEventListener("change", () => {
+          const la = parseFloat(latIn.value);
+          const ln = parseFloat(lngIn.value);
+          if (!Number.isFinite(la) || !Number.isFinite(ln)) return;
+          if (Math.abs(la) > 90 || Math.abs(ln) > 180) return;
+          marker.setLatLng([la, ln]);
+          map.setView([la, ln], 16);
+        })
+      );
+
+      document.getElementById("iHere").addEventListener("click", async (e) => {
+        const btn = e.currentTarget;
+        btnBusy(btn, true, "กำลังหาตำแหน่ง");
+        try {
+          const pos = await askLocation();
+          marker.setLatLng([pos.lat, pos.lng]);
+          map.setView([pos.lat, pos.lng], 17);
+          sync({ lat: pos.lat, lng: pos.lng });
+          toast("ปักหมุดที่ตำแหน่งปัจจุบันแล้ว — อย่าลืมกดบันทึก");
+        } catch (err) {
+          toast(err.message, "error", 4500);
+        } finally {
+          btnBusy(btn, false);
+        }
+      });
+    }
+  </script>
+</body>
+</html>

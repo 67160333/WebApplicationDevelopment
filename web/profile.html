@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>บัญชีของฉัน — Bookvice</title>
+  <meta name="description" content="จัดการข้อมูลส่วนตัวและความปลอดภัยของบัญชี Bookvice" />
+  <meta name="theme-color" content="#16233F" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><defs><linearGradient id='a' x1='11' y1='5' x2='36' y2='27' gradientUnits='userSpaceOnUse'><stop stop-color='%23F9AE8B'/><stop offset='1' stop-color='%23E8785A'/></linearGradient><linearGradient id='b' x1='11' y1='21' x2='38' y2='43' gradientUnits='userSpaceOnUse'><stop stop-color='%233FC0D6'/><stop offset='1' stop-color='%2322A898'/></linearGradient></defs><rect width='48' height='48' rx='11' fill='%23fff'/><path d='M11 5h16a11 11 0 0 1 0 22H11z' fill='url(%23a)'/><path d='M11 21h18a11 11 0 0 1 0 22H11z' fill='url(%23b)'/><path d='m16.5 32.5 4.5 4.5 9-9' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='5' y='5' width='6.5' height='38' rx='3.25' fill='%2316233F'/></svg>" />
+
+  <!-- ข้อมูลตอนแชร์ลิงก์ ให้แอปแชตแสดงชื่อและคำอธิบายแทนลิงก์เปล่า -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Bookvice" />
+  <meta property="og:title" content="บัญชีของฉัน — Bookvice" />
+  <meta property="og:description" content="จัดการข้อมูลส่วนตัวและความปลอดภัยของบัญชี Bookvice" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
+       IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202608252100" />
+</head>
+<body>
+  <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
+  <div id="navbar"></div>
+
+  <main id="main" class="max-w-2xl mx-auto px-5 py-12">
+    <h1 class="h1">บัญชีของฉัน</h1>
+
+    <div id="alert" class="alert mt-5" style="display:none"></div>
+
+    <!-- ข้อมูลส่วนตัว -->
+    <section class="card card-pad mt-6">
+      <h2 class="h2">ข้อมูลส่วนตัว</h2>
+      <p class="hint">ข้อมูลนี้จะแสดงกับร้านที่คุณจองบริการ</p>
+      <div id="profileBox" class="mt-5" style="min-height:339px"></div>
+    </section>
+
+    <!-- ความปลอดภัย -->
+    <section class="card card-pad mt-5">
+      <h2 class="h2 flex items-center gap-2">
+        <span id="lockIcon" class="text-muted"></span> ความปลอดภัย
+      </h2>
+      <p class="hint">เมื่อเปลี่ยนรหัสผ่านแล้ว ระบบจะยกเลิกเซสชันปัจจุบันทันที</p>
+
+      <div id="pwAlert" class="alert mt-4" style="display:none"></div>
+
+      <form id="pwForm" class="mt-5 space-y-4">
+        <div>
+          <label class="label" for="oldPw">รหัสผ่านปัจจุบัน</label>
+          <input id="oldPw" type="password" class="input" required autocomplete="current-password" />
+        </div>
+        <div>
+          <label class="label" for="newPw">รหัสผ่านใหม่</label>
+          <input id="newPw" type="password" class="input" required minlength="8" autocomplete="new-password" />
+          <p class="hint">อย่างน้อย 8 ตัวอักษร</p>
+        </div>
+        <button id="pwBtn" type="submit" class="btn btn-outline">เปลี่ยนรหัสผ่าน</button>
+      </form>
+    </section>
+
+    <!-- ออกจากระบบ -->
+    <section class="card card-pad mt-5">
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 class="h2">ออกจากระบบ</h2>
+          <p class="hint">โทเคนการเข้าใช้งานจะถูกยกเลิกและไม่สามารถนำกลับมาใช้ได้อีก</p>
+        </div>
+        <button id="logoutBtn" class="btn btn-danger"><span id="logoutIcon"></span> ออกจากระบบ</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/api.js?v=202608252100"></script>
+  <script src="js/ui.js?v=202608252100"></script>
+  <script>
+    renderNavbar();
+    renderFooter();
+    document.getElementById("lockIcon").innerHTML = icon("lock", 16);
+    document.getElementById("logoutIcon").innerHTML = icon("logout", 15);
+
+    if (!Auth.requireLogin()) throw new Error("ยังไม่ได้เข้าสู่ระบบ");
+
+    const alertBox = document.getElementById("alert");
+    const ROLE_TEXT = { customer: "ลูกค้า", owner: "เจ้าของร้าน", admin: "ผู้ดูแลระบบ" };
+
+    // ---------- โหลดข้อมูลจาก GET /me ----------
+    async function loadProfile() {
+      const box = document.getElementById("profileBox");
+      box.innerHTML = loadingHTML();
+      try {
+        const me = await apiGet("/api/users/me");
+        Auth.save(Auth.token, me);
+        renderNavbar();
+
+        box.innerHTML = `
+          <div class="flex items-center gap-4 pb-5" style="border-bottom:1px solid var(--border)">
+            <span class="w-12 h-12 rounded-full grid place-items-center h2"
+                  style="background:var(--navy-800);color:#fff">${esc(me.full_name.trim().charAt(0))}</span>
+            <div>
+              <div class="font-semibold">${esc(me.username)}</div>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="badge badge-confirmed">${esc(ROLE_TEXT[me.role] || me.role)}</span>
+                <span class="text-xs text-muted">สมาชิกตั้งแต่ ${thaiDate(me.created_at.slice(0, 10))}</span>
+              </div>
+            </div>
+          </div>
+
+          <form id="profileForm" class="space-y-4 mt-5">
+            <div>
+              <label class="label" for="pName">ชื่อ–นามสกุล</label>
+              <input id="pName" class="input" value="${esc(me.full_name)}" required minlength="2" />
+            </div>
+            <div>
+              <label class="label" for="pEmail">อีเมล</label>
+              <input id="pEmail" type="email" class="input" value="${esc(me.email)}" required />
+            </div>
+            <div>
+              <label class="label" for="pPhone">เบอร์โทรศัพท์</label>
+              <input id="pPhone" class="input" value="${esc(me.phone || "")}" pattern="[0-9]{9,15}" />
+            </div>
+            <button id="saveBtn" type="submit" class="btn btn-primary">บันทึกการเปลี่ยนแปลง</button>
+          </form>`;
+
+        // ---------- บันทึกด้วย PUT /users/{id} ----------
+        document.getElementById("profileForm").addEventListener("submit", async (e) => {
+          e.preventDefault();
+          hideAlert(alertBox);
+          const btn = document.getElementById("saveBtn");
+          btnBusy(btn, true, "กำลังบันทึก");
+
+          const body = {
+            full_name: document.getElementById("pName").value.trim(),
+            email: document.getElementById("pEmail").value.trim(),
+          };
+          const phone = document.getElementById("pPhone").value.trim();
+          if (phone) body.phone = phone;
+
+          try {
+            const updated = await apiPut(`/api/users/${me.id}`, body);
+            Auth.save(Auth.token, updated);
+            renderNavbar();
+            toast("บันทึกข้อมูลเรียบร้อยแล้ว");
+          } catch (err) {
+            showAlert(alertBox, err.message);
+          } finally {
+            btnBusy(btn, false);
+          }
+        });
+      } catch (err) {
+        box.innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`;
+      }
+    }
+
+    // ---------- เปลี่ยนรหัสผ่าน ----------
+    const pwAlert = document.getElementById("pwAlert");
+    document.getElementById("pwForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideAlert(pwAlert);
+      const btn = document.getElementById("pwBtn");
+      btnBusy(btn, true, "กำลังเปลี่ยนรหัส");
+
+      try {
+        await apiPost("/api/auth/change-password", {
+          old_password: document.getElementById("oldPw").value,
+          new_password: document.getElementById("newPw").value,
+        });
+        showAlert(pwAlert, "เปลี่ยนรหัสผ่านสำเร็จ กำลังพาไปเข้าสู่ระบบใหม่", "success");
+        Auth.clear();
+        setTimeout(() => (location.href = "login.html"), 1600);
+      } catch (err) {
+        showAlert(pwAlert, err.message);
+        btnBusy(btn, false);
+      }
+    });
+
+    // ---------- ออกจากระบบ ----------
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      try {
+        await apiPost("/api/auth/logout", {});
+      } catch {}
+      Auth.clear();
+      location.href = "index.html";
+    });
+
+    loadProfile();
+  </script>
+</body>
+</html>
