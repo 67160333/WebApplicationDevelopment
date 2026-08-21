@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608261720" />
+  <link rel="stylesheet" href="css/app.css?v=202608262045" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -189,8 +189,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202608261720"></script>
-  <script src="js/ui.js?v=202608261720"></script>
+  <script src="js/api.js?v=202608262045"></script>
+  <script src="js/ui.js?v=202608262045"></script>
   <script>
     renderNavbar("manage");
     renderFooter();
@@ -692,14 +692,11 @@
 
           btnBusy(btn, true, "กำลังบันทึก");
           try {
-            const sum = await apiPost(`/api/bookings/${b.id}/payment`, { kind, method: "cash" });
-            toast(`รับเงินสด ฿${baht(due)} เรียบร้อย`);
-            const last = sum.payments[sum.payments.length - 1];
-            if (last) {
-              try {
-                printReceipt(await apiGet(`/api/payments/${last.id}/receipt`));
-              } catch { /* พิมพ์ไม่ได้ก็ยังกดปุ่มใบเสร็จทีหลังได้ */ }
-            }
+            await apiPost(`/api/bookings/${b.id}/payment`, { kind, method: "cash" });
+            // ไม่เด้งหน้าต่างพิมพ์เอง — กล่องพิมพ์จะค้างทับหน้าจัดการร้าน
+            // ทำให้พนักงานรับคิวถัดไปไม่ได้จนกว่าจะปิดกล่องพิมพ์
+            // ใบเสร็จกดพิมพ์ได้จากปุ่มรูปใบเสร็จในแถวนั้น
+            toast(`รับเงินสด ฿${baht(due)} เรียบร้อย · กดปุ่มใบเสร็จเพื่อพิมพ์`, "success", 5000);
             renderBookings();
           } catch (err) {
             toast(err.message, "error", 5000);

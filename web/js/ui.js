@@ -262,6 +262,9 @@ function shopArt(shop, heightClass = "h-32", opts = {}) {
 // ตัวยกเลิกของรอบก่อน — ดูเหตุผลในตัว revealOnScroll
 const _revealStops = new Map();
 
+// ตัวเลือกไหนเคยเล่นเอฟเฟกต์ไปแล้วรอบหนึ่ง — ดูเหตุผลในตัว revealOnScroll
+const _revealDone = new Set();
+
 function revealOnScroll(selector = ".reveal") {
   // ยกเลิกรอบก่อนหน้า "ของตัวเลือกเดียวกัน" เท่านั้น
   //
@@ -281,8 +284,21 @@ function revealOnScroll(selector = ".reveal") {
     .filter((el) => !el.classList.contains("is-in"));
   if (!pending.length) return;
 
+  // เล่นเอฟเฟกต์ได้ "ครั้งเดียวต่อหนึ่งตัวเลือก" รอบต่อไปให้แสดงทันที
+  //
+  // เหตุผล: รายการถูกวาดใหม่ทุกครั้งที่ผู้ใช้ทำอะไรสักอย่าง (จ่ายเงิน · ยกเลิก ·
+  // เปลี่ยนตัวกรอง · เปลี่ยนหน้า) การ์ดชุดใหม่จึงเริ่มที่ opacity 0 อีกรอบเสมอ
+  // ถ้าตอนนั้นผู้ใช้เลื่อนหน้าอยู่กลาง ๆ การ์ดที่อยู่ต่ำกว่าขอบจอจะถูกซ่อนทั้งแถบ
+  // สิ่งที่เห็นคือ "จ่ายเงินเสร็จแล้วหน้าเว็บว่างเปล่า" ทั้งที่เนื้อหาอยู่ครบใน DOM
+  // และต้องเลื่อนจอเองถึงจะกลับมา — ผู้ใช้รายงานเข้ามาว่าเป็นบั๊กจริง
+  //
+  // เอฟเฟกต์นี้มีไว้สร้างความรู้สึกตอน "เห็นหน้านี้ครั้งแรก" ไม่ใช่ตอนอัปเดตข้อมูล
+  // ครั้งที่สองเป็นต้นไปจึงแสดงทันที ผู้ใช้เห็นผลลัพธ์ของสิ่งที่เพิ่งกดทันที
+  const replayed = _revealDone.has(selector);
+  _revealDone.add(selector);
+
   // ผู้ใช้ตั้งค่าลดการเคลื่อนไหว -> แสดงทันทีทั้งหมด
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  if (replayed || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     pending.forEach((el) => el.classList.add("is-in"));
     return;
   }
@@ -298,8 +314,13 @@ function revealOnScroll(selector = ".reveal") {
     const limit = window.innerHeight - 60;   // ต้องโผล่พ้นขอบล่างเข้ามาหน่อยถึงจะนับ
     let order = 0;
 
+    // ถ้าหน้านี้เลื่อนไม่ได้แล้ว (เนื้อหาสั้นกว่าจอ หรืออยู่ล่างสุดแล้ว)
+    // จะไม่มี scroll event มาอีกตลอดกาล ชิ้นที่เหลือต้องแสดงเลย ไม่งั้นค้างเป็นช่องว่าง
+    const stuck =
+      document.documentElement.scrollHeight - window.innerHeight - window.scrollY <= 2;
+
     pending = pending.filter((el) => {
-      if (el.getBoundingClientRect().top > limit) return true;  // ยังไม่ถึง รอรอบหน้า
+      if (!stuck && el.getBoundingClientRect().top > limit) return true;  // ยังไม่ถึง รอรอบหน้า
       setTimeout(() => el.classList.add("is-in"), order++ * 70); // ไล่ขึ้นมาทีละชิ้น
       return false;
     });
@@ -1107,15 +1128,42 @@ function printSlip(data) {
   <footer>พิมพ์เมื่อ ${new Date().toLocaleString("th-TH")} · Bookvice</footer>
 </body></html>`;
 
-  const w = window.open("", "_blank", "width=520,height=720");
+  openPrintWindow(html, 520, 720);
+}
+
+
+// ============================================================
+// เปิดหน้าต่างสำหรับพิมพ์
+// ============================================================
+//
+// **ห้ามเรียก w.print() จากหน้าหลักเด็ดขาด**
+//
+// window.print() เป็นคำสั่งแบบ "หยุดรอ" มันจะค้างอยู่จนกว่าผู้ใช้จะปิดกล่องพิมพ์
+// และเพราะหน้าต่างที่เปิดด้วย window.open เป็นโดเมนเดียวกัน มันจึงใช้เธรดร่วมกับ
+// หน้าหลัก ผลคือ **หน้าหลักค้างทั้งหน้า** เลื่อนไม่ได้ กดอะไรไม่ได้ จนกว่าจะจัดการ
+// กล่องพิมพ์เสร็จ — ถ้าหน้าต่างนั้นไปโผล่หลังหน้าต่างอื่นหรือผู้ใช้ไม่ทันสังเกต
+// จะดูเหมือนเว็บพังไปเลย (ผู้ใช้รายงานเข้ามาว่า "จ่ายเงินเสร็จแล้วเลื่อนไปไหนไม่ได้")
+//
+// ทางแก้คือฝังสคริปต์ไว้ในหน้าต่างลูก ให้มันสั่งพิมพ์ตัวเอง
+// การหยุดรอจึงเกิดในหน้าต่างลูกเท่านั้น หน้าหลักยังใช้งานได้ตามปกติ
+function openPrintWindow(html, width = 620, height = 800) {
+  const w = window.open("", "_blank", `width=${width},height=${height}`);
   if (!w) {
     toast("เบราว์เซอร์บล็อกหน้าต่างใหม่ กรุณาอนุญาตป๊อปอัปแล้วลองอีกครั้ง", "error");
-    return;
+    return false;
   }
-  w.document.write(html);
+
+  const selfPrint = `<script>
+    window.addEventListener("load", function () {
+      window.focus();
+      // หน่วงนิดหนึ่งให้ฟอนต์วาดเสร็จก่อน ไม่งั้นบางเบราว์เซอร์พิมพ์ออกมาเป็นหน้าว่าง
+      setTimeout(function () { window.print(); }, 150);
+    });
+  <\/script>`;
+
+  w.document.write(html.replace("</body>", `${selfPrint}</body>`));
   w.document.close();
-  // รอให้ฟอนต์และเนื้อหาวาดเสร็จก่อนค่อยเปิดกล่องพิมพ์
-  w.onload = () => { w.focus(); w.print(); };
+  return true;
 }
 
 
@@ -1407,14 +1455,5 @@ function printReceipt(r) {
   <footer>พิมพ์เมื่อ ${new Date().toLocaleString("th-TH")} · Bookvice</footer>
 </body></html>`;
 
-  const w = window.open("", "_blank", "width=620,height=800");
-  if (!w) {
-    toast("เบราว์เซอร์บล็อกหน้าต่างใหม่ กรุณาอนุญาต popup แล้วลองอีกครั้ง", "error");
-    return;
-  }
-  w.document.write(html);
-  w.document.close();
-  w.focus();
-  // รอให้เนื้อหาวางเสร็จก่อนสั่งพิมพ์ ไม่งั้นบางเบราว์เซอร์พิมพ์หน้าว่าง
-  setTimeout(() => w.print(), 350);
+  openPrintWindow(html, 620, 800);
 }
