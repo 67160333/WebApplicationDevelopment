@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608262045" />
+  <link rel="stylesheet" href="css/app.css?v=202608270910" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -165,8 +165,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202608262045"></script>
-  <script src="js/ui.js?v=202608262045"></script>
+  <script src="js/api.js?v=202608270910"></script>
+  <script src="js/ui.js?v=202608270910"></script>
   <script>
     renderNavbar("shops");
     renderFooter();
@@ -984,7 +984,9 @@
 
           <div class="staff-sched">
             ${weekDots(st)}
-            <span class="text-xs text-muted num">${time || "ตามเวลาร้าน"}</span>
+            <!-- คลาส num บังคับใช้ตัวเลขความกว้างเท่ากัน ใส่เฉพาะตอนที่เป็นเวลาจริง
+                 ถ้าเป็นข้อความไทยล้วนแล้วใส่ไปด้วย ตัวอักษรจะดูห่างผิดปกติ -->
+            <span class="text-xs text-muted${time ? " num" : ""}">${time || "ตามเวลาร้าน"}</span>
           </div>
 
           <div class="staff-actions">
