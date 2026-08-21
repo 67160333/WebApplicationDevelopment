@@ -8,7 +8,13 @@
 
 วิธีใช้
 --------------------------------------------------------------------------
-1. เอารูปใส่โฟลเดอร์ตามหมวด (โฟลเดอร์ถูกสร้างรอไว้แล้ว)
+0. วิธีที่เร็วที่สุด — ให้สคริปต์โหลดรูปให้เอง แล้วอัปต่อในคำสั่งเดียว
+
+       python tools/upload_photos.py --fetch
+
+   รายชื่อรูปอยู่ใน tools/photo_urls.txt (ทุกรูปใช้ Pexels License ใช้ฟรี)
+
+1. หรือจะหารูปเองก็ได้ เอาใส่โฟลเดอร์ตามหมวด
 
        tools/photos/spa-massage/  ← รูปสปา 4-6 รูป
        tools/photos/football/     ← รูปสนามบอล 4-6 รูป
@@ -47,6 +53,7 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -162,6 +169,64 @@ def check_photos(pools: dict[str, list[Path]], allow_small: bool):
     return clean
 
 
+URL_LIST = HERE / "photo_urls.txt"
+
+
+def fetch_photos() -> int:
+    """โหลดรูปจากรายชื่อใน photo_urls.txt ลงโฟลเดอร์ตามหมวด
+
+    ทำไมต้องมีขั้นนี้: เครื่องที่เตรียมรายชื่อให้ไม่มีสิทธิ์ออกอินเทอร์เน็ต
+    แต่เครื่องที่รันสคริปต์นี้มี — จึงให้ฝั่งนี้เป็นคนโหลดเอง
+    รูปทั้งหมดอยู่ภายใต้ Pexels License ใช้ได้ฟรีโดยไม่ต้องให้เครดิต
+    """
+    if not URL_LIST.exists():
+        print(f"ไม่พบไฟล์รายชื่อรูป {URL_LIST}")
+        return 0
+
+    slug = None
+    got = skipped = failed = 0
+    for line in URL_LIST.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            slug = line[1:-1]
+            print(f"\n[{slug}]")
+            continue
+        if slug is None or not line.startswith("http"):
+            continue
+
+        folder = PHOTO_ROOT / slug
+        folder.mkdir(parents=True, exist_ok=True)
+        # ตั้งชื่อไฟล์จากรหัสรูปของ Pexels เพื่อให้รันซ้ำแล้วรู้ว่าโหลดไปแล้ว
+        m = re.search(r"/photos/(\d+)/", line)
+        name = f"pexels-{m.group(1)}.jpg" if m else f"{abs(hash(line)) % 10**8}.jpg"
+        target = folder / name
+
+        if target.exists() and target.stat().st_size > 10_000:
+            print(f"    - {name} มีอยู่แล้ว ข้าม")
+            skipped += 1
+            continue
+
+        try:
+            req = urllib.request.Request(line, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                data = resp.read()
+            if len(data) < 10_000:
+                raise ValueError(f"ไฟล์เล็กผิดปกติ {len(data)} ไบต์")
+            target.write_bytes(data)
+            size = _image_size(target)
+            dim = f"{size[0]}x{size[1]}" if size else "?"
+            print(f"    ✓ {name}  {dim}  {len(data)//1024} KB")
+            got += 1
+        except Exception as exc:
+            print(f"    ✗ {name}: {exc}")
+            failed += 1
+
+    print(f"\nโหลดใหม่ {got} · มีอยู่แล้ว {skipped} · ล้มเหลว {failed}\n")
+    return got + skipped
+
+
 # ---------------------------------------------------------------- HTTP ----
 def _request(url: str, *, method="GET", token=None, data=None, headers=None):
     req = urllib.request.Request(url, data=data, method=method)
@@ -214,6 +279,8 @@ def main() -> int:
     ap.add_argument("--per-shop", type=int, default=4)
     ap.add_argument("--replace", action="store_true", help="ลบรูปเดิมก่อนอัปใหม่")
     ap.add_argument("--only", default=None, help="ทำเฉพาะหมวดนี้ (ใส่ slug)")
+    ap.add_argument("--fetch", action="store_true",
+                    help="โหลดรูปจาก tools/photo_urls.txt ก่อนอัป")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--allow-small", action="store_true",
                     help=f"ยอมใช้รูปที่กว้างน้อยกว่า {MIN_WIDTH} px (ภาพจะแตก)")
@@ -221,6 +288,11 @@ def main() -> int:
 
     base = args.base.rstrip("/")
     per_shop = max(1, min(args.per_shop, MAX_PER_SHOP))
+
+    # ---------- โหลดรูปจากรายชื่อก่อน ถ้าสั่ง --fetch ----------
+    if args.fetch:
+        print("โหลดรูปจาก photo_urls.txt ...")
+        fetch_photos()
 
     # ---------- รวบรวมรูปที่เตรียมไว้ ----------
     pools: dict[str, list[Path]] = {}

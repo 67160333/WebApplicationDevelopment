@@ -1,0 +1,124 @@
+# รายชื่อรูปจาก Pexels สำหรับแต่ละหมวด
+# ------------------------------------------------------------------
+# ทุกรูปในไฟล์นี้อยู่ภายใต้ Pexels License — ใช้ฟรี ไม่ต้องให้เครดิต แก้ไขได้
+# ดูสัญญาอนุญาตเต็ม: https://www.pexels.com/license/
+#
+# วิธีใช้ — สคริปต์จะโหลดให้เองบนเครื่องคุณ
+#     python tools\upload_photos.py --fetch
+#
+# ก่อนรัน แนะนำให้เปิดลิงก์สัก 2-3 อันดูก่อนว่าถูกใจไหม
+# ไม่ชอบอันไหน ใส่ # หน้าบรรทัดนั้นเพื่อข้าม หรือลบทิ้งไปเลย
+#
+# ที่มาของรายการนี้: ค้นจาก Pexels แล้วคัดเฉพาะ "ภาพแนวนอน" เพราะการ์ดร้านเป็นแนวนอน
+# ภาพแนวตั้งจะถูกครอปจนเสียองค์ประกอบ
+#
+# หมายเหตุสำคัญ: รายการนี้คัดจาก "คำบรรยายภาพ" ไม่ได้เปิดดูภาพจริงทีละรูป
+# บางรูปอาจเป็นภาพโคลสอัพแทนที่จะเป็นภาพบรรยากาศร้าน — เปิดดูก่อนได้
+# ------------------------------------------------------------------
+
+
+[spa-massage]
+https://images.pexels.com/photos/9146381/pexels-photo-9146381.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/6560308/pexels-photo-6560308.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/7789646/pexels-photo-7789646.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/6186738/pexels-photo-6186738.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/9146378/pexels-photo-9146378.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/6187418/pexels-photo-6187418.jpeg?auto=compress&cs=tinysrgb&w=1600
+
+
+[nail]
+https://images.pexels.com/photos/34930138/pexels-photo-34930138.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/5484948/pexels-photo-5484948.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/6135673/pexels-photo-6135673.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/7446915/pexels-photo-7446915.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/13424007/pexels-photo-13424007.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/7755221/pexels-photo-7755221.jpeg?auto=compress&cs=tinysrgb&w=1600
+
+
+[hair]
+https://images.pexels.com/photos/7195805/pexels-photo-7195805.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/7195803/pexels-photo-7195803.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/9146943/pexels-photo-9146943.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/7195796/pexels-photo-7195796.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/7195811/pexels-photo-7195811.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/7195799/pexels-photo-7195799.jpeg?auto=compress&cs=tinysrgb&w=1600
+
+
+[beauty-clinic]
+https://images.pexels.com/photos/263201/pexels-photo-263201.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/7789612/pexels-photo-7789612.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/9666726/pexels-photo-9666726.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/34734905/pexels-photo-34734905.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/13060605/pexels-photo-13060605.jpeg?auto=compress&cs=tinysrgb&w=1600
+
+
+[tattoo]
+https://images.pexels.com/photos/27530517/pexels-photo-27530517.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/28991646/pexels-photo-28991646.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/28991658/pexels-photo-28991658.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/4125688/pexels-photo-4125688.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/4125586/pexels-photo-4125586.jpeg?auto=compress&cs=tinysrgb&w=1600
+
+
+# สนามฟุตบอลมี 9 แห่ง ใส่รูปเยอะกว่าหมวดอื่นเพื่อไม่ให้เวียนซ้ำเร็ว
+[football]
+https://images.pexels.com/photos/186239/pexels-photo-186239.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/36386778/pexels-photo-36386778.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/15521639/pexels-photo-15521639.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/32090925/pexels-photo-32090925.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/12039814/pexels-photo-12039814.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/47343/pexels-photo-47343.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/38105639/pexels-photo-38105639.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/9517917/pexels-photo-9517917.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/31564496/pexels-photo-31564496.jpeg?auto=compress&cs=tinysrgb&w=1600
+
+
+[badminton]
+https://images.pexels.com/photos/35647228/pexels-photo-35647228.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/8007075/pexels-photo-8007075.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/8007493/pexels-photo-8007493.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/26238655/pexels-photo-26238655.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/8007419/pexels-photo-8007419.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/8286363/pexels-photo-8286363.jpeg?auto=compress&cs=tinysrgb&w=1600
+
+
+[delivery]
+https://images.pexels.com/photos/13311393/pexels-photo-13311393.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/37059837/pexels-photo-37059837.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/33411898/pexels-photo-33411898.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/35774329/pexels-photo-35774329.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/34807168/pexels-photo-34807168.jpeg?auto=compress&cs=tinysrgb&w=1600
+
+
+# คลินิกสุขภาพชาย — เลือกภาพห้องตรวจที่ดูสะอาดและเป็นมืออาชีพ
+# ตั้งใจเลี่ยงภาพเชิงการแพทย์ที่ดูน่ากลัวหรือภาพคนไข้ เพราะหมวดนี้ขายความสบายใจ
+[mens-clinic]
+https://images.pexels.com/photos/7789616/pexels-photo-7789616.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/7789603/pexels-photo-7789603.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/7789647/pexels-photo-7789647.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/7789610/pexels-photo-7789610.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/7789604/pexels-photo-7789604.jpeg?auto=compress&cs=tinysrgb&w=1600
+
+
+[mobile-barber]
+https://images.pexels.com/photos/37764947/pexels-photo-37764947.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/33448216/pexels-photo-33448216.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/37663563/pexels-photo-37663563.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/1319459/pexels-photo-1319459.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/7697196/pexels-photo-7697196.jpeg?auto=compress&cs=tinysrgb&w=1600
+
+
+[car-care]
+https://images.pexels.com/photos/17029940/pexels-photo-17029940.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/6873008/pexels-photo-6873008.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/6872176/pexels-photo-6872176.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/4870702/pexels-photo-4870702.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/6003/pexels-photo-6003.jpg?auto=compress&cs=tinysrgb&w=1600
+
+
+[karaoke]
+https://images.pexels.com/photos/30489716/pexels-photo-30489716.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/19693296/pexels-photo-19693296.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/11838969/pexels-photo-11838969.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/144429/pexels-photo-144429.jpeg?auto=compress&cs=tinysrgb&w=1600
+https://images.pexels.com/photos/164879/pexels-photo-164879.jpeg?auto=compress&cs=tinysrgb&w=1600
