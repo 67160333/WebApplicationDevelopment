@@ -194,6 +194,24 @@ const ART_PALETTES = [
   ["#0f3350", "#276b83", "#5fb0ae"],
 ];
 
+// หมวดไหนใช้ชุดสีไหน — ผูกไว้ตรง ๆ แทนการสุ่มจากเลขร้าน
+// ทุกชุดยังอยู่ในโทนน้ำเงินกรมท่าเดียวกับแบรนด์ ต่างกันแค่ความอุ่น-เย็น
+// จับกลุ่มให้บริการที่ใกล้กันได้โทนใกล้กัน เช่น กีฬาสองหมวดอยู่โทนเขียวอมฟ้า
+const CATEGORY_TINT = {
+  "spa-massage": 5,     // เขียวอมฟ้า — ผ่อนคลาย
+  nail: 4,              // ม่วงอมน้ำเงิน
+  hair: 2,              // น้ำเงินสว่าง
+  "beauty-clinic": 1,   // ฟ้าคราม — สะอาด
+  tattoo: 0,            // กรมท่าเข้ม
+  football: 5,
+  badminton: 3,
+  delivery: 1,
+  "mens-clinic": 1,
+  "mobile-barber": 2,
+  "car-care": 0,
+  karaoke: 4,
+};
+
 // ที่อยู่เต็มของไฟล์ที่อัปโหลด — API คืนมาเป็นเส้นทางสั้น ๆ เช่น /uploads/shops/4/ab12.webp
 const fileUrl = (path) => (path ? `${API_BASE}${path}` : "");
 
@@ -214,9 +232,32 @@ function shopArt(shop, heightClass = "h-32", opts = {}) {
       </div>`;
   }
 
-  const p = ART_PALETTES[id % ART_PALETTES.length];
+  // ---- เลือกชุดสีตาม "หมวด" ไม่ใช่ตามเลขร้าน ----
+  // เดิมสุ่มจากเลขร้าน ทำให้สปากับสนามบอลได้สีเดียวกันโดยบังเอิญ
+  // พอผูกกับหมวด ร้านในหมวดเดียวกันจะมีโทนเป็นครอบครัวเดียวกัน
+  // แล้วปล่อยให้ "ลาย" ต่างกันตามเลขร้าน จะได้ไม่ซ้ำกันเป๊ะทั้งหมวด
+  const slug = shop.category_slug || "";
+  const tint = CATEGORY_TINT[slug];
+  const p = ART_PALETTES[(tint === undefined ? id : tint) % ART_PALETTES.length];
   const variant = id % 4;
   const gid = `g${id}_${Math.random().toString(36).slice(2, 7)}`;
+
+  // ---- ไอคอนหมวดเป็นลายน้ำ ----
+  // เหตุผล: ร้านที่ยังไม่มีรูปจริงจะเห็นแค่ภาพไล่สีนามธรรม ซึ่งบอกไม่ได้ว่าเป็นร้านอะไร
+  // ใส่ไอคอนหมวดจาง ๆ ลงไป การ์ดจะสื่อความหมายได้ทันทีแม้ยังไม่มีรูป
+  //
+  // เรื่องตำแหน่งที่ต้องระวัง: svg ใช้ preserveAspectRatio="slice" บน viewBox 100x100
+  // การ์ดร้านสัดส่วนราว 357x128 จึงเห็นเฉพาะ "แถบกลางแนวตั้ง" ประมาณ y=36 ถึง y=64 เท่านั้น
+  // ไอคอนจึงต้องสูงไม่เกิน 28 หน่วยและอยู่กึ่งกลางแนวตั้ง ไม่งั้นจะถูกครอปหายบนการ์ด
+  const iconPath = ICON[CATEGORY_ICON[slug]] || "";
+  const S = 1.15;                       // 24 x 1.15 = 27.6 หน่วย พอดีกับแถบที่มองเห็น
+  const top = 50 - (24 * S) / 2;        // จัดกึ่งกลางแนวตั้งของ viewBox
+  const mark = iconPath
+    ? `<circle cx="${64 + 12 * S}" cy="50" r="${17 * S}" fill="#fff" opacity=".05"/>
+       <g transform="translate(64 ${top.toFixed(1)}) scale(${S})"
+          fill="none" stroke="#fff" stroke-width="1.5"
+          stroke-linecap="round" stroke-linejoin="round" opacity=".2">${iconPath}</g>`
+    : "";
 
   // ลายพื้นหลัง 4 แบบ หมุนเวียนตามเลขที่ร้าน
   const shapes = [
@@ -262,6 +303,7 @@ function shopArt(shop, heightClass = "h-32", opts = {}) {
         </defs>
         <rect width="100" height="100" fill="url(#${gid})"/>
         ${shapes}
+        ${mark}
         <rect width="100" height="100" filter="url(#n${gid})" opacity=".055"/>
         <rect width="100" height="100" fill="url(#v${gid})"/>
       </svg>
