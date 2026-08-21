@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608252100" />
+  <link rel="stylesheet" href="css/app.css?v=202608252530" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -197,8 +197,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202608252100"></script>
-  <script src="js/ui.js?v=202608252100"></script>
+  <script src="js/api.js?v=202608252530"></script>
+  <script src="js/ui.js?v=202608252530"></script>
   <script>
     renderNavbar("bookings");
     renderFooter();
@@ -261,16 +261,23 @@
       );
     }
 
+    // ลำดับคำขอ — กันผลลัพธ์เก่ามาทับผลลัพธ์ใหม่
+    // ถ้าผู้ใช้กดสลับแท็บ/หน้าเร็ว ๆ คำขอเก่าที่กลับมาช้ากว่าจะวาดทับของใหม่
+    let loadSeq = 0;
+
     async function load(page = 1) {
+      const my = ++loadSeq;
       const box = document.getElementById("list");
+      const pager = document.getElementById("pagination");
       // โครงร่างสูงใกล้ของจริง กันหน้ากระโดดตอนข้อมูลมาถึง
       box.innerHTML = skeletonRows(3, 360);
-      document.getElementById("pagination").innerHTML = "";
+      pager.innerHTML = "";
 
       try {
         const q = new URLSearchParams({ page, limit: 10 });
         if (currentStatus) q.set("status", currentStatus);
         const res = await apiGet(`/api/bookings?${q}`);
+        if (my !== loadSeq) return;
 
         if (!res.items.length) {
           box.innerHTML = emptyHTML("calendar", "ยังไม่มีรายการจอง", "เริ่มค้นหาร้านที่สนใจแล้วจองคิวได้เลย") +
@@ -287,6 +294,7 @@
             shops[id] = { id, name: `ร้าน #${id}`, services: [], staff: [] };
           }
         }));
+        if (my !== loadSeq) return;   // ระหว่างรอข้อมูลร้าน ผู้ใช้กดแท็บอื่นไปแล้ว
 
         lastItems = res.items;   // เก็บไว้ให้ปุ่มเขียนรีวิวหยิบข้อมูลการจองไปใช้ได้
         box.innerHTML = res.items.map(card).join("");
@@ -294,6 +302,7 @@
         revealOnScroll("#list .reveal");   // การ์ดการจองไล่ปรากฏทีละใบ
         renderPagination(res);
       } catch (err) {
+        if (my !== loadSeq) return;
         box.innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`;
       }
     }

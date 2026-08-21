@@ -627,13 +627,13 @@ async function withBusy(btn, label, task) {
 
 // ---------- สถานะโหลด / ว่างเปล่า ----------
 const loadingHTML = (text = "กำลังโหลด") => `
-  <div class="py-16 text-center">
+  <div class="py-16 text-center fill-row">
     <div class="spinner mx-auto"></div>
     <p class="mt-3 text-sm text-muted">${text}</p>
   </div>`;
 
 const emptyHTML = (iconName, title, sub = "") => `
-  <div class="py-16 text-center">
+  <div class="py-16 text-center fill-row">
     <div class="mx-auto w-12 h-12 rounded-full grid place-items-center"
          style="background:var(--navy-50);color:var(--navy-800)">${icon(iconName, 22)}</div>
     <p class="mt-4 font-medium">${title}</p>
@@ -721,10 +721,16 @@ function toast(message, type = "success", ms = 3200) {
 // ============================================================
 // โครงร่างระหว่างโหลด — เห็นรูปทรงหน้าก่อน ไม่ใช่จอว่างกับวงกลมหมุน
 // ============================================================
-const skeletonCards = (n = 6) => `
+// โครงร่างการ์ดร้านระหว่างโหลด
+//
+// พารามิเตอร์ cardH คือ "ความสูงของการ์ดจริง" ของหน้านั้น ๆ (วัดมาแล้ว)
+// ต้องใส่ให้ตรง ไม่งั้นพอข้อมูลมาถึง การ์ดจริงจะสูงกว่าโครงร่าง
+// แล้วดันทุกอย่างข้างล่าง (รวมท้ายเว็บ) กระโดดลงไป
+//   หน้าแรก 338px · หน้าค้นหา 316px — ต่างกันเพราะรูปหน้าปกคนละความสูง (h-40 กับ h-36)
+const skeletonCards = (n = 6, artH = 144, cardH = 316) => `
   <div class="sk-grid">${Array.from({ length: n }, () => `
-    <div class="card overflow-hidden">
-      <div class="skeleton" style="height:144px;border-radius:0"></div>
+    <div class="card overflow-hidden" style="min-height:${cardH}px">
+      <div class="skeleton" style="height:${artH}px;border-radius:0"></div>
       <div class="p-5">
         <div class="skeleton" style="height:16px;width:65%"></div>
         <div class="skeleton" style="height:12px;width:95%;margin-top:10px"></div>

@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608252100" />
+  <link rel="stylesheet" href="css/app.css?v=202608252530" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -149,8 +149,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202608252100"></script>
-  <script src="js/ui.js?v=202608252100"></script>
+  <script src="js/api.js?v=202608252530"></script>
+  <script src="js/ui.js?v=202608252530"></script>
   <script>
     renderNavbar("shops");
     renderFooter();
@@ -666,6 +666,22 @@
     }
 
     // ================= ขั้นที่ 3 — ช่องเวลา =================
+    // ---------- บอกว่าเหลือรับได้อีกกี่ที่ ----------
+    //
+    // ร้านที่รับได้พร้อมกันหลายที่ (สนามแบดมินตัน 10 คอร์ท, สปาที่มีช่าง 4 คน)
+    // ถ้าบอกแค่ "ว่าง" ผู้ใช้แยกไม่ออกว่าเหลือที่เดียวหรือเหลือครบ
+    // และจะงงว่าทำไมจองไปแล้วช่องเดิมยังกดได้ (เพราะยังเหลืออีกหลายคอร์ท)
+    //
+    // แสดงเฉพาะตอนใกล้เต็มเท่านั้น (เหลือไม่เกิน 3 จากทั้งหมดที่มากกว่า 1)
+    // ถ้าขึ้นทุกช่องจะกลายเป็นตัวเลขเต็มหน้าจนอ่านไม่ออก
+    const LOW_LEFT = 3;
+    const isLow = (s) =>
+      s.available && s.capacity > 1 && s.remaining > 0 && s.remaining <= LOW_LEFT;
+    const lowBadge = (s) =>
+      isLow(s) ? `<span class="slot-left num">เหลือ ${s.remaining}</span>` : "";
+    const lowNote = (s) =>
+      isLow(s) ? ` · เหลืออีก ${s.remaining} ${RES_RAW}` : "";
+
     function renderSlots() {
       const box = document.getElementById("slotBox");
       if (!box) return;
@@ -738,7 +754,7 @@
           <div class="slot-group">
             <div class="slot-group-head">
               <span>${p.label}</span>
-              <span class="text-muted">${free ? `ว่าง ${free}` : "เต็ม"}</span>
+              <span class="text-muted">${free ? `ว่าง ${free} ช่วงเวลา` : "เต็ม"}</span>
             </div>
             <div class="slot-grid">
               ${list.map((s) => `
@@ -750,9 +766,10 @@
                             ? `จอง ${shortTime(s.time)} ถึง ${shortTime(s.end_time)} น.`
                             : `${shortTime(s.time)} น. — ${s.reason || "จองไม่ได้"}`
                         )}"
-                        title="${esc(s.available ? `${shortTime(s.time)}–${shortTime(s.end_time)} น.` : s.reason || "")}">
+                        title="${esc(s.available ? `${shortTime(s.time)}–${shortTime(s.end_time)} น.${lowNote(s)}` : s.reason || "")}">
                   <span class="num">${shortTime(s.time)}</span>
                   <span class="slot-end num">${shortTime(s.end_time)}</span>
+                  ${lowBadge(s)}
                 </button>`).join("")}
             </div>
           </div>`;

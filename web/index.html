@@ -19,7 +19,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608252100" />
+  <link rel="stylesheet" href="css/app.css?v=202608252530" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -124,8 +124,8 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202608252100"></script>
-  <script src="js/ui.js?v=202608252100"></script>
+  <script src="js/api.js?v=202608252530"></script>
+  <script src="js/ui.js?v=202608252530"></script>
   <script>
     renderNavbar("home");
     renderFooter();
@@ -235,7 +235,7 @@
     // ---------- ร้านคะแนนสูง + ข้อเท็จจริงในส่วนหัว ----------
     async function loadShops() {
       const box = document.getElementById("shops");
-      box.innerHTML = skeletonCards(3);
+      box.innerHTML = skeletonCards(3, 160, 341);
       try {
         const res = await apiGet("/api/shops?page=1&limit=12");
 
@@ -303,6 +303,9 @@
     }
 
     function shopCard(s) {
+      // บอกสถานะเปิด/ปิดตรงนี้ด้วย — คนที่อยากใช้บริการวันนี้จะได้ตัดสินใจได้ทันที
+      // ไม่ต้องกดเข้าไปดูทีละร้านแล้วค่อยพบว่าร้านปิด
+      const st = shopStatus(s);
       return `
         <a href="shop.html?id=${s.id}" class="card card-link overflow-hidden shop-card reveal">
           ${shopArt(s, "h-40", { tag: s.is_certified ? "ผ่านการรับรอง" : null })}
@@ -313,7 +316,10 @@
               <span class="num">${Number(s.rating_avg).toFixed(1)}</span>
               <span>· ${s.rating_count} รีวิว</span>
             </div>
-            <div class="place">${icon("mapPin", 13)} ${esc(s.district || "—")}</div>
+            <div class="place">
+              ${icon("mapPin", 13)} ${esc(s.district || "—")}
+              <span class="shop-st ${st.cls}">${st.text}</span>
+            </div>
             <div class="foot" style="border-top:1px solid var(--border)">
               <span class="from">เริ่มต้น</span>
               <span class="price">${s.priceFrom !== null ? "฿" + baht(s.priceFrom) : "—"}</span>
@@ -326,7 +332,7 @@
     async function loadVoices(shops) {
       const box = document.getElementById("testimonials");
       const section = document.getElementById("voices");
-      box.innerHTML = skeletonCards(3);
+      box.innerHTML = skeletonCards(3, 160, 341);
 
       try {
         const withReviews = shops.filter((s) => s.rating_count > 0).slice(0, 6);
@@ -359,7 +365,11 @@
             <p class="said">${esc(r.comment)}</p>
             <footer class="who">
               <span class="av">${esc((r.user_name || "?").trim().charAt(0))}</span>
-              <span>${esc(r.user_name || "ผู้ใช้บริการ")} · ${esc(r.shopName)}</span>
+              <span class="nm">${esc(r.user_name || "ผู้ใช้บริการ")}</span>
+              <span class="sep">·</span>
+              <a href="shop.html?id=${r.shop_id}" class="voice-shop">
+                ${esc(r.shopName)}${icon("chevronRight", 12)}
+              </a>
             </footer>
           </blockquote>`).join("");
       } catch {

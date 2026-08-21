@@ -2604,3 +2604,181 @@ details:not([open]) > *:not(summary) { display: none !important; }
   .lg\:grid-cols-3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
   .lg\:grid-cols-4 { grid-template-columns:repeat(4,minmax(0,1fr)); }
 }
+
+/* กินเต็มความกว้างของกริดที่ครอบอยู่
+   ใช้กับกล่อง "ไม่พบข้อมูล" / "กำลังโหลด" / "เกิดข้อผิดพลาด"
+   ที่ถูกวางลงในกล่องกริดของการ์ดร้าน
+
+   ถ้าไม่ใส่ กล่องพวกนี้จะกลายเป็นการ์ดใบเดียวในกริด 3 คอลัมน์
+   คือกว้างแค่ 1 ใน 3 แล้วไปกองอยู่ซ้ายมือ ทั้งที่ text-center ทำงานถูกแล้ว
+   (มันจัดกึ่งกลางของคอลัมน์แรก ไม่ใช่กึ่งกลางหน้าจอ)
+
+   ในกล่องที่ไม่ใช่กริด คุณสมบัตินี้ไม่มีผลอะไร จึงใส่ไว้ได้ทุกที่ */
+.fill-row { grid-column: 1 / -1; }
+
+/* ============================================================
+   ยูทิลิตี้เพิ่มเติม — เก็บตกจากรอบตัด Tailwind CDN
+   ============================================================
+   บทเรียน: ตอนแรกผมไล่เก็บคลาสจาก class="..." อย่างเดียว
+   แต่บางคลาสถูก "ส่งเป็นพารามิเตอร์" ให้ฟังก์ชัน เช่น
+
+       shopArt(s, "h-40", { ... })     ในหน้าแรก
+       shopArt(s, "h-36", { ... })     ในหน้าค้นหา
+       shopArt(s, "h-32", { ... })     ในหน้าราคาและดีล
+
+   คลาสพวกนี้ไม่ได้อยู่ใน class="..." จึงหลุดการตรวจ
+   ผลคือรูปหน้าปกร้านสูง 0 พิกเซล = หายไปทั้งเว็บโดยไม่มี error ให้เห็น
+
+   รอบนี้จึงใส่สเกลความสูง/ความกว้างให้ครบทั้งชุดของ Tailwind ไปเลย
+   ไม่ใช่เฉพาะตัวที่ตรวจเจอ จะได้ไม่พลาดซ้ำอีกถ้ามีการเพิ่มคลาสใหม่
+   ============================================================ */
+
+.h-0 { height:0px; }
+.h-0\.5 { height:0.125rem; }
+.h-1 { height:0.25rem; }
+.h-1\.5 { height:0.375rem; }
+.h-2 { height:0.5rem; }
+.h-2\.5 { height:0.625rem; }
+.h-3 { height:0.75rem; }
+.h-3\.5 { height:0.875rem; }
+.h-4 { height:1rem; }
+.h-5 { height:1.25rem; }
+.h-6 { height:1.5rem; }
+.h-7 { height:1.75rem; }
+.h-8 { height:2rem; }
+.h-9 { height:2.25rem; }
+.h-10 { height:2.5rem; }
+.h-11 { height:2.75rem; }
+.h-12 { height:3rem; }
+.h-14 { height:3.5rem; }
+.h-16 { height:4rem; }
+.h-20 { height:5rem; }
+.h-24 { height:6rem; }
+.h-28 { height:7rem; }
+.h-32 { height:8rem; }
+.h-36 { height:9rem; }
+.h-40 { height:10rem; }
+.h-44 { height:11rem; }
+.h-48 { height:12rem; }
+.h-52 { height:13rem; }
+.h-56 { height:14rem; }
+.h-60 { height:15rem; }
+.h-64 { height:16rem; }
+.h-72 { height:18rem; }
+.h-80 { height:20rem; }
+.h-96 { height:24rem; }
+.w-0 { width:0px; }
+.w-0\.5 { width:0.125rem; }
+.w-1 { width:0.25rem; }
+.w-1\.5 { width:0.375rem; }
+.w-2 { width:0.5rem; }
+.w-2\.5 { width:0.625rem; }
+.w-3 { width:0.75rem; }
+.w-3\.5 { width:0.875rem; }
+.w-4 { width:1rem; }
+.w-5 { width:1.25rem; }
+.w-6 { width:1.5rem; }
+.w-7 { width:1.75rem; }
+.w-8 { width:2rem; }
+.w-9 { width:2.25rem; }
+.w-10 { width:2.5rem; }
+.w-11 { width:2.75rem; }
+.w-12 { width:3rem; }
+.w-14 { width:3.5rem; }
+.w-16 { width:4rem; }
+.w-20 { width:5rem; }
+.w-24 { width:6rem; }
+.w-28 { width:7rem; }
+.w-32 { width:8rem; }
+.w-36 { width:9rem; }
+.w-40 { width:10rem; }
+.w-44 { width:11rem; }
+.w-48 { width:12rem; }
+.w-52 { width:13rem; }
+.w-56 { width:14rem; }
+.w-60 { width:15rem; }
+.w-64 { width:16rem; }
+.w-72 { width:18rem; }
+.w-80 { width:20rem; }
+.w-96 { width:24rem; }
+
+.w-full { width:100%; }
+.h-full { height:100%; }
+.w-auto { width:auto; }
+.h-auto { height:auto; }
+.block { display:block; }
+.inline-block { display:inline-block; }
+.relative { position:relative; }
+.absolute { position:absolute; }
+.flex-1 { flex:1 1 0%; }
+
+
+/* ชื่อร้านในกล่องรีวิวหน้าแรก — ต้องกดไปหน้าร้านได้ และต้องดูออกว่ากดได้
+   เว็บนี้อยู่ได้เพราะร้านค้า ทุกครั้งที่เอ่ยชื่อร้านจึงควรเป็นทางเข้าสู่หน้าร้าน
+   ไม่ใช่ข้อความเฉย ๆ ที่กดไม่ได้ */
+.voice .who .nm { flex-shrink: 0; }
+.voice .who .sep { color: var(--faint); }
+
+.voice-shop {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--blue-600);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: var(--r-sm);
+  padding: 2px 4px;
+  margin: -2px -4px;
+  transition: background var(--t) var(--ease), color var(--t) var(--ease);
+  min-width: 0;
+}
+.voice-shop > span,
+.voice-shop {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.voice-shop svg {
+  flex-shrink: 0;
+  transition: transform var(--t) var(--ease);
+}
+.voice-shop:hover {
+  background: var(--blue-50);
+  color: var(--blue-700);
+}
+.voice-shop:hover svg { transform: translateX(2px); }
+.voice-shop:focus-visible {
+  outline: 2px solid var(--blue-600);
+  outline-offset: 1px;
+}
+
+/* การ์ดร้านหน้าแรก — แถวที่อยู่ต้องวางป้ายสถานะเปิด/ปิดต่อท้ายได้
+   (เคยลองเติมคำว่า "ดูร้าน" มุมขวาล่างด้วย แต่เอาออกแล้ว —
+    ทั้งใบเป็นลิงก์อยู่แล้ว การเติมคำอีกคำมีแต่ทำให้รกโดยไม่ได้อะไรเพิ่ม) */
+.shop-card .place {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+/* รูปหน้าปกในหน้าร้าน — บนจอกว้างต้องยืดเต็มความสูงของการ์ด
+   ไม่ใช่ค้างอยู่ที่ h-40 (160px) แล้วเหลือพื้นที่ว่างข้างล่าง
+   นี่คือคลาสที่หลุดตอนตัด Tailwind เพราะถูกส่งเป็นพารามิเตอร์ ไม่ได้อยู่ใน class="..." */
+@media (min-width: 640px) {
+  .sm\:h-full { height: 100%; }
+}
+
+/* ป้าย "เหลือ N" บนช่องเวลา — ขึ้นเฉพาะตอนใกล้เต็ม
+   ช่วยให้ผู้ใช้ตัดสินใจเร็วขึ้น และอธิบายว่าทำไมบางช่องยังกดได้ทั้งที่มีคนจองแล้ว
+   (ร้านที่มีหลายคอร์ท/หลายช่าง รับได้พร้อมกันหลายคิว) */
+.slot { position: relative; }
+.slot-left {
+  display: block;
+  margin-top: 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--warn);
+}
+.slot[aria-pressed="true"] .slot-left { color: inherit; opacity: .85; }

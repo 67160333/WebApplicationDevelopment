@@ -190,6 +190,16 @@ def _busy_intervals(
     return out
 
 
+def _slot_used(start: int, end: int, busy: list[tuple[int, int]]) -> int:
+    """นับว่ามีกี่คิวที่คาบเกี่ยวกับช่วงเวลานี้
+
+    สองช่วงถือว่าทับกันเมื่อ "เริ่มก่อนที่อีกช่วงจะจบ และจบหลังจากที่อีกช่วงเริ่ม"
+    การใช้ < และ > (ไม่ใช่ <= >=) ทำให้คิวที่ต่อกันพอดีไม่นับว่าทับ
+    เช่นคิวเดิม 09:00-11:00 กับคิวใหม่ 11:00-13:00 จองได้ตามปกติ
+    """
+    return sum(1 for b_start, b_end in busy if start < b_end and end > b_start)
+
+
 def _slot_is_taken(
     start: int, end: int, busy: list[tuple[int, int]], capacity: int
 ) -> bool:
@@ -197,8 +207,7 @@ def _slot_is_taken(
 
     นับจำนวนคิวที่คาบเกี่ยวกับช่วงนี้ ถ้าถึงจำนวนที่ร้านรับได้พร้อมกันแล้วถือว่าเต็ม
     """
-    overlapping = sum(1 for b_start, b_end in busy if start < b_end and end > b_start)
-    return overlapping >= capacity
+    return _slot_used(start, end, busy) >= capacity
 
 
 def _span_minutes(start_at: time_cls, duration: int) -> tuple[int, int]:
@@ -488,12 +497,20 @@ def get_availability(
             end = start + duration
             reason = closed_reason
 
+            # เหลือรับได้อีกกี่ที่ในช่วงนี้ — ใช้บอกผู้ใช้ว่า "เหลือ 2 คอร์ท"
+            #
+            # จำเป็นมากสำหรับร้านที่รับได้พร้อมกันหลายที่ เช่นสนามแบดมินตัน 10 คอร์ท
+            # ถ้าบอกแค่ว่า "ว่าง" ผู้ใช้จะแยกไม่ออกว่าเหลือคอร์ทเดียวหรือเหลือครบสิบ
+            # และจะงงว่าทำไมจองไปแล้วช่องเดิมยังกดได้อยู่ (เพราะยังเหลืออีก 9 คอร์ท)
+            used = _slot_used(start, end, busy_all)
+            remaining = max(shop_cap - used, 0)
+
             if reason is None:
                 if is_today and start <= now_m:
                     reason = "เวลาผ่านไปแล้ว"
                 elif staff_id and _slot_is_taken(start, end, busy_staff, 1):
                     reason = "คิวเต็มแล้ว"
-                elif _slot_is_taken(start, end, busy_all, shop_cap):
+                elif remaining <= 0:
                     reason = "คิวเต็มแล้ว"
 
             slots.append(
@@ -503,6 +520,8 @@ def get_availability(
                     end_time=time_cls((end % DAY) // 60, end % 60),
                     available=reason is None,
                     reason=reason,
+                    remaining=0 if reason else remaining,
+                    capacity=shop_cap,
                 )
             )
             start += SLOT_STEP_MINUTES

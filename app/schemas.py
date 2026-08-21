@@ -368,6 +368,14 @@ class Slot(BaseModel):
     end_time: TimeStr = Field(..., description="เวลาสิ้นสุดโดยประมาณ")
     available: bool = Field(..., description="ว่างให้จองหรือไม่")
     reason: str | None = Field(None, description="เหตุผลที่จองไม่ได้")
+    remaining: int = Field(
+        0,
+        description="จำนวนที่ยังรับได้ในช่วงเวลานี้ (คอร์ท/ช่าง/สนาม ที่ยังว่าง)",
+    )
+    capacity: int = Field(
+        1,
+        description="จำนวนที่รับได้พร้อมกันทั้งหมดของร้านในวันนั้น",
+    )
 
 
 class AvailabilityOut(BaseModel):

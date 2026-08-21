@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608252100" />
+  <link rel="stylesheet" href="css/app.css?v=202608252530" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -89,8 +89,8 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202608252100"></script>
-  <script src="js/ui.js?v=202608252100"></script>
+  <script src="js/api.js?v=202608252530"></script>
+  <script src="js/ui.js?v=202608252530"></script>
   <script>
     renderNavbar("shops");
     renderFooter();
@@ -165,18 +165,29 @@
       return q;
     }
 
+    // ลำดับคำขอ — กันผลลัพธ์เก่ามาทับผลลัพธ์ใหม่
+    //
+    // อาการที่เคยเจอ: เปิดหน้าแล้วรีบกด "ว่างวันนี้" ทันที
+    // คำขอที่ 1 (ร้านทั้งหมด) กับคำขอที่ 2 (เฉพาะที่ว่าง) วิ่งพร้อมกัน
+    // ถ้าคำขอที่ 1 กลับมาช้ากว่า มันจะวาดปุ่มแบ่งหน้าของ "ร้านทั้งหมด" ทับลงไป
+    // ผลคือหน้าจอขึ้นว่า "ไม่มีร้านที่ยังมีคิวว่าง" แต่ข้างล่างมีปุ่มหน้า 1 2 3 ค้างอยู่
+    let loadSeq = 0;
+
     async function loadShops(page = 1) {
+      const my = ++loadSeq;
       const box = document.getElementById("shops");
       const count = document.getElementById("resultCount");
-      box.innerHTML = skeletonCards(6);
+      const pager = document.getElementById("pagination");
+      box.innerHTML = skeletonCards(6, 144, 316);
       count.textContent = "กำลังค้นหา";
-      document.getElementById("pagination").innerHTML = "";
+      pager.innerHTML = "";
 
       try {
         const q = buildQuery(page);
         // โหมดร้านโปรด: ดึงมาให้พอ แล้วค่อยกรองเฉพาะร้านที่บันทึกไว้
         if (onlyFav) q.set("limit", 100);
         const res = await apiGet(`/api/shops?${q}`);
+        if (my !== loadSeq) return;   // มีคำขอใหม่กว่าแล้ว ทิ้งผลนี้ไป
 
         // เก็บตัวกรองไว้ในลิงก์เพื่อให้แชร์และกดย้อนกลับได้
         // แต่ตัดพิกัดของผู้ใช้ออกก่อนเสมอ — ตำแหน่งที่อยู่เป็นข้อมูลส่วนตัว
@@ -192,15 +203,14 @@
         }
 
         if (!items.length) {
-          // ต้องอัปเดตตัวนับด้วย ไม่งั้นค้างคำว่า "กำลังค้นหา" ตลอดไป
-          // แล้วผู้ใช้จะนั่งรอทั้งที่การค้นหาจบไปแล้วและไม่เจออะไรเลย
-          count.textContent = onlyFav
-            ? "ยังไม่มีร้านโปรดที่ตรงกับตัวกรองนี้"
-            : myPos
-            ? `ไม่มีร้านในรัศมี ${nearRadius} กม.`
-            : availMode
-            ? "ไม่มีร้านที่ยังมีคิวว่างในวันนั้น"
-            : "ไม่พบร้านที่ตรงกับเงื่อนไข";
+          // ล้างตัวนับทิ้ง ไม่ใช่เขียนข้อความลงไป
+          //
+          // ของเดิมเขียนประโยคเดียวกับที่อยู่ในกล่องด้านล่าง ผลคือผู้ใช้เห็น
+          // "ไม่มีร้านที่ยังมีคิวว่างในวันนั้น" สองครั้งห่างกันไม่กี่เซนติเมตร
+          // กล่องด้านล่างบอกครบกว่าอยู่แล้ว (มีทั้งหัวข้อและคำแนะนำว่าให้ทำอะไรต่อ)
+          // สิ่งที่ต้องกันคือคำว่า "กำลังค้นหา" ค้างอยู่ ซึ่งการล้างทิ้งก็แก้ได้เหมือนกัน
+          count.textContent = "";
+          pager.innerHTML = "";
           box.innerHTML = onlyFav
             ? emptyHTML("heart", "ยังไม่มีร้านโปรดที่ตรงกับตัวกรองนี้", "กดรูปหัวใจบนการ์ดร้านเพื่อบันทึกไว้ดูทีหลัง")
             : myPos
@@ -222,11 +232,12 @@
         revealOnScroll("#shops .reveal");   // การ์ดร้านไล่ปรากฏทีละใบ
         if (!onlyFav) renderPagination(res);
       } catch (err) {
+        if (my !== loadSeq) return;   // คำขอเก่าที่ล้มเหลว อย่าไปรบกวนผลใหม่
         // เดิมตัวนับยังค้างคำว่า "กำลังค้นหา" ไว้ตลอด ทั้งที่การค้นหาจบไปแล้ว
         // ผู้ใช้จะนั่งรอต่อไปเรื่อย ๆ โดยไม่รู้ว่าต้องกดใหม่
         count.textContent = "ค้นหาไม่สำเร็จ";
         box.innerHTML = `
-          <div class="card card-pad text-center">
+          <div class="card card-pad text-center fill-row">
             <p class="text-sm" style="color:var(--danger)">${esc(err.message)}</p>
             <button type="button" id="retryBtn" class="btn btn-outline btn-sm" style="margin-top:12px">
               ลองใหม่อีกครั้ง
