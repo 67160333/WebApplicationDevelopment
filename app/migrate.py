@@ -43,6 +43,10 @@ COLUMNS: list[tuple[str, str, str]] = [
     ("bookings", "pickup_address",  "VARCHAR(300)"),
     ("bookings", "dropoff_address", "VARCHAR(300)"),
     ("bookings", "distance_km",     "NUMERIC(6,2)"),
+    # ล็อกช่องเวลาเมื่อจ่ายเงินแล้วเท่านั้น (ดูคำอธิบายเต็มใน models.py)
+    ("bookings", "holds_slot",       "BOOLEAN NOT NULL DEFAULT FALSE"),
+    ("bookings", "cancelled_by",     "VARCHAR(20)"),
+    ("bookings", "cancellation_fee", "NUMERIC(10,2) NOT NULL DEFAULT 0.00"),
 ]
 
 # ---------- กุญแจนอกและดัชนี : (ชื่อ, คำสั่งสร้าง) ----------
@@ -102,11 +106,18 @@ DROP_INDEXES: list[str] = [
     # เดิมล็อกไม่ให้จ่ายซ้ำ "ทุกชนิด" ทำให้ยอดคงเหลือจ่ายเก็บตกรอบสองไม่ได้
     # ตัวใหม่ (uq_payment_booking_deposit) ล็อกเฉพาะมัดจำ
     "DROP INDEX IF EXISTS uq_payment_booking_kind",
+    # เดิมกันคิวซ้ำเวลาโดยดูแค่สถานะ ทำให้คิวที่ยังไม่จ่ายก็กันเวลาไว้ด้วย
+    # ตัวใหม่ (uq_booking_held_slot) กันเฉพาะคิวที่ล็อกช่องเวลาแล้ว
+    "DROP INDEX IF EXISTS uq_booking_active_slot",
 ]
 
 INDEXES: list[str] = [
     "CREATE UNIQUE INDEX IF NOT EXISTS uq_payment_booking_deposit ON payments (booking_id) "
     "WHERE status = 'paid' AND kind = 'deposit'",
+    # ด่านสุดท้ายกันสองคนจ่ายช่องเวลาเดียวกันพร้อมกันเป๊ะ ๆ
+    "CREATE UNIQUE INDEX IF NOT EXISTS uq_booking_held_slot "
+    "ON bookings (shop_id, staff_id, booking_date, booking_time) "
+    "WHERE holds_slot AND status IN ('pending','confirmed')",
     "CREATE INDEX IF NOT EXISTS ix_reviews_staff_id ON reviews (staff_id)",
     "CREATE INDEX IF NOT EXISTS ix_reviews_service_id ON reviews (service_id)",
     "CREATE INDEX IF NOT EXISTS ix_notif_user_unread ON notifications (user_id, is_read)",
@@ -166,6 +177,27 @@ def run_migrations(engine: Engine) -> None:
             conn.execute(text(ddl))
         for ddl in INDEXES:
             conn.execute(text(ddl))
+
+        # 3.2) เติมค่า holds_slot ให้คิวที่มีอยู่ก่อนจะมีคอลัมน์นี้
+        #
+        # คอลัมน์ใหม่มีค่าเริ่มต้นเป็น FALSE ถ้าไม่เติมย้อนหลัง คิวเก่าทุกคิว
+        # จะกลายเป็น "ไม่ล็อกเวลา" ทันทีที่อัปเดต — ตารางร้านที่เคยเต็มจะว่างโล่ง
+        # และคิวที่จ่ายเงินมาแล้วจะถูกคนอื่นจองทับได้ ซึ่งเสียหายจริง
+        #
+        # เกณฑ์: คิวที่ร้านยืนยันแล้ว หรือมีเงินเข้ามาแล้ว = ล็อกไว้
+        # เขียนแบบรันซ้ำกี่รอบก็ได้ผลเดิม (แถวที่เป็น TRUE อยู่แล้วไม่ถูกแตะ)
+        held = conn.execute(
+            text(
+                "UPDATE bookings SET holds_slot = TRUE "
+                "WHERE holds_slot = FALSE AND status IN ('pending','confirmed') AND ("
+                "  status = 'confirmed'"
+                "  OR EXISTS (SELECT 1 FROM payments p "
+                "             WHERE p.booking_id = bookings.id AND p.status = 'paid')"
+                ")"
+            )
+        ).rowcount
+        if held:
+            added.append(f"ตั้งค่าล็อกช่องเวลาให้คิวเดิม {held} คิว")
 
         # 3.5) เก็บชื่อแบรนด์เดิมที่ยังค้างอยู่ใน "ข้อมูล" ไม่ใช่ในโค้ด
         #

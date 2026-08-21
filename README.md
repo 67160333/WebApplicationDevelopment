@@ -558,8 +558,21 @@ uvicorn app.main:app --reload
 |---|---|
 | `PROJECT_CONTEXT.md` | สถานะปัจจุบันทั้งหมด เขียนไว้ให้คนที่มารับงานต่ออ่านแล้วทำงานต่อได้ทันที |
 | `TEST_CHECKLIST.md` | รายการทดสอบ พร้อมสคริปต์ยิง API จาก console |
-| `DEPLOY_HUGGINGFACE.md` | คู่มือนำขึ้นเว็บสาธารณะทีละขั้น |
+| `tests/test_booking_payment.py` | ชุดทดสอบอัตโนมัติ 46 ข้อ — ยิงคำขอเข้า API จริงบนฐานข้อมูลชั่วคราว |
+| `DEPLOY_RENDER.md` | คู่มือนำขึ้นเว็บสาธารณะด้วย Render + Neon (ตัวที่ใช้จริง) |
+| `DEPLOY_HUGGINGFACE.md` | คู่มือเดิม — Hugging Face ไม่ฟรีแล้วสำหรับ Docker Space |
 | `README_HF.md` | หน้าแรกของ Hugging Face Space (เปลี่ยนชื่อเป็น `README.md` ตอนอัป) |
+
+### รันชุดทดสอบ
+
+```bash
+docker compose up -d api      # ครั้งแรกครั้งเดียว ให้ container เห็นโฟลเดอร์ tests/
+docker compose exec api python tests/test_booking_payment.py
+```
+
+ครอบคลุมเพดานการจองล่วงหน้า · การเลื่อนนัด · การจ่ายมัดจำ · การคืนเงิน ·
+การล็อกช่องเวลาเมื่อชำระเงิน · ค่าปรับเมื่อลูกค้ายกเลิกเอง
+รันบน SQLite ชั่วคราว ไม่แตะฐานข้อมูลของระบบ จบด้วยรหัส 0 เมื่อผ่านทุกข้อ ต่อกับ CI ได้ทันที
 
 ---
 

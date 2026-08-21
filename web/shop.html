@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608252530" />
+  <link rel="stylesheet" href="css/app.css?v=202608261720" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -98,6 +98,22 @@
           <p id="mDeposit" class="hint" style="margin-top:2px"></p>
         </div>
 
+        <!-- กติกาสองข้อที่ลูกค้าต้องรู้ "ก่อน" กดยืนยัน ไม่ใช่ไปรู้ทีหลัง
+             ข้อแรกอธิบายว่าทำไมกดจองแล้วยังไม่ได้คิวแน่นอน
+             ข้อสองบอกล่วงหน้าว่าถ้าเปลี่ยนใจหลังจ่ายแล้วจะเสียอะไร -->
+        <div class="policy-box mt-4">
+          <div class="policy-line">
+            <span class="policy-dot"></span>
+            <span><strong>ช่วงเวลาจะถูกล็อกเมื่อชำระมัดจำแล้วเท่านั้น</strong>
+              ระหว่างที่ยังไม่ชำระ ลูกค้าคนอื่นเลือกเวลาเดียวกันได้ ใครชำระก่อนได้ก่อน</span>
+          </div>
+          <div class="policy-line">
+            <span class="policy-dot"></span>
+            <span>ถ้ายกเลิกเองหลังชำระแล้ว <strong>จะไม่ได้รับเงินมัดจำคืน</strong>
+              แต่ถ้าร้านเป็นฝ่ายยกเลิก ร้านจะคืนเงินให้เต็มจำนวน</span>
+          </div>
+        </div>
+
         <div id="modalAlert" class="alert mt-4" style="display:none"></div>
 
         <form id="bookingForm" class="mt-4">
@@ -149,8 +165,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202608252530"></script>
-  <script src="js/ui.js?v=202608252530"></script>
+  <script src="js/api.js?v=202608261720"></script>
+  <script src="js/ui.js?v=202608261720"></script>
   <script>
     renderNavbar("shops");
     renderFooter();
@@ -170,7 +186,10 @@
     // ร้านนี้เป็นบริการแบบเรียกใช้ทันทีหรือไม่ (ส่งของด่วน = ไม่มีปฏิทิน)
     let INSTANT = false;
 
-    const DAYS = 14;                 // เปิดให้จองล่วงหน้ากี่วัน (รวมวันนี้)
+    // แถบวันที่แสดงกี่วัน (รวมวันนี้)
+    // ไม่เกินเพดานที่เซิร์ฟเวอร์รับ (MAX_ADVANCE_DAYS) — Math.min กันไว้เผื่อวันหลัง
+    // มีคนมาแก้เลข 14 นี้ให้ยาวขึ้นแล้วลืมว่าฝั่งเซิร์ฟเวอร์ตัดที่ 90 วัน
+    const DAYS = Math.min(14, MAX_ADVANCE_DAYS);
     const DOW = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
     const MON = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
                  "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];

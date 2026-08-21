@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608252530" />
+  <link rel="stylesheet" href="css/app.css?v=202608261720" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -197,8 +197,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202608252530"></script>
-  <script src="js/ui.js?v=202608252530"></script>
+  <script src="js/api.js?v=202608261720"></script>
+  <script src="js/ui.js?v=202608261720"></script>
   <script>
     renderNavbar("bookings");
     renderFooter();
@@ -238,6 +238,48 @@
       if (diff < 0) return "";
       const text = diff === 0 ? "วันนี้" : diff === 1 ? "พรุ่งนี้" : `อีก ${diff} วัน`;
       return `<span class="badge ${diff <= 1 ? "badge-pending" : "badge-neutral"}">${text}</span>`;
+    }
+
+    // เลยเวลานัดไปแล้วหรือยัง
+    //
+    // ใช้ตัดสินว่ายัง "จ่ายมัดจำเพื่อล็อกคิว" ได้อยู่ไหม กติกาต้องตรงกับฝั่งเซิร์ฟเวอร์
+    // ไม่งั้นผู้ใช้จะเห็นปุ่มชำระมัดจำ กดแล้วถูกปฏิเสธโดยไม่รู้ว่าต้องทำอะไรต่อ
+    function isPast(b) {
+      return new Date(`${b.booking_date}T${b.booking_time}`) < new Date();
+    }
+
+    // สรุปว่าคิวนี้ต้องจ่ายอะไร เท่าไหร่ และควรเขียนว่าอะไรบนปุ่ม
+    //
+    // รวมไว้ที่เดียวเพราะมีสามที่ที่ต้องตอบให้ตรงกัน: ข้อความในการ์ด · หัวข้อในหน้าต่าง
+    // ชำระเงิน · และ kind ที่ส่งขึ้นเซิร์ฟเวอร์ ถ้าแยกกันคิดจะเพี้ยนกันเองเมื่อแก้ทีหลัง
+    function payPlan(b) {
+      const balance = Number(b.total_price) - Number(b.paid_amount);
+      if (b.payment_state === "unpaid" && !isPast(b)) {
+        return {
+          kind: "deposit",
+          due: Number(b.deposit_amount),
+          label: "ชำระมัดจำ",
+          note: b.holds_slot
+            ? `ชำระมัดจำ ฿${baht(b.deposit_amount)} เพื่อยืนยันคิว ร้านกันเวลาไว้ให้แล้ว`
+            : `ชำระมัดจำ ฿${baht(b.deposit_amount)} เพื่อล็อกช่วงเวลานี้ ` +
+              "ตอนนี้ลูกค้าคนอื่นยังเลือกเวลาเดียวกันได้ ใครชำระก่อนได้ก่อน",
+        };
+      }
+      if (b.payment_state === "unpaid") {
+        // เลยเวลานัดแล้ว มัดจำหมดความหมาย เก็บเป็นค่าบริการเต็มจำนวนไปเลยครั้งเดียว
+        return {
+          kind: "balance",
+          due: balance,
+          label: "ชำระค่าบริการ",
+          note: `เลยเวลานัดไปแล้ว ชำระค่าบริการเต็มจำนวน ฿${baht(balance)} ได้ที่นี่ หรือจ่ายที่ร้าน`,
+        };
+      }
+      return {
+        kind: "balance",
+        due: balance,
+        label: "ชำระยอดคงเหลือ",
+        note: `ชำระแล้ว ฿${baht(b.paid_amount)} · คงเหลือ ฿${baht(balance)} จ่ายที่ร้านได้`,
+      };
     }
 
     // ---------- แท็บกรองสถานะ ----------
@@ -321,12 +363,26 @@
       return `<span class="pay-state ${cls}">${text}</span>`;
     }
 
+    // ป้ายบอกว่าคิวนี้กันเวลาไว้ให้แล้วหรือยัง
+    //
+    // จำเป็นมาก เพราะกติกาของระบบคือ "จ่ายแล้วเท่านั้นถึงจะล็อกเวลา"
+    // ถ้าไม่บอกให้ชัด ลูกค้าจะเข้าใจว่ากดจองแล้วได้คิวแน่ ๆ แล้วไปถึงร้านทั้งที่
+    // ช่องเวลานั้นถูกคนที่จ่ายเงินก่อนเอาไปแล้ว
+    function holdBadge(b) {
+      if (b.status === "cancelled" || b.status === "completed") return "";
+      if (b.holds_slot) {
+        return '<span class="badge badge-confirmed">ล็อกเวลาให้แล้ว</span>';
+      }
+      return '<span class="badge badge-pending">ยังไม่ล็อกเวลา</span>';
+    }
+
     function card(b) {
       const canCancel = b.status === "pending" || b.status === "confirmed";
       const canReview = b.status === "completed";
       const canRebook = b.status === "completed" || b.status === "cancelled";
       // ยกเลิกแล้วจ่ายไม่ได้ และจ่ายครบแล้วก็ไม่ต้องมีปุ่มอีก
       const canPay = b.status !== "cancelled" && b.payment_state !== "paid";
+      const plan = payPlan(b);
       // งานส่งของด่วนออกรถทันที จึงเลื่อนนัดไม่ได้ — มีแต่ยกเลิก
       const isDelivery = !!(b.pickup_address || b.dropoff_address);
       const svName = serviceOf(b);
@@ -340,6 +396,7 @@
                 <div class="flex items-center gap-2.5 flex-wrap">
                   <h3 class="h3">${esc(svName || nameOf(b.shop_id))}</h3>
                   ${statusBadge(b.status)}
+                  ${holdBadge(b)}
                   ${countdown(b)}
                 </div>
                 <p class="text-sm text-muted mt-1">
@@ -393,17 +450,22 @@
                 ${b.note ? `<div><span class="text-muted">หมายเหตุ:</span> ${esc(b.note)}</div>` : ""}
               </div>` : ""}
 
+            ${b.status === "cancelled" && Number(b.cancellation_fee) > 0 ? `
+              <div class="mt-3 pt-3" style="border-top:1px solid var(--border)">
+                <p class="text-sm" style="margin:0;color:var(--warn)">
+                  ยกเลิกโดยคุณเอง · ถูกหักค่ามัดจำ ฿${baht(b.cancellation_fee)} ตามนโยบายยกเลิก
+                  ${Number(b.paid_amount) > Number(b.cancellation_fee)
+                    ? `· ร้านจะคืนส่วนที่เหลือ ฿${baht(Number(b.paid_amount) - Number(b.cancellation_fee))}`
+                    : ""}
+                </p>
+              </div>` : ""}
+
             ${canPay ? `
               <div class="mt-3 pt-3" style="border-top:1px solid var(--border)">
                 <div class="flex items-center justify-between gap-3 flex-wrap">
-                  <p class="text-sm text-muted" style="margin:0">
-                    ${b.payment_state === "unpaid"
-                      ? `ชำระมัดจำ ฿${baht(b.deposit_amount)} เพื่อยืนยันคิวทันที ไม่ต้องรอร้านตอบกลับ`
-                      : `ชำระแล้ว ฿${baht(b.paid_amount)} · คงเหลือ ฿${baht(Number(b.total_price) - Number(b.paid_amount))} จ่ายที่ร้านได้`}
-                  </p>
+                  <p class="text-sm text-muted" style="margin:0">${plan.note}</p>
                   <button data-pay="${b.id}" class="btn btn-primary btn-sm">
-                    ${icon("creditCard", 14)}
-                    ${b.payment_state === "unpaid" ? "ชำระมัดจำ" : "ชำระยอดคงเหลือ"}
+                    ${icon("creditCard", 14)} ${plan.label}
                   </button>
                 </div>
               </div>` : ""}
@@ -453,33 +515,46 @@
         btn.addEventListener("click", async () => {
           const b = lastItems.find((x) => x.id === Number(btn.dataset.cancel));
 
-          // เตือนแรงขึ้นถ้าใกล้ถึงเวลานัดแล้ว เพราะร้านเสียคิวจริง
+          // ต้องบอกจำนวนเงินที่จะเสียจริง "ก่อน" กด ไม่ใช่ไปรู้ทีหลังจากยอดที่หายไป
+          //
+          // ค่ามัดจำที่จ่ายไปแล้วจะไม่ได้คืนถ้าลูกค้ายกเลิกเอง (เซิร์ฟเวอร์เป็นคนคิด
+          // ตัวเลขจริง ตรงนี้แค่แสดงให้ตรงกัน) ส่วนคิวที่ยังไม่จ่าย ยกเลิกได้ฟรี
+          const forfeit = b ? Math.min(Number(b.paid_amount), Number(b.deposit_amount)) : 0;
+
           let title = "ยกเลิกการจองนี้ใช่หรือไม่";
-          let msg = b
-            ? `${serviceOf(b) || "บริการ"} · ${thaiDate(b.booking_date)} ${shortTime(b.booking_time)} น.\n` +
-              "ช่องเวลานี้จะกลับไปเปิดให้คนอื่นจองได้ทันที"
-            : "ช่องเวลานี้จะกลับไปเปิดให้คนอื่นจองได้ทันที";
+          const lines = [];
+          if (b) {
+            lines.push(`${serviceOf(b) || "บริการ"} · ${thaiDate(b.booking_date)} ${shortTime(b.booking_time)} น.`);
+          }
+          if (forfeit > 0) {
+            title = `ยกเลิกแล้วจะไม่ได้เงินมัดจำ ฿${baht(forfeit)} คืน`;
+            lines.push(`ค่ามัดจำ ฿${baht(forfeit)} (20% ของค่าบริการ) จะถูกหักตามนโยบายยกเลิก`);
+            const extra = Number(b.paid_amount) - forfeit;
+            if (extra > 0) lines.push(`ส่วนที่จ่ายเกินมา ฿${baht(extra)} ร้านจะคืนให้`);
+          } else {
+            lines.push("คิวนี้ยังไม่ได้ชำระเงิน ยกเลิกได้โดยไม่เสียค่าใช้จ่าย");
+          }
+          lines.push("ช่องเวลานี้จะกลับไปเปิดให้คนอื่นจองได้ทันที");
 
           if (b) {
             const hrs = (new Date(`${b.booking_date}T${b.booking_time}`) - new Date()) / 3600000;
             if (hrs > 0 && hrs < 2) {
               title = "เหลืออีกไม่ถึง 2 ชั่วโมงก็ถึงเวลานัด";
-              msg = "การยกเลิกกระชั้นชิดทำให้ร้านเสียคิว\n" +
-                    "และคุณอาจไม่ได้รับเงินมัดจำคืน\n\n" +
-                    "ยืนยันยกเลิกใช่หรือไม่";
+              lines.unshift("การยกเลิกกระชั้นชิดทำให้ร้านเสียคิวไปทั้งช่อง");
             }
           }
 
           const ok = await confirmDialog({
-            title, message: msg, confirmText: "ยกเลิกการจอง",
+            title, message: lines.join("\n"), confirmText: "ยกเลิกการจอง",
             cancelText: "เก็บคิวไว้", tone: "danger",
           });
           if (!ok) return;
 
           btnBusy(btn, true, "กำลังยกเลิก");
           try {
-            await apiDelete(`/api/bookings/${btn.dataset.cancel}`);
-            toast("ยกเลิกการจองเรียบร้อยแล้ว");
+            // เซิร์ฟเวอร์ส่งข้อความที่มียอดจริงกลับมา ใช้ตัวนั้นแสดงผลจะได้ไม่มีทางคลาดกัน
+            const res = await apiDelete(`/api/bookings/${btn.dataset.cancel}`);
+            toast(res?.message || "ยกเลิกการจองเรียบร้อยแล้ว", forfeit > 0 ? "info" : "success", 5000);
             load(1);   // วาดรายการใหม่ ปุ่มเดิมหายไปพร้อมกัน จึงไม่ต้องคืนสถานะ
           } catch (err) {
             btnBusy(btn, false);
@@ -555,6 +630,8 @@
       document.getElementById("mvCurrent").textContent =
         `นัดเดิม ${thaiDate(b.booking_date)} ${shortTime(b.booking_time)}–${shortTime(b.end_time)} น.`;
       document.getElementById("mvDate").min = localDate();
+      // กันเลื่อนนัดไปไกลเกินเพดาน — เคยเลื่อนไปปี 2080 ได้เพราะช่องนี้ไม่มี max
+      document.getElementById("mvDate").max = maxBookingDate();
       document.getElementById("mvDate").value = b.booking_date < localDate() ? localDate() : b.booking_date;
       document.getElementById("mvSlots").innerHTML = "";
       document.getElementById("mvSave").disabled = true;
@@ -785,15 +862,11 @@
 
     function openPay(b) {
       payingId = b.id;
-      payKind = b.payment_state === "unpaid" ? "deposit" : "balance";
+      const plan = payPlan(b);
+      payKind = plan.kind;
 
-      const due = payKind === "deposit"
-        ? Number(b.deposit_amount)
-        : Number(b.total_price) - Number(b.paid_amount);
-
-      document.getElementById("payTitle").textContent =
-        payKind === "deposit" ? "ชำระมัดจำ" : "ชำระยอดคงเหลือ";
-      document.getElementById("payAmount").textContent = `฿${baht(due)}`;
+      document.getElementById("payTitle").textContent = plan.label;
+      document.getElementById("payAmount").textContent = `฿${baht(plan.due)}`;
       document.getElementById("payFor").textContent =
         `${serviceOf(b) || "บริการ"} · ${nameOf(b.shop_id)} · รหัส ${b.booking_code}`;
 

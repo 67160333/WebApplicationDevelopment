@@ -2782,3 +2782,32 @@ details:not([open]) > *:not(summary) { display: none !important; }
   color: var(--warn);
 }
 .slot[aria-pressed="true"] .slot-left { color: inherit; opacity: .85; }
+
+/* กล่องบอกกติกาในหน้าต่างยืนยันการจอง
+   ตั้งใจให้อ่านง่ายแต่ไม่ตะโกน — ใช้พื้นเทาอ่อนแทนสีเตือน เพราะนี่คือ
+   "ข้อมูลที่ต้องรู้ก่อนตัดสินใจ" ไม่ใช่ "คำเตือนว่ากำลังจะทำผิด" */
+.policy-box {
+  background: var(--navy-50);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  display: grid;
+  gap: 8px;
+}
+.policy-line {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.policy-line strong { color: var(--text); font-weight: 600; }
+.policy-dot {
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: var(--blue-600);
+}

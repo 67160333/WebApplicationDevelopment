@@ -36,6 +36,20 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _local_now() -> datetime:
+    """เวลาปัจจุบันตามเขตเวลาของร้าน ตัด tzinfo ออกเพื่อเทียบกับ Date/Time ในฐานข้อมูล
+
+    ต้องใช้ตัวนี้เวลาเทียบกับ booking_date/booking_time ห้ามใช้ _now()
+    เพราะ _now() เป็น UTC ซึ่งต่างจากเวลาไทย 7 ชั่วโมง
+
+    ยืมนิยามเขตเวลาจาก bookings.py ตัวเดียว จะได้ไม่มีทางตั้งค่าไม่ตรงกัน
+    (นำเข้าในฟังก์ชันเพื่อเลี่ยงการนำเข้าวนกันตอนสตาร์ตแอป แบบเดียวกับที่ shops.py ทำ)
+    """
+    from app.routers.bookings import now_local
+
+    return now_local()
+
+
 def _money(value: Decimal) -> Decimal:
     return Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
@@ -189,6 +203,60 @@ def pay_booking(
             status_code=status.HTTP_400_BAD_REQUEST, detail="สถานะของคิวนี้ยังชำระเงินไม่ได้"
         )
 
+    # มัดจำมีไว้ "ล็อกคิวไว้ล่วงหน้า" ลูกค้าจ่ายหลังเลยเวลานัดไปแล้วจึงไม่มีความหมาย
+    #
+    # ปล่อยไว้จะเกิดสภาพที่ลูกค้าจ่ายมัดจำคิวเมื่อวาน แล้วระบบเปลี่ยนสถานะคิวนั้น
+    # จาก "รอยืนยัน" เป็น "ยืนยันแล้ว" ย้อนหลัง ทั้งที่เวลานัดผ่านไปแล้ว
+    #
+    # ยกเว้นให้ฝั่งร้าน เพราะการกดรับเงินสดหน้าร้านมักเกิดหลังลูกค้าใช้บริการเสร็จ
+    # ซึ่งเลยเวลานัดไปแล้วเป็นปกติ ถ้าห้ามด้วยจะบล็อกงานจริงของร้าน
+    #
+    # ส่วนยอดคงเหลือ (balance) ทุกฝ่ายจ่ายย้อนหลังได้ เพราะคือการเก็บเงินปลายทาง
+    if payload.kind == "deposit" and not is_owner:
+        appointment = datetime.combine(booking.booking_date, booking.booking_time)
+        if appointment < _local_now():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "เลยเวลานัดของคิวนี้ไปแล้ว ชำระมัดจำเพื่อยืนยันคิวไม่ได้ "
+                    "กรุณาชำระค่าบริการเต็มจำนวนหรือติดต่อร้านโดยตรง"
+                ),
+            )
+
+    # ช่องเวลานี้ยังว่างอยู่จริงไหม ณ วินาทีที่กำลังจะจ่าย
+    #
+    # กติกาของระบบคือ "จ่ายแล้วเท่านั้นถึงจะล็อกช่องเวลา" ดังนั้นระหว่างที่ลูกค้า
+    # กดจองไว้แล้วยังไม่จ่าย ลูกค้าคนอื่นเลือกเวลาเดียวกันได้ และอาจจ่ายตัดหน้าไปแล้ว
+    # ถ้าไม่ตรวจตรงนี้ จะเก็บเงินลูกค้าไปทั้งที่คิวนั้นให้บริการไม่ได้
+    #
+    # ตรวจเฉพาะคิวที่ยังไม่ได้ล็อกและยังไม่ถึงเวลานัด — คิวในอดีตเป็นการเก็บเงิน
+    # ย้อนหลัง ไม่ได้ไปแย่งเวลาใคร
+    if not booking.holds_slot:
+        appointment = datetime.combine(booking.booking_date, booking.booking_time)
+        if appointment >= _local_now():
+            from app.routers.bookings import _assert_free
+
+            service = db.get(Service, booking.service_id)
+            shop = db.get(Shop, booking.shop_id)
+            if service is not None and shop is not None:
+                try:
+                    _assert_free(
+                        db, shop, booking.booking_date, booking.booking_time,
+                        service.duration_minutes, booking.staff_id,
+                        exclude_booking_id=booking.id,
+                    )
+                except HTTPException:
+                    # เปลี่ยนข้อความให้ตรงกับสิ่งที่เกิดขึ้นจริงในบริบทนี้
+                    # ข้อความเดิม ("กรุณาเลือกช่วงเวลาอื่น") เป็นภาษาของหน้าจอง
+                    # ซึ่งคนที่กำลังกดจ่ายเงินอ่านแล้วไม่รู้ว่าต้องไปกดตรงไหน
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            "ช่วงเวลานี้มีผู้ชำระเงินตัดหน้าไปแล้ว จึงเก็บเงินคิวนี้ไม่ได้ "
+                            "กรุณากดเลื่อนนัดไปเวลาอื่นแล้วค่อยชำระเงิน"
+                        ),
+                    )
+
     summary = _summarise(db, booking)
 
     if payload.kind == "deposit":
@@ -231,13 +299,17 @@ def pay_booking(
 
     payment.receipt_no = _receipt_no(payment.id, payment.paid_at)
 
+    # จ่ายเงินแล้ว = ล็อกช่องเวลาให้ทันที นี่คือหัวใจของกติกา
+    # "จ่ายก่อนได้ก่อน" ตั้งแต่วินาทีนี้คนอื่นจะจองเวลานี้ทับไม่ได้อีก
+    booking.holds_slot = True
+
     # ยืนยันคิวให้อัตโนมัติเมื่อจ่ายมัดจำแล้ว — ลูกค้าจ่ายเงินแล้วไม่ควรต้องรอร้านกดอีกที
     if payload.kind == "deposit" and booking.status == "pending":
         booking.status = "confirmed"
         notify(
             db, booking.user_id, "booking_confirmed",
             "ยืนยันคิวเรียบร้อย",
-            f"ได้รับมัดจำ ฿{amount:,.0f} แล้ว · {booking.booking_code}",
+            f"ได้รับมัดจำ ฿{amount:,.0f} แล้ว · ล็อกเวลาให้แล้ว · {booking.booking_code}",
         )
 
     if owner_id is not None and not is_owner:
@@ -249,7 +321,21 @@ def pay_booking(
             "manage.html",
         )
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # ด่านสุดท้าย: สองคนกดจ่ายช่องเวลาเดียวกันพร้อมกันเป๊ะ ๆ จนโค้ดตรวจไม่ทัน
+        # ฐานข้อมูลจะปฏิเสธคนที่สองด้วย unique index uq_booking_held_slot
+        # ต้อง rollback ทั้งก้อน เงินจึงไม่ถูกบันทึกทั้งที่คิวใช้ไม่ได้
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "ช่วงเวลานี้มีผู้ชำระเงินตัดหน้าไปพอดี ระบบยังไม่ได้ตัดเงินของคุณ "
+                "กรุณากดเลื่อนนัดไปเวลาอื่นแล้วค่อยชำระเงิน"
+            ),
+        )
+
     db.refresh(booking)
     return _summarise(db, booking)
 
@@ -279,6 +365,24 @@ def refund_payment(
     if payment.status == "refunded":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="รายการนี้คืนเงินไปแล้ว"
+        )
+
+    # คืนเงินได้เฉพาะคิวที่จบแล้ว — ยกเลิกไปแล้ว หรือใช้บริการเสร็จแล้ว
+    #
+    # ของเดิมคืนเงินคิวที่ยัง "รอยืนยัน/ยืนยันแล้ว" ได้ ผลคือลูกค้าได้เงินคืน
+    # แต่คิวยังค้างอยู่ในตาราง ร้านก็ยังต้องกันเวลาไว้ให้ และพอเงินที่จ่ายมากลายเป็น 0
+    # ระบบจะมองว่าคิวนี้กลับไปเป็น "ยังไม่ได้จ่าย" แล้วไปทวงมัดจำกับลูกค้าอีกรอบ
+    # ทั้งที่เพิ่งคืนเงินไปเมื่อครู่
+    #
+    # ถ้าร้านตั้งใจจะคืนเงินคิวที่ยังไม่ถึงเวลา ต้องกดยกเลิกคิวก่อนแล้วค่อยคืน
+    # ลำดับนี้ทำให้ช่องเวลาถูกปล่อยคืน และทั้งสองฝ่ายเห็นตรงกันว่าคิวจบแล้ว
+    #
+    # ส่วน "completed" ยังคืนได้ เพราะเป็นการคืนเงินให้ลูกค้าที่ไม่พอใจหลังใช้บริการ
+    # ซึ่งเป็นเรื่องปกติของหน้าร้าน และเวลานัดผ่านไปแล้วจึงไม่มีช่องเวลาค้าง
+    if booking.status not in ("cancelled", "completed"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="ต้องยกเลิกคิวก่อนจึงจะคืนเงินได้ เพื่อไม่ให้คิวค้างอยู่ในตารางทั้งที่คืนเงินไปแล้ว",
         )
 
     payment.status = "refunded"

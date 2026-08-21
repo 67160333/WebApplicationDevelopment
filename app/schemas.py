@@ -347,6 +347,24 @@ class BookingOut(BaseModel):
     distance_km: Decimal | None = None
     created_at: datetime
 
+    # ---- การล็อกช่องเวลา ----
+    holds_slot: bool = Field(
+        False,
+        description=(
+            "คิวนี้กันช่วงเวลาไว้แล้วหรือยัง — เป็น true เมื่อชำระเงินแล้ว "
+            "หรือร้านยืนยัน/จองแทนให้ ถ้ายังเป็น false ลูกค้าคนอื่นจองเวลาเดียวกันได้"
+        ),
+    )
+
+    # ---- การยกเลิก ----
+    cancelled_by: str | None = Field(
+        None, description="ใครเป็นคนยกเลิก: customer / shop / admin"
+    )
+    cancellation_fee: Decimal = Field(
+        Decimal("0.00"),
+        description="ยอดที่ถูกหักตอนยกเลิก (ค่ามัดจำที่จ่ายมาแล้ว) — ลูกค้ายกเลิกเองเท่านั้นที่ถูกหัก",
+    )
+
     # ---- สถานะการชำระเงิน คำนวณจากตาราง payments ----
     # ใส่มาให้พร้อมกับรายการจองเลย หน้าเว็บจะได้ไม่ต้องยิงถามทีละคิว
     payment_state: Literal["unpaid", "deposit_paid", "paid"] = "unpaid"

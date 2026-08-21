@@ -299,6 +299,32 @@ class Booking(Base):
     guest_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
     guest_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
+    # คิวนี้ "ล็อกช่องเวลา" ไว้แล้วหรือยัง
+    #
+    # กติกา: ช่องเวลาจะปิดไม่ให้คนอื่นจองก็ต่อเมื่อมีการชำระเงินเข้ามาแล้วเท่านั้น
+    # คิวที่กดจองไว้เฉย ๆ แต่ยังไม่จ่าย จะไม่กันเวลาให้ใคร ลูกค้าคนอื่นเลือกเวลาเดียวกัน
+    # ได้ตามปกติ ใครจ่ายก่อนได้ก่อน
+    #
+    # ทำไมต้องเป็นคอลัมน์ ไม่คำนวณสด ๆ จากตาราง payments:
+    #   1. `_busy_intervals` ถูกเรียกทุกครั้งที่เปิดหน้าจอง ถ้าต้อง join ตารางเงิน
+    #      ทุกครั้งจะช้าโดยไม่จำเป็น
+    #   2. unique index ระดับฐานข้อมูล (uq_booking_held_slot) อ้างตารางอื่นไม่ได้
+    #      ต้องมีคอลัมน์อยู่ในตารางเดียวกันเท่านั้น ซึ่งเป็นด่านสุดท้ายที่กัน
+    #      การจองชนกันตอนสองคนกดพร้อมกันเป๊ะ ๆ
+    #
+    # ตั้งเป็น True เมื่อ: มีการชำระเงิน · ร้านกดจองแทนลูกค้าหน้าร้าน · งานส่งด่วน
+    # · ร้านกดยืนยันคิวเอง   ตั้งกลับเป็น False เมื่อคิวถูกยกเลิก
+    holds_slot: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # ---- การยกเลิก ----
+    # ใครเป็นคนยกเลิก: customer / shop / admin — ใช้ตัดสินว่าต้องหักค่ามัดจำไหม
+    cancelled_by: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # ยอดที่ถูกหักจริงตอนยกเลิก (= ค่ามัดจำที่จ่ายมาแล้ว) เก็บไว้เพื่อออกรายงานและ
+    # เพื่อให้ร้านรู้ว่าต้องคืนเงินลูกค้าเท่าไหร่กันแน่ = ที่จ่ายมา - ที่ถูกหัก
+    cancellation_fee: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), default=Decimal("0.00"), nullable=False
+    )
+
     # ---- ใช้เฉพาะบริการส่งของด่วน ----
     pickup_address: Mapped[str | None] = mapped_column(String(300), nullable=True)
     dropoff_address: Mapped[str | None] = mapped_column(String(300), nullable=True)
@@ -319,17 +345,26 @@ class Booking(Base):
             name="ck_bookings_status",
         ),
         # กันจองซ้ำช่องเวลาเดียวกันของช่างคนเดียวกัน
-        # ใช้ partial index นับเฉพาะคิวที่ยังใช้งานอยู่ (pending/confirmed)
-        # เพื่อให้คิวที่ถูกยกเลิกหรือใช้บริการไปแล้ว กลับมาจองซ้ำในเวลาเดิมได้
-        # หมายเหตุ: การชนกันแบบ "คาบเกี่ยว" ตรวจในโค้ดตอนสร้างการจอง (ดู create_booking)
+        #
+        # นับเฉพาะคิวที่ "ล็อกช่องเวลาไว้แล้ว" (holds_slot) และยังใช้งานอยู่
+        # คิวที่ยังไม่จ่ายจึงซ้ำเวลากันได้หลายคิว ซึ่งเป็นกติกาที่ตั้งใจ —
+        # ใครจ่ายก่อนได้ก่อน ส่วนคนที่เหลือจะถูกปฏิเสธตอนกดจ่าย
+        #
+        # ตัวนี้เป็นด่านสุดท้ายระดับฐานข้อมูล กันกรณีสองคนกดจ่ายพร้อมกันเป๊ะ ๆ
+        # จนโค้ดตรวจไม่ทัน ส่วนการชนแบบ "คาบเกี่ยว" (ไม่ใช่เวลาเริ่มตรงกัน)
+        # ตรวจในโค้ดด้วย _assert_free
         Index(
-            "uq_booking_active_slot",
+            "uq_booking_held_slot",
             "shop_id",
             "staff_id",
             "booking_date",
             "booking_time",
             unique=True,
-            postgresql_where=text("status IN ('pending','confirmed')"),
+            postgresql_where=text("holds_slot AND status IN ('pending','confirmed')"),
+            # ต้องประกาศเงื่อนไขให้ SQLite ด้วย ไม่งั้นชุดทดสอบ (ซึ่งรันบน SQLite)
+            # จะได้ unique index แบบไม่มีเงื่อนไข = ห้ามจองเวลาซ้ำแม้ยังไม่จ่าย
+            # ซึ่งตรงข้ามกับกติกาจริง แล้วผลทดสอบจะเชื่อถือไม่ได้
+            sqlite_where=text("holds_slot = 1 AND status IN ('pending','confirmed')"),
         ),
     )
 

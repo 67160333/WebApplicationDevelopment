@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608252530" />
+  <link rel="stylesheet" href="css/app.css?v=202608261720" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -189,8 +189,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202608252530"></script>
-  <script src="js/ui.js?v=202608252530"></script>
+  <script src="js/api.js?v=202608261720"></script>
+  <script src="js/ui.js?v=202608261720"></script>
   <script>
     renderNavbar("manage");
     renderFooter();
@@ -627,8 +627,12 @@
           <td class="text-muted">${b.staff_id ? esc(staffNames[b.staff_id] || `#${b.staff_id}`) : "ไม่ระบุ"}</td>
           <td class="num">฿${baht(b.total_price)}
             <div class="text-xs text-muted">มัดจำ ฿${baht(b.deposit_amount)}</div>
-            ${b.status !== "cancelled" ? `<div class="mt-1">${payBadge(b)}</div>` : ""}</td>
-          <td>${statusBadge(b.status)}</td>
+            ${b.status !== "cancelled" ? `<div class="mt-1">${payBadge(b)}</div>` : ""}
+            ${b.status === "cancelled" && Number(b.cancellation_fee) > 0
+              ? `<div class="text-xs mt-1" style="color:var(--success)">ได้ค่ามัดจำ ฿${baht(b.cancellation_fee)}</div>` : ""}</td>
+          <td>${statusBadge(b.status)}
+            ${b.status !== "cancelled" && b.status !== "completed" && !b.holds_slot
+              ? '<div class="text-xs mt-1" style="color:var(--warn)">ยังไม่ล็อกเวลา</div>' : ""}</td>
           <td>
             <div class="flex gap-1.5 flex-wrap">
               ${actions.map(([st, label, cls]) =>
@@ -664,15 +668,23 @@
           const b = allBookings.find((x) => x.id === Number(btn.dataset.cash));
           if (!b) return;
 
-          const kind = b.payment_state === "unpaid" ? "deposit" : "balance";
+          // เลยเวลานัดไปแล้วให้เก็บเต็มจำนวนรวดเดียว ไม่ต้องเก็บมัดจำก่อนแล้วค่อยเก็บที่เหลือ
+          //
+          // ลูกค้าที่มาถึงหน้าร้านแล้วใช้บริการเสร็จ จ่ายทีเดียวจบคือเรื่องปกติ
+          // ถ้ายังบังคับเป็นมัดจำก่อน พนักงานต้องกดปุ่มเดิมสองรอบและได้ใบเสร็จสองใบ
+          const past = new Date(`${b.booking_date}T${b.booking_time}`) < new Date();
+          const kind = b.payment_state === "unpaid" && !past ? "deposit" : "balance";
           const due = kind === "deposit"
             ? Number(b.deposit_amount)
             : Number(b.total_price) - Number(b.paid_amount);
+          const what = kind === "deposit"
+            ? "ค่ามัดจำ"
+            : b.payment_state === "unpaid" ? "ค่าบริการเต็มจำนวน" : "ยอดคงเหลือ";
 
           const ok = await confirmDialog({
             title: `รับเงินสด ฿${baht(due)} จากลูกค้า`,
             message:
-              `${kind === "deposit" ? "ค่ามัดจำ" : "ยอดคงเหลือ"} · ${b.booking_code}\n` +
+              `${what} · ${b.booking_code}\n` +
               "ระบบจะออกใบเสร็จให้ทันทีเมื่อกดยืนยัน",
             confirmText: "รับเงินแล้ว",
           });
@@ -738,13 +750,29 @@
       document.querySelectorAll("[data-set]").forEach((btn) =>
         btn.addEventListener("click", async () => {
           const label = btn.textContent.trim();
+          const b = allBookings.find((x) => x.id === Number(btn.dataset.set));
           // ยกเลิกคิวเป็นการกระทบลูกค้าโดยตรง ต้องเตือนให้หนักกว่าการกดยืนยันหรือปิดงาน
           const cancelling = btn.dataset.status === "cancelled";
+
+          let message = "ลูกค้าจะได้รับแจ้งเตือนการเปลี่ยนสถานะนี้ทันที";
+          if (cancelling) {
+            // ร้านยกเลิกเอง = ลูกค้าไม่ผิด ต้องคืนเงินเต็มจำนวน ไม่หักค่ามัดจำ
+            // ต้องเห็นยอดก่อนกด ไม่ใช่ไปรู้ทีหลังจากแจ้งเตือน "ค้างคืนเงิน"
+            const paid = b ? Number(b.paid_amount) : 0;
+            message = "ลูกค้าจะได้รับแจ้งเตือนทันที และช่องเวลานี้จะกลับไปเปิดให้คนอื่นจอง";
+            if (paid > 0) {
+              message += `\n\nร้านเป็นฝ่ายยกเลิก จึงต้องคืนเงินลูกค้า ฿${baht(paid)} เต็มจำนวน` +
+                         "\n(ไม่หักค่ามัดจำ เพราะลูกค้าไม่ได้เป็นฝ่ายยกเลิก)";
+            }
+          } else if (btn.dataset.status === "confirmed" && b && !b.holds_slot) {
+            // ยืนยันคิวที่ยังไม่จ่าย = ร้านรับปากกันเวลาให้เอง ต้องรู้ตัวว่ากำลังทำแบบนั้น
+            message = "คิวนี้ยังไม่ได้ชำระเงิน · การยืนยันจะกันช่วงเวลานี้ไว้ให้ลูกค้ารายนี้" +
+                      "\nลูกค้าคนอื่นจะจองเวลานี้ไม่ได้อีก";
+          }
+
           const ok = await confirmDialog({
             title: `${label}ใช่หรือไม่`,
-            message: cancelling
-              ? "ลูกค้าจะได้รับแจ้งเตือนทันที และช่องเวลานี้จะกลับไปเปิดให้คนอื่นจอง"
-              : "ลูกค้าจะได้รับแจ้งเตือนการเปลี่ยนสถานะนี้ทันที",
+            message,
             confirmText: label,
             tone: cancelling ? "danger" : "default",
           });
@@ -1061,6 +1089,7 @@
       document.getElementById("wiSlots").innerHTML = '<p class="hint" style="margin:0">เลือกบริการและวันที่ก่อน</p>';
       document.getElementById("wiDate").value = localDate();
       document.getElementById("wiDate").min = localDate();
+      document.getElementById("wiDate").max = maxBookingDate();
 
       const [svc, stf] = await Promise.all([
         apiGet(`/api/shops/${shop.id}/services`).catch(() => []),

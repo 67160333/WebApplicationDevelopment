@@ -231,6 +231,15 @@ function localDate(d = new Date()) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+// จองล่วงหน้าได้ไกลสุดกี่วัน — ต้องตรงกับ MAX_ADVANCE_DAYS ใน app/routers/bookings.py
+//
+// ตัวเลขนี้มีไว้ใส่ในแอตทริบิวต์ max ของช่องเลือกวันที่ ไม่ได้มีไว้ใช้ตรวจแทนเซิร์ฟเวอร์
+// เซิร์ฟเวอร์ยังตรวจซ้ำอยู่เสมอ เพราะช่อง input แก้ค่าจาก devtools ได้
+const MAX_ADVANCE_DAYS = 90;
+
+// วันสุดท้ายที่ระบบรับจอง ในรูปแบบ YYYY-MM-DD
+const maxBookingDate = () => localDate(dateAfter(MAX_ADVANCE_DAYS));
+
 // วันที่ของวันนี้ + n วัน
 function dateAfter(days) {
   const d = new Date();
