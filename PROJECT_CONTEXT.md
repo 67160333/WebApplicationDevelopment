@@ -51,33 +51,11 @@ docker compose up -d --build
 > ตัว `web` ไม่ขึ้นด้วย (เพราะ `web` เป็นฝ่ายพึ่ง `api` ไม่ใช่ทางกลับกัน)
 > ถ้าพอร์ต 3000 ไม่ตอบ ให้รัน `docker compose up -d` เฉย ๆ ไม่ต้องระบุ service
 
-### ชื่อโฟลเดอร์ — เปลี่ยนเป็น `bookvice` แล้ว (19 ส.ค. 2026)
+### ชื่อโฟลเดอร์ต้องเป็น `bookvice`
 
 ชื่อโฟลเดอร์กลายเป็นชื่อ project ของ Docker Compose ซึ่งกลายเป็นชื่อนำหน้า volume/image/network อีกที
-ตอนที่ยังชื่อ `glowgo-fastapi` จึงมี `glowgo-fastapi-api` และ `glowgo-fastapi_db_data` โผล่ใน `docker images`
-ทั้งที่เปลี่ยนแบรนด์ไปแล้ว
-
-ขั้นตอนที่ใช้ (บันทึกไว้เผื่อต้องทำซ้ำ หรือย้ายเครื่อง):
-
-```powershell
-cd "C:\Users\Prame\Claude\Projects\WORK WEBSITE UNIVERSITY\glowgo-fastapi"
-docker compose down
-cd ..
-Rename-Item "glowgo-fastapi" "bookvice"
-cd bookvice
-docker compose up -d --build
-```
-
-**ผลข้างเคียงที่ต้องรู้** — Compose มองว่าเป็นคนละโปรเจกต์ จึงสร้าง volume ใหม่ทั้งคู่
+**ถ้าย้ายเครื่องหรือเปลี่ยนชื่อโฟลเดอร์ Compose จะมองว่าเป็นคนละโปรเจกต์ แล้วสร้าง volume ใหม่ทั้งชุด**
 ฐานข้อมูลสร้างเองอัตโนมัติจาก seed ภายในไม่กี่วินาที **แต่รูปที่เคยอัปโหลดเองจะค้างอยู่ใน volume เก่า**
-ถ้ายังต้องการรูปเหล่านั้น ต้องกู้ก่อนลบ
-
-เก็บกวาดของเก่าหลังยืนยันว่าเว็บใหม่ทำงานปกติแล้ว:
-
-```powershell
-docker volume rm glowgo-fastapi_db_data glowgo-fastapi_uploads_data
-docker image rm glowgo-fastapi-api
-```
 
 > `container_name` ทั้ง 4 ตัวถูกกำหนดไว้ตรง ๆ ใน `docker-compose.yml` ว่า `bookvice-*` อยู่แล้ว
 > ชื่อ container จึงไม่เปลี่ยนตามชื่อโฟลเดอร์ มีแต่ image/volume/network ที่เปลี่ยน
@@ -433,7 +411,7 @@ Backend ส่งค่านี้มากับ `ShopOut.resource_label` แ�
 
 - บั๊กความจุ #4 — คลินิกวันที่หมอหยุด รับได้ **1 คิว** ตามจำนวนคนที่เข้างานจริง ✓
 - บั๊กลบร้าน #11 — ลบร้านที่มีคิวผูกอยู่ 9 รายการได้แล้ว ✓
-- โหมด Hugging Face — รันคอนเทนเนอร์เดียวที่พอร์ต 7860 ได้ log ขึ้น `เสิร์ฟหน้าเว็บจาก /app/web` ✓
+- โหมดคอนเทนเนอร์เดียว (`SERVE_WEB=true`) — log ขึ้น `เสิร์ฟหน้าเว็บจาก /app/web` ✓
 - เปลี่ยนแบรนด์เป็น Bookvice ครบ 52 จุด · ฟอนต์ FC Mittraphap · โลโก้ใหม่ · favicon ใหม่ ✓
 
 ### 6.2 ยังไม่ได้ทำ
@@ -534,32 +512,53 @@ Backend ส่งค่านี้มากับ `ShopOut.resource_label` แ�
 | ไฟล์ | เนื้อหา |
 |---|---|
 | `PROJECT_CONTEXT.md` | ไฟล์นี้ — สถานะปัจจุบันทั้งหมด |
-| `README.md` | อ่านก่อนใช้งานในเครื่อง |
-| `README_HF.md` | หน้าแรกของ Hugging Face Space (เปลี่ยนชื่อเป็น `README.md` ตอนอัป) |
-| `DEPLOY_HUGGINGFACE.md` | คู่มือ deploy ทีละขั้น |
+| `README.md` | อ่านก่อนใช้งานในเครื่อง · รายการ API ครบ 56 เส้น |
+| `DEPLOY_RENDER.md` | คู่มือนำขึ้น Render + Neon ทีละขั้น |
+| `DEMO_GUIDE.md` | คู่มือซ้อมนำเสนอ · แผนสำรองถ้า Docker ไม่ขึ้น |
+| `TEST_CHECKLIST.md` | รายการทดสอบทุกรอบ พร้อมผลที่รันไปแล้ว |
 
 ---
 
-## 8.5 การนำขึ้นเว็บสาธารณะ (Hugging Face)
+## 8.5 การนำขึ้นเว็บสาธารณะ — ใช้ Render
 
-ไฟล์ที่เกี่ยวข้อง — **ทั้งหมดแยกจากของเดิม ไม่กระทบงานส่งอาจารย์**
+**เว็บจริงอยู่ที่ https://bookvice.onrender.com** · ฐานข้อมูลอยู่บน Neon
+คู่มือทีละขั้นอยู่ใน `DEPLOY_RENDER.md`
 
-| ไฟล์ | ใช้ทำอะไร |
+> **เคยเตรียมขึ้น Hugging Face ไว้ แต่เลิกใช้แล้วเมื่อ 20 ส.ค. 2026**
+> เพราะ Docker Space ไม่ฟรีสำหรับงานแบบนี้อีกต่อไป
+> เอกสาร `DEPLOY_HUGGINGFACE.md` และ `README_HF.md` ถูกลบทิ้งเมื่อ 22 ส.ค. 2026
+
+### ⚠️ ชื่อไฟล์ที่ทำให้เข้าใจผิดได้ง่ายที่สุดในโปรเจกต์
+
+**`Dockerfile.hf` คือไฟล์ที่ Render ใช้ build จริง — ห้ามลบ**
+
+ชื่อยังติด `.hf` มาจากตอนที่ตั้งใจจะขึ้น Hugging Face แต่ตอนเปลี่ยนมาใช้ Render
+ก็ใช้ไฟล์เดิมได้เลยเพราะโครงเหมือนกัน (คอนเทนเนอร์เดียว อ่านพอร์ตจากตัวแปรแวดล้อม)
+
+| ไฟล์ | ใครใช้ |
 |---|---|
-| `Dockerfile.hf` | รวม api + web เป็นคอนเทนเนอร์เดียว พอร์ต 7860 |
-| `README_HF.md` | หน้าแรกของ Space (ต้องเปลี่ยนชื่อเป็น `README.md` ตอนอัป) |
-| `DEPLOY_HUGGINGFACE.md` | คู่มือทีละขั้น รวมวิธีตั้ง Neon และแก้ปัญหาที่พบบ่อย |
+| `Dockerfile` | `docker-compose.yml` ตอนรันในเครื่อง |
+| **`Dockerfile.hf`** | **Render** — ตั้งไว้ที่ Settings → Dockerfile Path = `./Dockerfile.hf` |
+
+ถ้าจะเปลี่ยนชื่อเป็น `Dockerfile.render` ให้ตรงความจริง
+**ต้องไปแก้ค่าใน Render Settings ด้วยในคราวเดียวกัน ไม่งั้น deploy ครั้งถัดไปพัง**
 
 **สวิตช์ 2 ตัวใน `config.py`** — ปิดอยู่โดยค่าเริ่มต้น จึงไม่กระทบ compose
 
-| ตัวแปร | ค่าเริ่มต้น | ตั้งเป็นอะไรบน Space |
+| ตัวแปร | ค่าเริ่มต้น | ตั้งเป็นอะไรบน Render |
 |---|---|---|
 | `SERVE_WEB` | `false` | `true` — ให้ FastAPI เสิร์ฟหน้าเว็บเอง |
-| `UPLOAD_DIR` | `/app/uploads` | `/tmp/uploads` — Space เขียน `/app` ไม่ได้ |
+| `UPLOAD_DIR` | `/app/uploads` | `/tmp/uploads` — เขียน `/app` ไม่ได้ |
 
 `web/js/api.js` ตรวจพอร์ตเอง — **พอร์ต 3000 เรียก `:8000` · พอร์ตอื่นเรียก same-origin**
 
-**ต้องตั้ง `ADMIN_PASSWORD` เป็น Space secret เสมอ** ไม่งั้นระบบจะสุ่มให้แล้วพิมพ์ลง log ครั้งเดียว
+### สิ่งที่ตรวจพบบน Render เมื่อ 22 ส.ค. 2026 — ยังไม่ได้แก้
+
+| เรื่อง | อาการ |
+|---|---|
+| **Auto-Deploy ไม่ทำงาน** | ตั้งเป็น "On Commit" แล้วแต่ webhook ไม่เคยยิง · Events มีแค่ deploy แรกวันที่ 21 ส.ค. · **ตอนนี้ต้องกด Manual Deploy → Deploy latest commit เองทุกครั้งที่ push** |
+| **ไม่มี `ADMIN_PASSWORD`** | Environment มี 5 ตัว (`DATABASE_URL` · `JWT_SECRET` · `SEED_ON_START` · `SERVE_WEB` · `UPLOAD_DIR`) ขาดตัวนี้ ระบบจึงสุ่มรหัสแล้วพิมพ์ลง log ครั้งเดียว **แปลว่าเข้าบัญชี admin บนเว็บจริงไม่ได้** |
+| เซิร์ฟเวอร์หลับ | แผนฟรีหลับเมื่อไม่มีคนใช้ 15 นาที ปลุกใหม่ราว 50 วินาที · **เปิดลิงก์ทิ้งไว้ก่อนนำเสนอ** |
 
 ---
 
@@ -634,8 +633,10 @@ const J = (t,m,b) => ({
 
 ### พร้อมทำได้ทันทีถ้าผู้ใช้สั่ง
 
-**4. Deploy ขึ้น Hugging Face** — ไฟล์พร้อมหมดแล้ว ทำตาม `DEPLOY_HUGGINGFACE.md`
-เหลือแค่สมัคร Neon เอา connection string มาใส่เป็น Space secret
+**4. เปิด Auto-Deploy ของ Render ให้ทำงาน** — ตอนนี้ตั้งเป็น "On Commit" แล้วแต่ webhook ไม่ยิง
+ทุกครั้งที่ push ต้องเข้าไปกด Manual Deploy เอง · แก้ถาวรได้ที่ Settings → Source → Edit แล้วเชื่อม GitHub ใหม่
+
+**5. เพิ่ม `ADMIN_PASSWORD` ใน Render Environment** — ตอนนี้ไม่มี ทำให้เข้าบัญชี admin บนเว็บจริงไม่ได้
 
 ---
 

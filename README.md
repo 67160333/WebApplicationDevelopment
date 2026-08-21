@@ -265,7 +265,7 @@ HTML + CSS + JavaScript ล้วน — **ไม่ต้อง build ไม่
 bookvice/
 ├── docker-compose.yml      # 4 service: api · db · web · pgadmin
 ├── Dockerfile              # image ของ API
-├── Dockerfile.hf           # สำหรับ deploy บน Hugging Face (container เดียว)
+├── Dockerfile.hf           # ที่ Render ใช้ build (container เดียว) — ห้ามลบ
 ├── requirements.txt
 ├── .env.example
 ├── app/
@@ -560,8 +560,7 @@ uvicorn app.main:app --reload
 | `TEST_CHECKLIST.md` | รายการทดสอบ พร้อมสคริปต์ยิง API จาก console |
 | `tests/test_booking_payment.py` | ชุดทดสอบอัตโนมัติ 46 ข้อ — ยิงคำขอเข้า API จริงบนฐานข้อมูลชั่วคราว |
 | `DEPLOY_RENDER.md` | คู่มือนำขึ้นเว็บสาธารณะด้วย Render + Neon (ตัวที่ใช้จริง) |
-| `DEPLOY_HUGGINGFACE.md` | คู่มือเดิม — Hugging Face ไม่ฟรีแล้วสำหรับ Docker Space |
-| `README_HF.md` | หน้าแรกของ Hugging Face Space (เปลี่ยนชื่อเป็น `README.md` ตอนอัป) |
+| `DEMO_GUIDE.md` | คู่มือซ้อมนำเสนอ |
 
 ### รันชุดทดสอบ
 
