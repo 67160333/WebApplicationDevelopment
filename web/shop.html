@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608270910" />
+  <link rel="stylesheet" href="css/app.css?v=202608220106" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -165,8 +165,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202608270910"></script>
-  <script src="js/ui.js?v=202608270910"></script>
+  <script src="js/api.js?v=202608220106"></script>
+  <script src="js/ui.js?v=202608220106"></script>
   <script>
     renderNavbar("shops");
     renderFooter();
@@ -183,6 +183,11 @@
     // RES_RAW เก็บค่าดิบไว้สำหรับการเปรียบเทียบ (เช่นเช็กว่าเป็น "ช่าง" ไหม)
     let RES = "ช่าง";
     let RES_RAW = "ช่าง";
+    // คำในช่องเลือก "ไม่เจาะจง" — คำว่า "ใครก็ได้" ใช้ได้เฉพาะกับคน
+    // คอร์ท ห้อง และช่องบริการ ต้องใช้ "คอร์ทไหนก็ได้" ไม่งั้นอ่านแล้วสะดุด
+    let ANY_RES = "ใครก็ได้";
+    let ALL_RES = "ทุกคน";
+    const PERSON_LABELS = ["ช่าง", "ช่างสัก", "แพทย์", "แพทย์/ผู้ดูแล", "พนักงานส่ง"];
     // ร้านนี้เป็นบริการแบบเรียกใช้ทันทีหรือไม่ (ส่งของด่วน = ไม่มีปฏิทิน)
     let INSTANT = false;
 
@@ -228,6 +233,10 @@
         shopData = shop;
         RES_RAW = shop.resource_label || "ช่าง";
         RES = esc(RES_RAW);
+        // สิ่งของใช้ "คอร์ทไหนก็ได้" / "ทุกคอร์ท" · คนใช้ "ใครก็ได้" / "ทุกคน"
+        const isPerson = PERSON_LABELS.includes(RES_RAW);
+        ANY_RES = isPerson ? "ใครก็ได้" : `${RES}ไหนก็ได้`;
+        ALL_RES = isPerson ? "ทุกคน" : `ทุก${RES}`;
         INSTANT = (shop.services || []).some((x) => x.is_active && x.booking_mode === "instant");
 
         const active = (shop.services || []).filter((x) => x.is_active);
@@ -418,7 +427,7 @@
                   <label class="staff-pick">
                     <span class="text-muted">${RES}</span>
                     <select id="staffSelect" class="select select-inline">
-                      <option value="">ใครก็ได้</option>
+                      <option value="">${ANY_RES}</option>
                       ${staff.map((st) => `
                         <option value="${st.id}">
                           ${esc(st.name)}${st.rating_count ? ` · ${Number(st.rating_avg).toFixed(1)} ดาว` : ""}
@@ -1141,7 +1150,7 @@
           <label class="rv-pick">
             <span class="text-muted">${RES}</span>
             <select id="rvStaff" class="select select-inline">
-              <option value="">ทุกคน</option>
+              <option value="">${ALL_RES}</option>
               ${staff.map((st) => `<option value="${st.id}">${esc(st.name)}</option>`).join("")}
             </select>
           </label>` : ""}

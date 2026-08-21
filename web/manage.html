@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608270910" />
+  <link rel="stylesheet" href="css/app.css?v=202608220106" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -189,8 +189,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202608270910"></script>
-  <script src="js/ui.js?v=202608270910"></script>
+  <script src="js/api.js?v=202608220106"></script>
+  <script src="js/ui.js?v=202608220106"></script>
   <script>
     renderNavbar("manage");
     renderFooter();
@@ -212,7 +212,7 @@
     const RES_RAW = () => (shop && shop.resource_label) || "ช่าง";
     const RES = () => esc(RES_RAW());
     // ทรัพยากรบางประเภทเป็น "สิ่งของ" ไม่ใช่ "คน" คำลักษณนามจึงต่างกัน
-    const isPerson = () => ["ช่าง", "ช่างสัก", "แพทย์/ผู้ดูแล", "พนักงานส่ง"].includes(RES_RAW());
+    const isPerson = () => ["ช่าง", "ช่างสัก", "แพทย์", "แพทย์/ผู้ดูแล", "พนักงานส่ง"].includes(RES_RAW());
     const unit = () => (isPerson() ? "คน" : "แห่ง");
 
     // ต้องเป็นเจ้าของร้านหรือผู้ดูแลระบบเท่านั้น
