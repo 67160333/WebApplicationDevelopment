@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608220106" />
+  <link rel="stylesheet" href="css/app.css?v=202608221056" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -165,8 +165,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202608220106"></script>
-  <script src="js/ui.js?v=202608220106"></script>
+  <script src="js/api.js?v=202608221056"></script>
+  <script src="js/ui.js?v=202608221056"></script>
   <script>
     renderNavbar("shops");
     renderFooter();
@@ -188,8 +188,12 @@
     let ANY_RES = "ใครก็ได้";
     let ALL_RES = "ทุกคน";
     const PERSON_LABELS = ["ช่าง", "ช่างสัก", "แพทย์", "แพทย์/ผู้ดูแล", "พนักงานส่ง"];
-    // ร้านนี้เป็นบริการแบบเรียกใช้ทันทีหรือไม่ (ส่งของด่วน = ไม่มีปฏิทิน)
+    // ร้านนี้เป็นบริการแบบเรียกใช้ทันทีหรือไม่ (ไม่มีปฏิทินให้เลือก)
     let INSTANT = false;
+    // เป็นบริการ "ขนของ" หรือ "คนเดินทางมาหา"
+    // ส่งของต้องรู้ทั้งต้นทางและปลายทาง ส่วนบริการถึงที่รู้แค่ปลายทางก็พอ
+    // เพราะคนออกเดินทางจากร้านอยู่แล้ว
+    let IS_COURIER = false;
 
     // แถบวันที่แสดงกี่วัน (รวมวันนี้)
     // ไม่เกินเพดานที่เซิร์ฟเวอร์รับ (MAX_ADVANCE_DAYS) — Math.min กันไว้เผื่อวันหลัง
@@ -238,6 +242,8 @@
         ANY_RES = isPerson ? "ใครก็ได้" : `${RES}ไหนก็ได้`;
         ALL_RES = isPerson ? "ทุกคน" : `ทุก${RES}`;
         INSTANT = (shop.services || []).some((x) => x.is_active && x.booking_mode === "instant");
+        // ดูจากรหัสหมวด ไม่ใช่จากคำเรียกทรัพยากร เพราะคำเรียกเปลี่ยนได้จากหน้าแอดมิน
+        IS_COURIER = shop.category_slug === "delivery";
 
         const active = (shop.services || []).filter((x) => x.is_active);
         state.serviceId = active.length ? active[0].id : null;
@@ -322,7 +328,12 @@
           </div>
         </div>
 
-        <!-- ---------- เรียกใช้บริการทันที (ส่งของด่วน) ---------- -->
+        <!-- ---------- เรียกใช้บริการทันที ----------
+             ใช้ได้ 2 แบบ ต่างกันที่จำนวนที่อยู่ที่ต้องกรอก
+               ส่งของด่วน  = ต้นทาง + ปลายทาง (ของเดินทางจาก A ไป B)
+               บริการถึงที่ = ปลายทางอย่างเดียว (คนเดินทางจากร้านไปหาลูกค้า)
+             เดิมหน้านี้เขียนไว้สำหรับส่งของอย่างเดียว พอเพิ่มตัดผมนอกสถานที่
+             ป้ายกำกับจึงผิดหมด เช่นถามว่า "รับของที่" ทั้งที่ไม่มีของให้รับ -->
         ${INSTANT ? `
         <section class="mt-10 reveal">
           <h2 class="h2">เรียกใช้บริการ</h2>
@@ -331,8 +342,8 @@
           <div class="card card-pad mt-5">
             <div id="delAlert" class="alert" style="display:none;margin-bottom:16px"></div>
 
-            <label class="label">เลือกประเภทการส่ง</label>
-            <div class="svc-list mt-2" id="delSvc">
+            <label class="label">${IS_COURIER ? "เลือกประเภทการส่ง" : "เลือกบริการ"}</label>
+            <div class="svc-grid mt-2" id="delSvc">
               ${active.map((sv, i) => `
                 <button type="button" class="svc ${i === 0 ? "is-active" : ""}" data-dsvc="${sv.id}"
                         aria-pressed="${i === 0}">
@@ -342,6 +353,7 @@
                 </button>`).join("")}
             </div>
 
+            ${IS_COURIER ? `
             <div class="grid sm:grid-cols-2 gap-4 mt-5">
               <div>
                 <label class="label" for="dFrom">รับของที่</label>
@@ -353,7 +365,15 @@
                 <input id="dTo" class="input" maxlength="300"
                        placeholder="เช่น คอนโดบี ถนนพระราม 9" />
               </div>
-            </div>
+            </div>` : `
+            <div class="mt-5">
+              <label class="label" for="dTo">ให้${RES}ไปที่ไหน</label>
+              <input id="dTo" class="input" maxlength="300"
+                     placeholder="เช่น คอนโดบี ชั้น 8 ห้อง 812 ถนนพระราม 9" />
+              <p class="hint" style="margin-top:6px">
+                ${RES}จะออกเดินทางจาก${esc(shop.district ? "เขต" + shop.district : "ศูนย์ให้บริการ")}ไปหาคุณ
+              </p>
+            </div>`}
 
             <div class="grid sm:grid-cols-2 gap-4 mt-4">
               <div>
@@ -362,8 +382,12 @@
                        value="5" />
               </div>
               <div>
-                <label class="label" for="dNote">ของที่ส่ง <span class="text-muted" style="font-weight:400">(ไม่บังคับ)</span></label>
-                <input id="dNote" class="input" maxlength="500" placeholder="เช่น เอกสาร 1 ซอง" />
+                <label class="label" for="dNote">
+                  ${IS_COURIER ? "ของที่ส่ง" : "รายละเอียดเพิ่มเติม"}
+                  <span class="text-muted" style="font-weight:400">(ไม่บังคับ)</span>
+                </label>
+                <input id="dNote" class="input" maxlength="500"
+                       placeholder="${IS_COURIER ? "เช่น เอกสาร 1 ซอง" : "เช่น ตัดรองทรงสูง ไม่เอาสั้นมาก"}" />
               </div>
             </div>
 
@@ -379,7 +403,7 @@
               ${icon("navigate", 15)} เรียกใช้บริการตอนนี้
             </button>
             <p class="hint text-center" style="margin-top:8px">
-              กดแล้วระบบจะจ่ายงานให้พนักงานส่งทันที และยืนยันงานให้อัตโนมัติ
+              กดแล้วระบบจะจ่ายงานให้${RES}ทันที และยืนยันงานให้อัตโนมัติ
             </p>
           </div>
         </section>` : ""}
@@ -539,13 +563,23 @@
       recalc();
 
       document.getElementById("dGo").addEventListener("click", async () => {
-        const from = document.getElementById("dFrom").value.trim();
         const to = document.getElementById("dTo").value.trim();
         const km = Number(kmInput.value);
+        // บริการถึงที่ไม่มีช่องต้นทางให้กรอก เพราะคนออกเดินทางจากร้าน
+        // เซิร์ฟเวอร์ยังบังคับให้มี pickup_address จึงเติมที่อยู่ร้านให้แทน
+        const fromEl = document.getElementById("dFrom");
+        const shopBase = [shopData.address, shopData.district].filter(Boolean).join(" ")
+                         || `ศูนย์ให้บริการ ${shopData.name}`;
+        const from = fromEl ? fromEl.value.trim() : shopBase;
 
         hideAlert(alertBox);
-        if (from.length < 5 || to.length < 5) {
-          return showAlert(alertBox, "กรุณากรอกที่อยู่ต้นทางและปลายทางให้ครบ อย่างน้อย 5 ตัวอักษร");
+        if (to.length < 5) {
+          return showAlert(alertBox, IS_COURIER
+            ? "กรุณากรอกที่อยู่ต้นทางและปลายทางให้ครบ อย่างน้อย 5 ตัวอักษร"
+            : "กรุณากรอกที่อยู่ที่จะให้ไปหา อย่างน้อย 5 ตัวอักษร");
+        }
+        if (fromEl && from.length < 5) {
+          return showAlert(alertBox, "กรุณากรอกที่อยู่ต้นทาง อย่างน้อย 5 ตัวอักษร");
         }
         if (!Number.isFinite(km) || km <= 0 || km > 200) {
           return showAlert(alertBox, "ระยะทางต้องอยู่ระหว่าง 0.5 ถึง 200 กิโลเมตร");

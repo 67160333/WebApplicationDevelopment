@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608220106" />
+  <link rel="stylesheet" href="css/app.css?v=202608221056" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -197,8 +197,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202608220106"></script>
-  <script src="js/ui.js?v=202608220106"></script>
+  <script src="js/api.js?v=202608221056"></script>
+  <script src="js/ui.js?v=202608221056"></script>
   <script>
     renderNavbar("bookings");
     renderFooter();
@@ -215,6 +215,10 @@
     // คำเรียกทรัพยากรที่จองได้ ต่างกันตามประเภทร้าน
     // หน้านี้แสดงการจองจากหลายร้านพร้อมกัน จึงต้องดูเป็นรายการ ไม่ใช่ค่าเดียวทั้งหน้า
     const resOf = (shopId) => (shops[shopId] && shops[shopId].resource_label) || "ช่าง";
+    // บริการเรียกใช้ทันทีมี 2 แบบ ป้ายกำกับที่อยู่ต่างกัน
+    //   ส่งของด่วน   → "รับที่" / "ส่งที่"   (ของเดินทางจาก A ไป B)
+    //   บริการถึงที่ → "ออกจาก" / "ไปที่"   (คนเดินทางจากร้านไปหาลูกค้า)
+    const isCourier = (shopId) => (shops[shopId] || {}).category_slug === "delivery";
 
     const shopOf = (id) => shops[id] || null;
     const nameOf = (id) => (shops[id] ? shops[id].name : "—");
@@ -383,8 +387,9 @@
       // ยกเลิกแล้วจ่ายไม่ได้ และจ่ายครบแล้วก็ไม่ต้องมีปุ่มอีก
       const canPay = b.status !== "cancelled" && b.payment_state !== "paid";
       const plan = payPlan(b);
-      // งานส่งของด่วนออกรถทันที จึงเลื่อนนัดไม่ได้ — มีแต่ยกเลิก
-      const isDelivery = !!(b.pickup_address || b.dropoff_address);
+      // งานเรียกใช้ทันทีออกเดินทางแล้ว จึงเลื่อนนัดไม่ได้ — มีแต่ยกเลิก
+      const isInstant = !!(b.pickup_address || b.dropoff_address);
+      const courier = isCourier(b.shop_id);
       const svName = serviceOf(b);
       const stName = staffOf(b);
 
@@ -422,18 +427,18 @@
               </div>
               <div class="flex items-center gap-2 text-sm">
                 <span class="text-muted">${icon("user", 14)}</span>
-                <span>${esc(stName || (isDelivery ? "ระบบจัดพนักงานให้" : `${resOf(b.shop_id)}ไหนก็ได้`))}</span>
+                <span>${esc(stName || (isInstant ? `ระบบจัด${resOf(b.shop_id)}ให้` : `${resOf(b.shop_id)}ไหนก็ได้`))}</span>
               </div>
             </dl>
 
-            ${isDelivery ? `
+            ${isInstant ? `
               <div class="mt-3 pt-3 text-sm space-y-1.5" style="border-top:1px solid var(--border)">
                 <div class="flex gap-2">
-                  <span class="text-muted" style="min-width:64px">รับที่</span>
+                  <span class="text-muted" style="min-width:64px">${courier ? "รับที่" : "ออกจาก"}</span>
                   <span>${esc(b.pickup_address || "—")}</span>
                 </div>
                 <div class="flex gap-2">
-                  <span class="text-muted" style="min-width:64px">ส่งที่</span>
+                  <span class="text-muted" style="min-width:64px">${courier ? "ส่งที่" : "ไปที่"}</span>
                   <span>${esc(b.dropoff_address || "—")}</span>
                 </div>
                 <div class="flex gap-2">
@@ -473,7 +478,7 @@
             ${canCancel || canReview || canRebook ? `
               <div class="flex gap-2 mt-4 pt-4 flex-wrap" style="border-top:1px solid var(--border)">
                 ${canReview ? `<button data-review="${b.id}" data-shop="${esc(nameOf(b.shop_id))}" class="btn btn-primary btn-sm">${icon("star", 14)} เขียนรีวิว</button>` : ""}
-                ${canCancel && !isDelivery ? `<button data-move="${b.id}" class="btn btn-outline btn-sm">เลื่อนนัด</button>` : ""}
+                ${canCancel && !isInstant ? `<button data-move="${b.id}" class="btn btn-outline btn-sm">เลื่อนนัด</button>` : ""}
                 <button data-print="${b.id}" class="btn btn-ghost btn-sm" aria-label="พิมพ์สลิปการจอง ${esc(b.booking_code)}">${icon("printer", 14)} พิมพ์สลิป</button>
                 ${b.payment_state !== "unpaid" ? `<button data-receipt="${b.id}" class="btn btn-ghost btn-sm">${icon("receipt", 14)} ใบเสร็จ</button>` : ""}
                 ${canRebook ? `<a href="shop.html?id=${b.shop_id}" class="btn btn-outline btn-sm">จองอีกครั้ง</a>` : ""}
