@@ -19,7 +19,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608221323" />
+  <link rel="stylesheet" href="css/app.css?v=202608221339" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -73,11 +73,12 @@
     <section class="reveal">
       <div class="section-head">
         <div>
-          <h2>เลือกตามประเภทบริการ</h2>
-          <p class="lede">ร้านความงาม สนามกีฬา และบริการส่งของด่วน รวมไว้ที่เดียว</p>
+          <h2>วันนี้มาทำอะไร</h2>
+          <p class="lede">แต่ละกลุ่มจองคนละแบบ เลือกกลุ่มก่อนแล้วหน้าจะเปลี่ยนตาม</p>
         </div>
       </div>
-      <div id="categories" class="cat-row"></div>
+      <div id="groupRow" class="group-row"></div>
+      <div id="categories" class="cat-row mt-6"></div>
     </section>
 
     <!-- ========== ร้านแนะนำ ========== -->
@@ -124,8 +125,8 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202608221323"></script>
-  <script src="js/ui.js?v=202608221323"></script>
+  <script src="js/api.js?v=202608221339"></script>
+  <script src="js/ui.js?v=202608221339"></script>
   <script>
     renderNavbar("home");
     renderFooter();
@@ -212,11 +213,38 @@
         const sel = document.getElementById("sCat");
         cats.forEach((c) => sel.add(new Option(c.name, c.id)));
 
-        box.innerHTML = cats.map((c) => `
-          <a href="shops.html?category_id=${c.id}" class="cat-item">
-            <span class="ic">${icon(CATEGORY_ICON[c.slug] || "sparkle", 18)}</span>
-            <span class="nm">${esc(c.name)}</span>
-          </a>`).join("");
+        // การ์ดกลุ่มใหญ่ — ทางเข้าหลัก บอกด้วยว่าแต่ละกลุ่มจองแบบไหน
+        const gbox = document.getElementById("groupRow");
+        if (gbox) {
+          gbox.innerHTML = GROUPS.map((g) => {
+            const n = cats.filter((c) => (c.group_key || "care") === g.key).length;
+            return `
+              <a href="shops.html?group=${g.key}" class="group-card">
+                <span class="gc-ic">${icon(g.icon, 22)}</span>
+                <span class="gc-name">${esc(g.name)}</span>
+                <span class="gc-tag">${esc(g.tagline)}</span>
+                <span class="gc-detail">${esc(g.detail)}</span>
+                <span class="gc-count num">${n} ประเภท</span>
+              </a>`;
+          }).join("");
+        }
+
+        // หมวดย่อยยังมีอยู่ แต่จัดกลุ่มให้เห็นว่าอันไหนอยู่กลุ่มไหน
+        box.innerHTML = GROUPS.map((g) => {
+          const mine = cats.filter((c) => (c.group_key || "care") === g.key);
+          if (!mine.length) return "";
+          return `
+            <div class="cat-group">
+              <div class="cat-group-head">${esc(g.name)}</div>
+              <div class="cat-group-items">
+                ${mine.map((c) => `
+                  <a href="shops.html?category_id=${c.id}" class="cat-item">
+                    <span class="ic">${icon(CATEGORY_ICON[c.slug] || "sparkle", 18)}</span>
+                    <span class="nm">${esc(c.name)}</span>
+                  </a>`).join("")}
+              </div>
+            </div>`;
+        }).join("");
       } catch (err) {
         box.innerHTML = `
           <div class="card card-pad text-center" style="grid-column:1/-1">

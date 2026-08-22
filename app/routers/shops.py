@@ -68,17 +68,24 @@ def _label_map(db: Session) -> dict[int, tuple[str, str]]:
     }
 
 
+def _group_map(db: Session) -> dict[int, str]:
+    """หมวดหมู่ -> กลุ่มใหญ่ ใช้เติมให้ ShopOut และใช้กรองตอนค้นหา"""
+    return {c.id: (c.group_key or "care") for c in db.scalars(select(Category)).all()}
+
+
 def _to_out(
     db: Session, rows: list[Shop], distances: dict[int, float] | None = None
 ) -> list[ShopOut]:
     """แปลง Shop เป็น ShopOut พร้อมเติมรูปปก ระยะทาง และคำเรียกทรัพยากร"""
     covers = _cover_map(db, [s.id for s in rows])
     labels = _label_map(db)
+    groups = _group_map(db)
     out: list[ShopOut] = []
     for shop in rows:
         item = ShopOut.model_validate(shop)
         item.cover_url = covers.get(shop.id)
         item.resource_label, item.category_slug = labels.get(shop.category_id, ("ช่าง", None))
+        item.group_key = groups.get(shop.category_id, "care")
         if distances is not None:
             item.distance_km = distances.get(shop.id)
         out.append(item)
@@ -173,6 +180,13 @@ def list_shops(
     limit: int = Query(10, ge=1, le=100),
     search: str | None = Query(None, description="ค้นหาจากชื่อร้านหรือคำอธิบาย"),
     category_id: int | None = Query(None, ge=1),
+    group: str | None = Query(
+        None,
+        description=(
+            "กรองตามกลุ่มใหญ่ — care / play / auto / come "
+            "ใช้แยกทางเข้าในหน้าเว็บ จะได้ไม่เอาสปากับสนามบอลมาปนกันในลิสต์เดียว"
+        ),
+    ),
     district: str | None = Query(None, description="เขต/อำเภอ"),
     min_rating: float | None = Query(None, ge=0, le=5, description="คะแนนขั้นต่ำ"),
     certified: bool | None = Query(None, description="เฉพาะร้านที่ผ่านการรับรองความสะอาด"),
@@ -202,6 +216,14 @@ def list_shops(
         stmt = stmt.where(or_(Shop.name.ilike(kw), Shop.description.ilike(kw)))
     if category_id:
         stmt = stmt.where(Shop.category_id == category_id)
+    if group:
+        # กรองด้วย subquery แทนการ join เพราะ join จะไปกระทบเส้นทาง "ใกล้ฉัน"
+        # ที่ต่อ add_columns กับ order_by ระยะทางอยู่ ทำให้ผลลัพธ์เพี้ยน
+        stmt = stmt.where(
+            Shop.category_id.in_(
+                select(Category.id).where(Category.group_key == group)
+            )
+        )
     if district:
         stmt = stmt.where(Shop.district == district)
     if min_rating is not None:

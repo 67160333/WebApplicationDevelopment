@@ -53,6 +53,8 @@ COLUMNS: list[tuple[str, str, str]] = [
     ("bookings", "open_slots",  "INTEGER NOT NULL DEFAULT 0"),
     ("bookings", "share_price", "NUMERIC(10,2) NOT NULL DEFAULT 0.00"),
     ("bookings", "match_note",  "VARCHAR(300)"),
+    # กลุ่มใหญ่ของหมวด ใช้แยกทางเข้าในหน้าเว็บ — seed เป็นคนเติมค่าจริงให้
+    ("categories", "group_key", "VARCHAR(10) NOT NULL DEFAULT 'care'"),
 ]
 
 # ---------- กุญแจนอกและดัชนี : (ชื่อ, คำสั่งสร้าง) ----------

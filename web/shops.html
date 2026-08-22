@@ -18,14 +18,15 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608221323" />
+  <link rel="stylesheet" href="css/app.css?v=202608221339" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
   <div id="navbar"></div>
 
   <main id="main" class="max-w-6xl mx-auto px-5 py-12">
-    <h1 class="h1">ร้านและผู้ให้บริการ</h1>
+    <h1 class="h1" id="pageTitle">ร้านและผู้ให้บริการ</h1>
+    <div id="groupBanner"></div>
 
     <!-- ตัวกรอง — เห็นแค่ช่องค้นหากับปุ่มลัด ที่เหลือพับไว้ -->
     <div class="card card-pad mt-6">
@@ -89,10 +90,70 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202608221323"></script>
-  <script src="js/ui.js?v=202608221323"></script>
+  <script src="js/api.js?v=202608221339"></script>
+  <script src="js/ui.js?v=202608221339"></script>
   <script>
-    renderNavbar("shops");
+    renderNavbar(groupKey ? "g:" + groupKey : "shops");
+
+    // ================= แถบบอกว่ากำลังดูกลุ่มไหน =================
+    // ผู้ใช้ต้องรู้ตลอดว่าตัวเองอยู่ตรงไหน และสลับไปกลุ่มอื่นได้ในคลิกเดียว
+    // ไม่ใช่ต้องกดย้อนกลับไปหน้าแรกก่อน
+    function renderGroupBanner() {
+      const box = document.getElementById("groupBanner");
+      const g = GROUP_BY_KEY[groupKey];
+      if (!box) return;
+      if (!g) { box.innerHTML = ""; return; }
+
+      document.getElementById("pageTitle").textContent = g.name;
+      document.title = `${g.name} — Bookvice`;
+      box.innerHTML = `
+        <div class="group-banner">
+          <span class="gb-ic">${icon(g.icon, 20)}</span>
+          <div>
+            <div class="gb-name">${esc(g.tagline)}</div>
+            <div class="gb-sub">${esc(g.detail)}</div>
+          </div>
+          <div class="gb-switch">
+            ${GROUPS.filter((x) => x.key !== g.key).map((x) =>
+              `<a href="shops.html?group=${x.key}" class="btn btn-ghost btn-sm">${esc(x.name)}</a>`
+            ).join("")}
+          </div>
+        </div>`;
+    }
+    renderGroupBanner();
+
+    // ================= ตัวกรองเปลี่ยนตามกลุ่ม =================
+    // ปัญหาเดิม: ทุกกลุ่มใช้ตัวกรองชุดเดียวกัน
+    // คนหาสนามบอลเจอ "เฉพาะร้านที่ผ่านการรับรองมาตรฐานความสะอาด" ซึ่งไม่เกี่ยวเลย
+    // ส่วนคนเรียกช่างมาบ้านเจอปุ่ม "ว่างพรุ่งนี้" ทั้งที่บริการนั้นไม่มีปฏิทิน
+    function tuneFilters() {
+      const g = groupKey;
+      const cert = document.getElementById("fCert");
+      const certRow = cert ? cert.closest("label") : null;
+      const searchBox = document.getElementById("fSearch");
+      const quick = document.getElementById("availQuick");
+
+      if (g === "play") {
+        searchBox.placeholder = "ค้นหาสนาม เช่น รามอินทรา คาราโอเกะ";
+        // ตรารับรองความสะอาดเป็นเกณฑ์ของร้านความงาม ไม่ใช่ของสนามกีฬา
+        if (certRow) certRow.style.display = "none";
+      } else if (g === "auto") {
+        searchBox.placeholder = "ค้นหาศูนย์บริการ เช่น เคลือบแก้ว ติดฟิล์ม";
+        if (certRow) certRow.style.display = "none";
+      } else if (g === "come") {
+        searchBox.placeholder = "ค้นหาบริการถึงที่ เช่น ส่งของ ตัดผม";
+        if (certRow) certRow.style.display = "none";
+        // บริการเรียกใช้ทันทีไม่มีปฏิทิน ปุ่มกรองตามวันจึงไม่มีความหมาย
+        if (quick) {
+          quick.querySelectorAll("[data-avail]").forEach((b) => {
+            if (b.dataset.avail) b.style.display = "none";
+          });
+        }
+      } else if (g === "care") {
+        searchBox.placeholder = "ค้นหาร้าน เช่น สปา ทำเล็บ คลินิก";
+      }
+    }
+    tuneFilters();
     renderFooter();
     prefetchOnHover();
     document.querySelector(".search-ic").innerHTML = icon("search", 18);
@@ -115,6 +176,9 @@
     const params = new URLSearchParams(location.search);
     let onlyFav = params.get("fav") === "1";   // กำลังดูเฉพาะร้านโปรดอยู่หรือไม่
     let availMode = params.get("avail") || "";  // "" | today | tomorrow
+    // กลุ่มใหญ่ที่กำลังดูอยู่ — มาจาก ?group= บน URL
+    // ถ้าไม่ระบุจะแสดงทุกร้านเหมือนเดิม (ยังต้องรองรับ เพราะลิงก์เก่ายังใช้ได้)
+    const groupKey = params.get("group") || "";
     let myPos = null;        // ตำแหน่งผู้ใช้ — มีค่าเมื่อกด "ใกล้ฉัน" เท่านั้น
     let nearRadius = 20;     // รัศมีค้นหาเป็นกิโลเมตร
 
@@ -148,6 +212,7 @@
       const c = document.getElementById("fCat").value;
       const d = document.getElementById("fDistrict").value;
       const r = document.getElementById("fRating").value;
+      if (groupKey) q.set("group", groupKey);
       if (s) q.set("search", s);
       if (c) q.set("category_id", c);
       if (d) q.set("district", d);
@@ -255,6 +320,37 @@
       }
     }
 
+    // แถวข้อมูลกลางการ์ด — ต่างกันตามกลุ่ม เพราะสิ่งที่ผู้ใช้ใช้ตัดสินใจไม่เหมือนกัน
+    //
+    // ร้านความงามยังไม่มีรีวิวก็ยังบอกอะไรได้ เพราะคนดูรีวิวเป็นหลัก
+    // แต่สนามกีฬาในระบบนี้ทุกแห่งมี 0 รีวิว (ตั้งใจ ไม่แต่งรีวิวปลอมให้สถานที่จริง)
+    // การโชว์ดาว 0 ดวงบนการ์ดสนามจึงให้ข้อมูลเป็นศูนย์และดูเหมือนร้านห่วย
+    // สนามควรโชว์สิ่งที่ตัดสินใจได้จริงแทน คือมีกี่สนามและเปิดถึงกี่โมง
+    function cardMeta(s) {
+      const stars = `
+        <div class="flex items-center gap-2 mt-3.5">
+          ${starRow(s.rating_avg)}
+          <span class="text-xs text-muted">${Number(s.rating_avg).toFixed(1)} · ${s.rating_count} รีวิว</span>
+        </div>`;
+
+      if (s.group_key === "come") {
+        return `
+          <div class="flex items-center gap-2 mt-3.5 text-xs text-muted">
+            ${icon("navigate", 13)} เรียกใช้ได้ทันที · คิดค่าบริการตามระยะทาง
+          </div>`;
+      }
+      if (s.group_key === "play" || s.group_key === "auto") {
+        const close = shortTime(s.close_time);
+        const late = s.close_time === "00:00:00" && s.open_time === "00:00:00";
+        return `
+          <div class="flex items-center gap-2.5 mt-3.5 text-xs text-muted flex-wrap">
+            <span>${icon("clock", 13)} ${late ? "เปิด 24 ชั่วโมง" : `ปิด ${close} น.`}</span>
+            ${s.rating_count > 0 ? `<span>${icon("star", 13)} ${Number(s.rating_avg).toFixed(1)}</span>` : ""}
+          </div>`;
+      }
+      return stars;
+    }
+
     function shopCard(s) {
       const st = shopStatus(s);
       const fav = Favorites.has(s.id);
@@ -265,10 +361,7 @@
             <div class="p-5">
               <h3 class="h3 leading-snug">${esc(s.name)}</h3>
               <p class="text-sm text-muted mt-2 clamp-2">${esc(s.description || "")}</p>
-              <div class="flex items-center gap-2 mt-3.5">
-                ${starRow(s.rating_avg)}
-                <span class="text-xs text-muted">${Number(s.rating_avg).toFixed(1)} · ${s.rating_count} รีวิว</span>
-              </div>
+              ${cardMeta(s)}
               <div class="flex items-center gap-2.5 mt-3 pt-3 text-xs text-muted flex-wrap"
                    style="border-top:1px solid var(--border)">
                 <span class="flex items-center gap-1.5">${icon("mapPin", 13)} ${esc(s.district || "—")}</span>

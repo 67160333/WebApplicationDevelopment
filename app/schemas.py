@@ -97,6 +97,14 @@ class CategoryOut(BaseModel):
     resource_label: str = Field(
         "ช่าง", description="คำเรียกทรัพยากรที่จองได้ในหมวดนี้ เช่น ช่าง / คอร์ท / สนาม"
     )
+    group_key: str = Field(
+        "care",
+        description=(
+            "กลุ่มใหญ่ที่ใช้แยกทางเข้าในหน้าเว็บ — "
+            "care = ไปที่ร้าน · play = จองสถานที่ไปเป็นกลุ่ม · "
+            "auto = ฝากของไว้แล้วรอ · come = เรียกมาหาถึงที่"
+        ),
+    )
 
 
 class ShopCreate(BaseModel):
@@ -160,6 +168,7 @@ class ShopOut(BaseModel):
         "ช่าง", description="คำเรียกสิ่งที่จองได้ในร้านนี้ เช่น ช่าง / คอร์ท / สนาม"
     )
     category_slug: str | None = Field(None, description="รหัสหมวดหมู่ เช่น football, delivery")
+    group_key: str = Field("care", description="กลุ่มใหญ่ของหมวด — ดู CategoryOut.group_key")
 
 
 class ServiceCreate(BaseModel):

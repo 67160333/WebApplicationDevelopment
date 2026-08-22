@@ -2937,3 +2937,59 @@ details:not([open]) > *:not(summary) { display: none !important; }
 
 /* การ์ดก๊วนในหน้าสนาม */
 .match-card { display: flex; flex-direction: column; }
+
+/* ============================================================
+   การ์ดกลุ่มใหญ่บนหน้าแรก — ทางเข้าหลัก 4 ทาง
+   ============================================================
+   เดิมหน้าแรกโยนหมวดทั้ง 12 มาเรียงกันเป็นแถวเดียว ผู้ใช้ต้องอ่านทั้งหมด
+   ก่อนจะรู้ว่าตัวเองควรกดอันไหน ตอนนี้เหลือ 4 ทางเลือกที่บอกชัดว่า
+   แต่ละกลุ่ม "จองแบบไหน" ซึ่งเป็นสิ่งที่ผู้ใช้อยากรู้จริง ๆ
+   ------------------------------------------------------------ */
+.group-row {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+}
+.group-card {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 18px 18px 16px; border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  text-decoration: none; color: inherit;
+  transition: border-color var(--t) var(--ease), transform var(--t) var(--ease),
+              box-shadow var(--t) var(--ease);
+}
+.group-card:hover {
+  border-color: var(--blue-600); transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(18, 50, 92, .1), 0 2px 4px rgba(18, 50, 92, .06);
+}
+.gc-ic {
+  width: 42px; height: 42px; border-radius: 11px; margin-bottom: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--blue-50); color: var(--navy-800);
+}
+.gc-name   { font-size: 16.5px; font-weight: 700; line-height: 1.3; }
+.gc-tag    { font-size: 13px; color: var(--blue-600); font-weight: 600; }
+.gc-detail { font-size: 12.5px; color: var(--muted); line-height: 1.55; margin-top: 2px; }
+.gc-count  { font-size: 11.5px; color: var(--muted); margin-top: 10px; }
+
+/* หมวดย่อย — ยังมีอยู่แต่จัดกลุ่มให้เห็นว่าอันไหนอยู่กลุ่มไหน */
+.cat-group { margin-bottom: 18px; }
+.cat-group-head {
+  font-size: 12.5px; font-weight: 700; color: var(--muted);
+  letter-spacing: .02em; margin-bottom: 8px;
+}
+.cat-group-items { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* แถบบอกว่ากำลังดูกลุ่มไหนอยู่ ในหน้าค้นหา */
+.group-banner {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 14px 18px; border-radius: 12px;
+  background: var(--navy-50); margin-bottom: 18px;
+}
+.gb-ic {
+  width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; color: var(--navy-800);
+}
+.gb-name { font-size: 15.5px; font-weight: 700; }
+.gb-sub  { font-size: 12.5px; color: var(--muted); margin-top: 1px; }
+.gb-switch { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
