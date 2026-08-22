@@ -2496,6 +2496,80 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .sk-rows { display: grid; gap: 16px; }
 
 
+
+/* ============================================================
+   ผังทรัพยากร x เวลา — ใช้กับสนาม คอร์ท ห้อง และช่องบริการ
+   ============================================================
+   ทำไมต้องมีแยกจาก .slot-grid เดิม
+   ร้านที่ทรัพยากรเป็น "คน" ลูกค้าเลือกช่างก่อนแล้วค่อยดูเวลา
+   แต่สถานที่ลูกค้าคิดกลับกัน — อยากรู้ว่า "สองทุ่มมีคอร์ทไหนว่าง"
+   ผังตอบได้ในแวบเดียว ส่วน dropdown ต้องกดไล่ดูทีละคอร์ท
+
+   ใช้ grid-template-columns ที่ผูกกับตัวแปร --cols ซึ่ง JS เป็นคนใส่
+   เพราะจำนวนช่วงเวลาต่างกันไปตามเวลาเปิดร้านและความยาวบริการ
+   ------------------------------------------------------------ */
+.grid-scroll { overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+.res-grid { display: inline-block; min-width: 100%; }
+
+.grid-row {
+  display: grid;
+  grid-template-columns: 112px repeat(var(--cols), 40px);
+  gap: 4px;
+  align-items: stretch;
+  margin-bottom: 4px;
+}
+
+/* ชื่อคอร์ทต้องค้างไว้ตอนเลื่อนดูเวลาช่วงดึก ไม่งั้นเลื่อนไปแล้วไม่รู้ว่าแถวไหนคือคอร์ทอะไร */
+.grid-res {
+  position: sticky; left: 0; z-index: 2;
+  background: var(--surface); padding: 6px 8px 6px 0;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.grid-res-name { font-size: 13.5px; font-weight: 600; line-height: 1.25; }
+.grid-res-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+.grid-head .grid-time {
+  font-size: 11px; color: var(--muted); text-align: center;
+  padding-bottom: 2px; white-space: nowrap;
+}
+
+.grid-cell {
+  height: 34px; border-radius: 6px; border: 1px solid transparent;
+  padding: 0; display: block; width: 100%;
+}
+.grid-cell.is-free {
+  background: var(--blue-50); border-color: var(--blue-200, #c7ddf5);
+  cursor: pointer; transition: background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+.grid-cell.is-free:hover  { background: var(--blue-600); transform: translateY(-1px); }
+.grid-cell.is-free:active { transform: translateY(0); }
+.grid-cell.is-free:focus-visible { outline: 2px solid var(--blue-600); outline-offset: 2px; }
+/* ช่องที่เต็มต้องเห็นว่า "มีอยู่แต่กดไม่ได้" ไม่ใช่หายไปเฉย ๆ
+   ผู้ใช้จะได้รู้ว่าสนามนี้คนแน่นช่วงไหน */
+.grid-cell.is-taken { background: var(--navy-100, #dde3ee); }
+.grid-cell.is-off   { background: repeating-linear-gradient(45deg,
+                        var(--surface-2, #f4f6fa) 0 4px, transparent 4px 8px); }
+
+.grid-legend {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  font-size: 12.5px; color: var(--muted); margin-bottom: 10px;
+}
+.grid-legend .lg { display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+                   vertical-align: -2px; margin-right: 5px; }
+.lg-free  { background: var(--blue-50); border: 1px solid var(--blue-200, #c7ddf5); }
+.lg-taken { background: var(--navy-100, #dde3ee); }
+.lg-off   { background: repeating-linear-gradient(45deg,
+              var(--surface-2, #f4f6fa) 0 3px, transparent 3px 6px); border: 1px solid var(--border); }
+.grid-count { margin-left: auto; }
+
+.grid-skeleton { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+.sk-cell { height: 34px; border-radius: 6px; display: block; }
+
+@media (max-width: 640px) {
+  .grid-row { grid-template-columns: 92px repeat(var(--cols), 36px); }
+  .grid-res-name { font-size: 12.5px; }
+}
+
 /* ============================================================
    ยูทิลิตี้แทน Tailwind CDN
    ============================================================
@@ -2851,3 +2925,15 @@ details:not([open]) > *:not(summary) { display: none !important; }
   border-radius: 50%;
   background: var(--blue-600);
 }
+
+/* รายการ "สิ่งที่ทำได้ระหว่างรอ" ในหน้าการจอง */
+.gap-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 9px 12px; border-radius: 8px; background: var(--surface);
+  font-size: 13.5px; text-decoration: none; color: inherit;
+  transition: background var(--t-fast) var(--ease);
+}
+.gap-item:hover { background: var(--blue-50); }
+
+/* การ์ดก๊วนในหน้าสนาม */
+.match-card { display: flex; flex-direction: column; }

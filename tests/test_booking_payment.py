@@ -332,6 +332,112 @@ def main():
                   float(c.get(f"/api/bookings/{r6['id']}", headers=cust)
                         .json()["cancellation_fee"]), 0.0)
 
+    # ==================================================================
+    # ก๊วน — หาคนไปเล่นด้วยกัน (ตอบฟีดแบ็กอาจารย์ข้อ 2)
+    # ==================================================================
+    print("\n--- ก๊วน ---")
+    cats = {x["slug"]: x["id"] for x in c.get("/api/categories").json()}
+
+    def first_shop(slug):
+        r = c.get(f"/api/shops?category_id={cats[slug]}&limit=1").json()
+        return r["items"][0] if r["items"] else None
+
+    court = first_shop("badminton")
+    salon = first_shop("spa-massage")
+
+    if court:
+        detail = c.get(f"/api/shops/{court['id']}").json()
+        sv = next((x for x in detail["services"] if x["is_active"]), None)
+        st = next((x for x in detail["staff"] if x["is_active"]), None)
+        day = str(date.today() + timedelta(days=3))
+        av = c.get(f"/api/services/{sv['id']}/availability?date={day}&staff_id={st['id']}").json()
+        free = next((s for s in av["slots"] if s["available"]), None)
+
+        if free:
+            mk = c.post("/api/bookings", headers=cust, json={
+                "service_id": sv["id"], "staff_id": st["id"],
+                "booking_date": day, "booking_time": free["time"],
+            })
+            check("จองคอร์ทแบดเพื่อทดสอบก๊วนได้", mk.status_code, 201)
+            bk = mk.json()
+
+            # ยังไม่จ่าย = ยังไม่ล็อกเวลา = เปิดก๊วนไม่ได้
+            early = c.post(f"/api/bookings/{bk['id']}/open-match", headers=cust,
+                           json={"open_slots": 5, "share_price": 100})
+            check("คิวที่ยังไม่จ่าย เปิดก๊วนไม่ได้", early.status_code, 409)
+
+            c.post(f"/api/bookings/{bk['id']}/payment", headers=cust,
+                   json={"kind": "deposit", "method": "promptpay"})
+
+            op = c.post(f"/api/bookings/{bk['id']}/open-match", headers=cust,
+                        json={"open_slots": 5, "share_price": 100,
+                              "match_note": "มือใหม่มาได้"})
+            check("จ่ายแล้วเปิดก๊วนได้", op.status_code, 200)
+            check("ยังรับได้อีก 5 คน", op.json()["slots_left"], 5)
+
+            lst = c.get(f"/api/matches?shop_id={court['id']}").json()
+            check("ก๊วนโผล่ในรายการก๊วนที่หาคน",
+                  any(m["booking_id"] == bk["id"] for m in lst), True)
+
+            self_join = c.post(f"/api/bookings/{bk['id']}/join", headers=cust)
+            check("เจ้าของก๊วนเข้าร่วมก๊วนตัวเองไม่ได้", self_join.status_code, 400)
+
+            j1 = c.post(f"/api/bookings/{bk['id']}/join", headers=nong)
+            check("คนอื่นเข้าร่วมก๊วนได้", j1.status_code, 201)
+            check("ยอดที่ต้องจ่ายถูกคัดลอกมาตอนเข้าร่วม",
+                  float(j1.json()["share_amount"]), 100.0)
+
+            dup = c.post(f"/api/bookings/{bk['id']}/join", headers=nong)
+            check("ลงชื่อซ้ำไม่ได้", dup.status_code, 409)
+
+            lst2 = c.get(f"/api/matches?shop_id={court['id']}").json()
+            m2 = next((m for m in lst2 if m["booking_id"] == bk["id"]), None)
+            check("จำนวนที่ยังรับได้ลดลงเหลือ 4", m2["slots_left"] if m2 else None, 4)
+
+            out = c.delete(f"/api/bookings/{bk['id']}/join", headers=nong)
+            check("ถอนตัวจากก๊วนได้", out.status_code, 200)
+            lst3 = c.get(f"/api/matches?shop_id={court['id']}").json()
+            m3 = next((m for m in lst3 if m["booking_id"] == bk["id"]), None)
+            check("ถอนตัวแล้วที่ว่างกลับมาเป็น 5", m3["slots_left"] if m3 else None, 5)
+
+            back = c.post(f"/api/bookings/{bk['id']}/join", headers=nong)
+            check("ถอนตัวแล้วกลับเข้ามาใหม่ได้", back.status_code, 201)
+
+    if salon:
+        d2 = c.get(f"/api/shops/{salon['id']}").json()
+        sv2 = next((x for x in d2["services"] if x["is_active"]), None)
+        day2 = str(date.today() + timedelta(days=4))
+        av2 = c.get(f"/api/services/{sv2['id']}/availability?date={day2}").json()
+        fr2 = next((s for s in av2["slots"] if s["available"]), None)
+        if fr2:
+            b2 = c.post("/api/bookings", headers=cust, json={
+                "service_id": sv2["id"], "booking_date": day2, "booking_time": fr2["time"],
+            }).json()
+            c.post(f"/api/bookings/{b2['id']}/payment", headers=cust,
+                   json={"kind": "deposit", "method": "promptpay"})
+            no = c.post(f"/api/bookings/{b2['id']}/open-match", headers=cust,
+                        json={"open_slots": 3, "share_price": 50})
+            check("ร้านสปาเปิดก๊วนไม่ได้ (ไม่ใช่กิจกรรมกลุ่ม)", no.status_code, 400)
+
+    # ==================================================================
+    # ผังทรัพยากร x เวลา (ตอบฟีดแบ็กอาจารย์ข้อ 3)
+    # ==================================================================
+    print("\n--- ผังทรัพยากร x เวลา ---")
+    if court:
+        detail = c.get(f"/api/shops/{court['id']}").json()
+        sv = next((x for x in detail["services"] if x["is_active"]), None)
+        day = str(date.today() + timedelta(days=5))
+        g = c.get(f"/api/services/{sv['id']}/grid?date={day}")
+        check("ขอผังได้", g.status_code, 200)
+        gd = g.json()
+        n_staff = len([x for x in detail["staff"] if x["is_active"]])
+        check("จำนวนแถวเท่ากับจำนวนคอร์ทที่เปิดอยู่", len(gd["rows"]), n_staff)
+        check("มีหัวคอลัมน์เวลา", len(gd["times"]) > 0, True)
+        check("คำเรียกทรัพยากรมาจากฐานข้อมูล", gd["resource_label"], "คอร์ท")
+        row = gd["rows"][0]
+        check("แต่ละแถวมีช่องเวลาของตัวเอง", len(row["slots"]) > 0, True)
+        check("ความจุของแต่ละคอร์ทคือ 1", row["slots"][0]["capacity"], 1)
+
     print("\n" + "=" * 60)
     print(f"สรุป: ผ่าน {ok} · ไม่ผ่าน {fail}")
     print("=" * 60)

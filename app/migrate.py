@@ -47,6 +47,12 @@ COLUMNS: list[tuple[str, str, str]] = [
     ("bookings", "holds_slot",       "BOOLEAN NOT NULL DEFAULT FALSE"),
     ("bookings", "cancelled_by",     "VARCHAR(20)"),
     ("bookings", "cancellation_fee", "NUMERIC(10,2) NOT NULL DEFAULT 0.00"),
+    # ---------- ก๊วน : เปิดรับคนไปด้วยกัน ----------
+    # ค่าเริ่มต้น 0 แปลว่าคิวเก่าทั้งหมดไม่ได้เปิดก๊วน ซึ่งถูกต้องอยู่แล้ว
+    # ไม่ต้องเติมย้อนหลังเหมือนตอนเพิ่ม holds_slot
+    ("bookings", "open_slots",  "INTEGER NOT NULL DEFAULT 0"),
+    ("bookings", "share_price", "NUMERIC(10,2) NOT NULL DEFAULT 0.00"),
+    ("bookings", "match_note",  "VARCHAR(300)"),
 ]
 
 # ---------- กุญแจนอกและดัชนี : (ชื่อ, คำสั่งสร้าง) ----------

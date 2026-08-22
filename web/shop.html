@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608221056" />
+  <link rel="stylesheet" href="css/app.css?v=202608221323" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -165,8 +165,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202608221056"></script>
-  <script src="js/ui.js?v=202608221056"></script>
+  <script src="js/api.js?v=202608221323"></script>
+  <script src="js/ui.js?v=202608221323"></script>
   <script>
     renderNavbar("shops");
     renderFooter();
@@ -194,6 +194,14 @@
     // ส่งของต้องรู้ทั้งต้นทางและปลายทาง ส่วนบริการถึงที่รู้แค่ปลายทางก็พอ
     // เพราะคนออกเดินทางจากร้านอยู่แล้ว
     let IS_COURIER = false;
+    // ร้านที่ทรัพยากรเป็น "สถานที่" ไม่ใช่ "คน"
+    // หมวดพวกนี้ลูกค้าคิดเป็นผัง — อยากเห็นว่าคอร์ทไหนว่างช่วงไหน "พร้อมกันทั้งผัง"
+    // ไม่ใช่กด dropdown ไล่ดูทีละคอร์ท ซึ่งเป็นวิธีที่เหมาะกับการเลือกช่างมากกว่า
+    const VENUE_CATS = ["football", "badminton", "karaoke", "car-care"];
+    let IS_VENUE = false;
+    // หมวดที่เปิดก๊วนได้ — ต้องตรงกับ TEAM_CATEGORIES ใน app/routers/matches.py
+    const TEAM_CATS = ["football", "badminton", "karaoke"];
+    let IS_TEAM = false;
 
     // แถบวันที่แสดงกี่วัน (รวมวันนี้)
     // ไม่เกินเพดานที่เซิร์ฟเวอร์รับ (MAX_ADVANCE_DAYS) — Math.min กันไว้เผื่อวันหลัง
@@ -244,6 +252,8 @@
         INSTANT = (shop.services || []).some((x) => x.is_active && x.booking_mode === "instant");
         // ดูจากรหัสหมวด ไม่ใช่จากคำเรียกทรัพยากร เพราะคำเรียกเปลี่ยนได้จากหน้าแอดมิน
         IS_COURIER = shop.category_slug === "delivery";
+        IS_VENUE = VENUE_CATS.includes(shop.category_slug) && !INSTANT;
+        IS_TEAM = TEAM_CATS.includes(shop.category_slug);
 
         const active = (shop.services || []).filter((x) => x.is_active);
         state.serviceId = active.length ? active[0].id : null;
@@ -408,6 +418,13 @@
           </div>
         </section>` : ""}
 
+        <!-- ---------- ก๊วนที่กำลังหาคน ----------
+             สนามบอลต่างจากร้านทำผมตรงที่ต้องมีคน 10-22 คนถึงจะเล่นได้
+             คนที่ไม่มีเพื่อนไปด้วย จองสนามไปก็ใช้ไม่ได้
+             กล่องนี้จึงต้องอยู่ "เหนือ" ปุ่มจอง เพราะสำหรับหลายคน
+             การหาก๊วนคือขั้นตอนแรก ไม่ใช่ขั้นตอนหลังจอง -->
+        ${IS_TEAM ? `<section class="mt-10 reveal" id="matchSection"></section>` : ""}
+
         <!-- ---------- จองคิว 3 ขั้นตอน ---------- -->
         ${INSTANT ? "" : `
         <section class="mt-10 reveal">
@@ -443,11 +460,17 @@
               </div>
             </div>
 
-            <!-- ขั้นที่ 3 -->
+            <!-- ขั้นที่ 3 —
+                 สถานที่ (สนาม/คอร์ท/ห้อง) แสดงเป็น "ผัง" ทรัพยากร x เวลา
+                 คนอยากรู้ว่าสองทุ่มมีคอร์ทไหนว่างบ้าง ซึ่งผังตอบได้ในแวบเดียว
+                 ส่วน dropdown ต้องกดไล่ดูทีละคอร์ท
+
+                 คน (ช่าง/แพทย์) ยังใช้ dropdown + รายการเวลาเหมือนเดิม
+                 เพราะคนเลือกช่างจากฝีมือและรีวิว ไม่ได้เลือกจากผัง -->
             <div class="bk-step">
               <div class="bk-head">
-                <span class="bk-num">3</span> เลือกเวลา
-                ${staff.length ? `
+                <span class="bk-num">3</span> ${IS_VENUE ? `เลือก${RES}และเวลา` : "เลือกเวลา"}
+                ${staff.length && !IS_VENUE ? `
                   <label class="staff-pick">
                     <span class="text-muted">${RES}</span>
                     <select id="staffSelect" class="select select-inline">
@@ -518,6 +541,7 @@
       revealOnScroll();   // ส่วนถัดไปค่อย ๆ ปรากฏตอนเลื่อนลงมา
 
       if (INSTANT) bindDelivery(active);
+      if (IS_TEAM) loadMatches();
       if (photos.length) bindGallery(photos);
       if (hasPin) renderShopMap("shopMap", s);
     }
@@ -745,6 +769,8 @@
       isLow(s) ? ` · เหลืออีก ${s.remaining} ${RES_RAW}` : "";
 
     function renderSlots() {
+      // สถานที่ใช้ผังแทนรายการเวลา — ดักที่นี่จุดเดียวจะได้ไม่ต้องไล่แก้ทุกจุดที่เรียก
+      if (IS_VENUE) return loadGrid();
       const box = document.getElementById("slotBox");
       if (!box) return;
 
@@ -843,6 +869,172 @@
       );
     }
 
+    // ================= ก๊วน — หาคนไปเล่นด้วยกัน =================
+    async function loadMatches() {
+      const box = document.getElementById("matchSection");
+      if (!box) return;
+      let list = [];
+      try {
+        list = await apiGet(`/api/matches?shop_id=${shopId}&limit=6`);
+      } catch { return box.remove(); }
+
+      const head = `
+        <div class="section-head">
+          <div>
+            <h2 class="h2">ก๊วนที่กำลังหาคน</h2>
+            <p class="lede">ไม่มีเพื่อนไปด้วยก็เล่นได้ — ลงชื่อเข้าร่วมก๊วนที่จองสนามไว้แล้ว</p>
+          </div>
+        </div>`;
+
+      if (!list.length) {
+        box.innerHTML = head + `
+          <div class="card card-pad text-center text-sm text-muted">
+            ยังไม่มีก๊วนที่สนามนี้ · ถ้าคุณจองแล้วเปิดก๊วนได้จากหน้า
+            <a href="bookings.html" style="color:var(--blue-600)">การจองของฉัน</a>
+          </div>`;
+        return;
+      }
+
+      box.innerHTML = head + `<div class="grid sm:grid-cols-2 gap-4">${
+        list.map((m) => `
+          <article class="card card-pad match-card">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="text-sm font-semibold">${esc(m.resource_name || m.service_name)}</div>
+                <div class="text-xs text-muted mt-0.5 num">
+                  ${thaiDate(m.booking_date)} · ${shortTime(m.booking_time)}–${shortTime(m.end_time)} น.
+                </div>
+              </div>
+              <span class="badge badge-pending num">ขาดอีก ${m.slots_left}</span>
+            </div>
+            ${m.match_note ? `<p class="text-sm mt-2">${esc(m.match_note)}</p>` : ""}
+            <div class="flex items-center justify-between gap-3 mt-3 pt-3"
+                 style="border-top:1px solid var(--border)">
+              <span class="text-xs text-muted">
+                เปิดโดย ${esc(m.host_name)} · คนละ <b class="num">฿${baht(m.share_price)}</b>
+              </span>
+              <button class="btn btn-outline btn-sm" data-join="${m.booking_id}"
+                      ${m.joined_by_me ? "disabled" : ""}>
+                ${m.joined_by_me ? "ลงชื่อแล้ว" : "ขอเข้าร่วม"}
+              </button>
+            </div>
+          </article>`).join("")
+      }</div>`;
+
+      box.querySelectorAll("[data-join]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          if (!Auth.isLoggedIn) {
+            location.href = `login.html?next=${encodeURIComponent(currentPage())}`;
+            return;
+          }
+          await withBusy(b, "กำลังลงชื่อ", async () => {
+            await apiPost(`/api/bookings/${b.dataset.join}/join`, {});
+            toast("ลงชื่อเข้าร่วมก๊วนแล้ว เจ้าของก๊วนจะได้รับแจ้งเตือน");
+            loadMatches();
+          });
+        })
+      );
+    }
+
+    // ================= ผังทรัพยากร x เวลา (เฉพาะสถานที่) =================
+    // ยิงครั้งเดียวได้ทั้งผัง — ถ้าถามทีละคอร์ท สนาม 10 คอร์ทจะกลายเป็น 10 คำขอ
+    // ทุกครั้งที่เปลี่ยนวัน ซึ่งช้าและเปลืองโดยไม่จำเป็น
+    const gridCache = new Map();
+
+    async function loadGrid() {
+      const box = document.getElementById("slotBox");
+      if (!box || !state.serviceId || !state.date) return;
+
+      const key = `${state.serviceId}|${state.date}`;
+      const myReq = ++state.reqId;
+
+      if (gridCache.has(key)) return renderGrid(gridCache.get(key));
+
+      box.innerHTML = `<div class="slot-group"><div class="slot-group-head">
+        <span class="skeleton sk-line"></span></div>
+        <div class="grid-skeleton">${"<span class=\"skeleton sk-cell\"></span>".repeat(24)}</div></div>`;
+
+      try {
+        const data = await apiGet(
+          `/api/services/${state.serviceId}/grid?date=${state.date}`
+        );
+        if (myReq !== state.reqId) return;   // ผู้ใช้กดเปลี่ยนไปแล้ว ทิ้งผลเก่า
+        gridCache.set(key, data);
+        renderGrid(data);
+      } catch (e) {
+        if (myReq !== state.reqId) return;
+        box.innerHTML = `<div class="slot-empty">โหลดผังไม่สำเร็จ ${esc(e.message || "")}</div>`;
+      }
+    }
+
+    function renderGrid(data) {
+      const box = document.getElementById("slotBox");
+      if (!box) return;
+
+      const rows = data.rows || [];
+      const times = data.times || [];
+      if (!rows.length || !times.length) {
+        box.innerHTML = `<div class="slot-empty">วันนี้ยังไม่มี${RES}ให้จอง</div>`;
+        return;
+      }
+
+      // หาช่องเวลาของแต่ละแถวแบบเร็ว ๆ ด้วย map เวลา -> ช่อง
+      const cellOf = (row) => {
+        const m = new Map();
+        (row.slots || []).forEach((sl) => m.set(sl.time, sl));
+        return m;
+      };
+
+      const head = `<div class="grid-row grid-head">
+          <div class="grid-res"></div>
+          ${times.map((t) => `<div class="grid-time num">${shortTime(t)}</div>`).join("")}
+        </div>`;
+
+      const body = rows.map((row) => {
+        const cells = cellOf(row);
+        return `<div class="grid-row">
+          <div class="grid-res">
+            <span class="grid-res-name">${esc(row.name)}</span>
+            ${row.position ? `<span class="grid-res-sub">${esc(row.position)}</span>` : ""}
+          </div>
+          ${times.map((t) => {
+            if (row.closed_reason) {
+              return `<div class="grid-cell is-off" title="${esc(row.closed_reason)}"></div>`;
+            }
+            const sl = cells.get(t);
+            if (!sl) return `<div class="grid-cell is-off" title="นอกเวลาทำการ"></div>`;
+            if (!sl.available) {
+              return `<div class="grid-cell is-taken" title="ถูกจองแล้ว"></div>`;
+            }
+            return `<button type="button" class="grid-cell is-free"
+                      data-time="${sl.time}" data-staff="${row.staff_id}"
+                      aria-label="${esc(row.name)} ${shortTime(sl.time)} น. ว่าง"
+                      title="${esc(row.name)} · ${shortTime(sl.time)}–${shortTime(sl.end_time)} น."></button>`;
+          }).join("")}
+        </div>`;
+      }).join("");
+
+      const free = rows.reduce((n, r) => n + (r.available_count || 0), 0);
+      box.innerHTML = `
+        <div class="grid-legend">
+          <span><i class="lg lg-free"></i> ว่าง</span>
+          <span><i class="lg lg-taken"></i> ถูกจองแล้ว</span>
+          <span><i class="lg lg-off"></i> นอกเวลาทำการ</span>
+          <span class="grid-count">ว่างทั้งหมด <b class="num">${free}</b> ช่อง</span>
+        </div>
+        <div class="grid-scroll"><div class="res-grid" style="--cols:${times.length}">
+          ${head}${body}
+        </div></div>`;
+
+      box.querySelectorAll(".grid-cell.is-free").forEach((b) =>
+        b.addEventListener("click", () => {
+          // เลือกคอร์ทกับเวลาพร้อมกันในคลิกเดียว — นี่คือข้อได้เปรียบของผัง
+          state.staffId = Number(b.dataset.staff) || null;
+          openConfirm(b.dataset.time);
+        })
+      );
+    }
+
     /** ย้ายเครื่องหมาย "ช่องที่เลือกอยู่" ไปที่เวลาที่ระบุ */
     function markSlot(time) {
       const box = document.getElementById("slotBox");
@@ -862,6 +1054,8 @@
 
     async function loadRange() {
       if (!state.serviceId) return;
+      // ผังโหลดข้อมูลของตัวเองแยกต่างหาก (loadGrid) แต่ยังต้องให้แถบวันที่ทำงาน
+      // จึงปล่อยให้ loadRange วิ่งตามปกติ แล้วไปแยกทางที่ renderSlots
 
       const myReq = ++state.reqId;
       const key = cacheKey();

@@ -326,6 +326,16 @@ class Booking(Base):
     )
 
     # ---- ใช้เฉพาะบริการส่งของด่วน ----
+    # ---- ก๊วน: เปิดรับคนเพิ่มหรือไม่ ----
+    # 0 = ไม่ได้เปิดก๊วน · มากกว่า 0 = ยังรับได้อีกกี่คน
+    # เก็บเป็น "จำนวนที่ต้องการทั้งหมด" ไม่ใช่ "ที่เหลือ" เพราะที่เหลือคำนวณจาก
+    # จำนวนคนที่ลงชื่อแล้วได้ตลอด ถ้าเก็บสองค่าจะมีโอกาสไม่ตรงกัน
+    open_slots: Mapped[int] = mapped_column(Integer, default=0)
+    # ราคาที่คนเข้าร่วมต้องจ่ายต่อคน เจ้าของก๊วนกำหนดเอง
+    share_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
+    # ข้อความประกาศ เช่น "ขาดอีก 4 คน มือใหม่ก็มาได้"
+    match_note: Mapped[str | None] = mapped_column(String(300), nullable=True)
+
     pickup_address: Mapped[str | None] = mapped_column(String(300), nullable=True)
     dropoff_address: Mapped[str | None] = mapped_column(String(300), nullable=True)
     distance_km: Mapped[Decimal | None] = mapped_column(Numeric(6, 2), nullable=True)
@@ -335,6 +345,9 @@ class Booking(Base):
     service: Mapped["Service"] = relationship(back_populates="bookings")
     staff: Mapped["Staff | None"] = relationship(back_populates="bookings")
     review: Mapped["Review | None"] = relationship(back_populates="booking", cascade="all, delete-orphan")
+    joins: Mapped[list["MatchJoin"]] = relationship(
+        back_populates="booking", cascade="all, delete-orphan"
+    )
     payments: Mapped[list["Payment"]] = relationship(
         back_populates="booking", cascade="all, delete-orphan", order_by="Payment.id"
     )
@@ -474,4 +487,56 @@ class Payment(Base):
             unique=True,
             postgresql_where=text("status = 'paid' AND kind = 'deposit'"),
         ),
+    )
+
+
+class MatchJoin(Base):
+    """คนที่ขอเข้าร่วม "ก๊วน" ของการจองหนึ่งครั้ง
+
+    ทำไมต้องมีตารางนี้
+    --------------------------------------------------------------------
+    หมวดกีฬาต่างจากหมวดอื่นตรงที่ **ต้องมีคนครบก่อนถึงจะใช้บริการได้**
+    ร้านทำผมจองคนเดียวก็ใช้ได้ แต่สนามฟุตบอลต้องมี 10-22 คน
+    คนที่อยากเตะบอลแต่ไม่มีเพื่อนไปด้วย จองสนามไปก็เปล่าประโยชน์
+
+    คนไทยแก้ปัญหานี้กันเองมานานแล้วด้วยการ "เปิดก๊วน" — คนหนึ่งจองสนามไว้
+    แล้วประกาศหาคนมาเติมให้ครบ หารค่าสนามกัน ระบบนี้แค่ย้ายพฤติกรรมนั้นมาไว้บนเว็บ
+
+    ทำไมไม่ใช้ตาราง payments ที่มีอยู่
+    --------------------------------------------------------------------
+    `payments` ไม่มีคอลัมน์บอกว่าใครเป็นคนจ่าย และมีดัชนีบังคับว่า
+    หนึ่งการจองมีมัดจำได้ใบเดียว (`uq_payment_booking_deposit`)
+    ซึ่งขัดกับก๊วนที่ต้องมีหลายคนจ่ายคนละส่วน จึงต้องแยกตารางออกมา
+
+    เจ้าของก๊วนยังเป็นเจ้าของการจองคนเดียวเหมือนเดิม
+    คนที่เข้าร่วมไม่ได้ถือสิทธิ์ในคิวนั้น แค่ลงชื่อว่าจะไปด้วยและจ่ายส่วนของตัวเอง
+    ทำแบบนี้เพื่อไม่ให้กติกาการล็อกช่องเวลาและการยกเลิกที่ทำไว้แล้วรวนทั้งระบบ
+    """
+
+    __tablename__ = "match_joins"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    booking_id: Mapped[int] = mapped_column(
+        ForeignKey("bookings.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+
+    # joined = ลงชื่อแล้วยังไม่จ่าย · paid = จ่ายส่วนของตัวเองแล้ว · left = ถอนตัว
+    status: Mapped[str] = mapped_column(String(10), default="joined")
+    # ยอดที่ต้องจ่ายต่อคน คัดลอกมาตอนเข้าร่วม ไม่อ้างอิงสด
+    # เพราะถ้าเจ้าของก๊วนแก้ราคาทีหลัง คนที่จ่ายไปแล้วต้องไม่โดนเรียกเก็บเพิ่ม
+    share_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
+    note: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    booking: Mapped["Booking"] = relationship(back_populates="joins")
+    user: Mapped["User"] = relationship()
+
+    __table_args__ = (
+        CheckConstraint("status IN ('joined','paid','left')", name="ck_match_joins_status"),
+        # คนเดียวลงชื่อก๊วนเดียวกันซ้ำไม่ได้ แต่ถอนตัวแล้วกลับมาใหม่ได้
+        # (แถวเดิมถูกเปลี่ยนสถานะเป็น left ไม่ได้ลบทิ้ง จะได้เก็บประวัติไว้)
+        Index("uq_match_join_user", "booking_id", "user_id", unique=True),
     )

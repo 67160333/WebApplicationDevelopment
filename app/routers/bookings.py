@@ -12,10 +12,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Booking, Payment, Review, Service, Shop, ShopClosure, Staff, User
+from app.models import (
+    Booking, MatchJoin, Payment, Review, Service, Shop, ShopClosure, Staff, User,
+)
 from app.schemas import (
     AspectAverages,
     AvailabilityOut,
+    ResourceGrid,
+    ResourceRow,
     BookingCreate,
     BookingOut,
     BookingReschedule,
@@ -218,11 +222,21 @@ def _with_payment(db: Session, rows: list[Booking]) -> list[BookingOut]:
         ).all()
     )
 
+    # จำนวนคนในก๊วน — รวมทุกคิวในคำสั่งเดียวด้วยเหตุผลเดียวกับยอดเงินข้างบน
+    joins = dict(
+        db.execute(
+            select(MatchJoin.booking_id, func.count())
+            .where(MatchJoin.booking_id.in_(ids), MatchJoin.status != "left")
+            .group_by(MatchJoin.booking_id)
+        ).all()
+    )
+
     out: list[BookingOut] = []
     for booking in rows:
         paid = Decimal(sums.get(booking.id, 0))
         item = BookingOut.model_validate(booking)
         item.paid_amount = paid
+        item.joined_count = int(joins.get(booking.id, 0))
         # ต้องใช้เกณฑ์เดียวกับ _summarise ใน payments.py เป๊ะ ๆ
         # ไม่งั้นหน้ารายการจองกับหน้าชำระเงินจะบอกสถานะไม่ตรงกัน
         if booking.total_price > 0 and paid >= booking.total_price:
@@ -1551,3 +1565,92 @@ def delete_review(
 
     db.commit()
     return Message(message="ลบรีวิวเรียบร้อยแล้ว")
+
+
+@router.get(
+    "/services/{service_id}/grid",
+    response_model=ResourceGrid,
+    tags=["4. Bookings & Reviews"],
+    summary="ตารางสนาม/คอร์ท × เวลา ในคำขอเดียว",
+    description=(
+        "คืนช่องเวลาของ**ทุกทรัพยากร**ในร้านพร้อมกัน สำหรับวาดผังแบบเลือกที่นั่งโรงหนัง\n\n"
+        "ถ้าไม่มีเส้นนี้ หน้าเว็บต้องยิงถามทีละคอร์ท สนามที่มี 10 คอร์ท "
+        "จะกลายเป็น 10 คำขอทุกครั้งที่เปลี่ยนวัน"
+    ),
+)
+def get_resource_grid(
+    service_id: int = Path(..., ge=1),
+    booking_date: date_cls = Query(..., alias="date", description="วันที่ต้องการจอง"),
+    db: Session = Depends(get_db),
+):
+    service = db.get(Service, service_id)
+    if service is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "ไม่พบบริการนี้")
+    if service.booking_mode == "instant":
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "บริการนี้เป็นแบบเรียกใช้ทันที จึงไม่มีตารางช่องเวลา",
+        )
+
+    _assert_within_window(booking_date)
+    shop = service.shop
+    duration = service.duration_minutes
+    label = shop.category.resource_label if shop.category else "ช่าง"
+    closed = _closure_reason(db, shop.id, booking_date)
+
+    members = db.scalars(
+        select(Staff)
+        .where(Staff.shop_id == shop.id, Staff.is_active.is_(True))
+        .order_by(Staff.id)
+    ).all()
+
+    # เก็บหัวคอลัมน์รวมไว้ชุดเดียว เพราะทุกแถวใช้ช่วงเวลาเดียวกัน
+    # ส่งซ้ำทุกแถวจะทำให้ payload ใหญ่ขึ้นหลายเท่าโดยไม่จำเป็น
+    all_times: set[time_cls] = set()
+    rows: list[ResourceRow] = []
+
+    for member in members:
+        reason = closed
+        if reason is None and not _staff_works_on(member, booking_date):
+            reason = f"{label}นี้ไม่ได้เปิดให้บริการวันนี้"
+
+        slots: list[Slot] = []
+        if reason is None:
+            busy = _busy_intervals(db, shop.id, booking_date, member.id)
+            for win_start, win_end in _windows_for(shop, member):
+                start = win_start
+                while start + duration <= win_end:
+                    begin = time_cls(start // 60 % 24, start % 60)
+                    taken = _slot_is_taken(start, start + duration, busy, 1)
+                    slots.append(Slot(
+                        time=begin,
+                        end_time=_add_minutes(begin, duration),
+                        available=not taken,
+                        reason="ถูกจองแล้ว" if taken else None,
+                        remaining=0 if taken else 1,
+                        capacity=1,
+                    ))
+                    start += SLOT_STEP_MINUTES
+            slots.sort(key=lambda s: s.time)
+            all_times.update(s.time for s in slots)
+
+        rows.append(ResourceRow(
+            staff_id=member.id,
+            name=member.name,
+            position=member.position,
+            closed_reason=reason,
+            slots=slots,
+            available_count=sum(1 for s in slots if s.available),
+        ))
+
+    return ResourceGrid(
+        service_id=service.id,
+        service_name=service.name,
+        duration_minutes=duration,
+        booking_date=booking_date,
+        resource_label=label,
+        open_time=shop.open_time,
+        close_time=shop.close_time,
+        times=sorted(all_times),
+        rows=rows,
+    )

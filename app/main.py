@@ -18,7 +18,9 @@ from app.routers import (
     aliases,
     auth,
     bookings,
+    gaps,
     images,
+    matches,
     notifications,
     payments,
     shops,
@@ -97,6 +99,8 @@ app.include_router(bookings.router)
 app.include_router(notifications.router)
 app.include_router(images.router)
 app.include_router(payments.router)
+app.include_router(matches.router)
+app.include_router(gaps.router)
 # เส้นทางลัดให้ตรงกับรูปแบบที่โจทย์กำหนด (POST /register, GET /me, ...)
 app.include_router(aliases.router)
 

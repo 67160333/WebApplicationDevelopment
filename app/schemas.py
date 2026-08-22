@@ -370,6 +370,105 @@ class BookingOut(BaseModel):
     payment_state: Literal["unpaid", "deposit_paid", "paid"] = "unpaid"
     paid_amount: Decimal = Decimal("0.00")
 
+    # ---- ก๊วน ----
+    open_slots: int = Field(0, description="เปิดรับคนไปด้วยกันทั้งหมดกี่คน (0 = ไม่ได้เปิดก๊วน)")
+    share_price: Decimal = Field(Decimal("0.00"), description="ค่าใช้จ่ายต่อคนที่เข้าร่วม")
+    match_note: str | None = Field(None, description="ข้อความประกาศหาคน")
+    joined_count: int = Field(0, description="ลงชื่อแล้วกี่คน (ไม่นับคนที่ถอนตัว)")
+
+
+# ============================================================
+# ก๊วน — หาคนไปด้วยกัน
+# ============================================================
+class MatchOpen(BaseModel):
+    """เปิดก๊วนจากคิวที่จองไว้แล้ว"""
+
+    open_slots: int = Field(
+        ..., ge=1, le=40,
+        description="ต้องการคนเพิ่มอีกกี่คน (ไม่นับตัวเอง)", examples=[9],
+    )
+    share_price: Decimal = Field(
+        ..., ge=0, le=100_000,
+        description="ค่าใช้จ่ายต่อคน หารกันเอง ระบบไม่ได้เก็บเงินแทน", examples=[120],
+    )
+    match_note: str | None = Field(
+        None, max_length=300, examples=["ขาดอีก 4 คน มือใหม่มาได้ ไม่ซีเรียส"]
+    )
+
+
+class MatchJoinOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: int
+    user_name: str = Field("", description="ชื่อผู้เข้าร่วม นามสกุลถูกย่อเหลือตัวอักษรเดียว")
+    status: Literal["joined", "paid", "left"]
+    share_amount: Decimal
+    note: str | None = None
+    created_at: datetime
+
+
+class MatchOut(BaseModel):
+    """ก๊วนหนึ่งก๊วน — ใช้ทั้งในหน้ารวมและหน้าสนาม"""
+
+    booking_id: int
+    shop_id: int
+    shop_name: str
+    shop_district: str | None = None
+    category_slug: str | None = None
+    service_name: str
+    resource_name: str | None = Field(None, description="ชื่อสนาม/คอร์ทที่จองไว้")
+    booking_date: date
+    booking_time: TimeStr
+    end_time: TimeStr
+    host_name: str = Field("", description="ชื่อคนเปิดก๊วน")
+    open_slots: int
+    joined_count: int
+    slots_left: int = Field(0, description="ยังรับได้อีกกี่คน")
+    share_price: Decimal
+    match_note: str | None = None
+    distance_km: float | None = None
+    joined_by_me: bool = Field(False, description="ฉันลงชื่อไว้แล้วหรือยัง")
+
+
+# ============================================================
+# แนะนำสิ่งที่ทำได้ระหว่างรอ
+# ============================================================
+class GapSuggestion(BaseModel):
+    """บริการที่ว่างพอดีกับช่วงเวลาที่ลูกค้าต้องรอ"""
+
+    shop_id: int
+    shop_name: str
+    category_slug: str | None = None
+    resource_label: str = "ช่าง"
+    service_id: int
+    service_name: str
+    price: Decimal
+    duration_minutes: int
+    distance_km: float
+    travel_minutes: int = Field(..., description="เวลาเดินทางโดยประมาณเที่ยวเดียว")
+    start_time: TimeStr = Field(..., description="ช่องเวลาที่แนะนำให้จอง")
+    end_time: TimeStr
+
+
+class GapWindow(BaseModel):
+    """ช่วงเวลาที่ว่างอันเกิดจากการจองของตัวเอง พร้อมข้อเสนอ"""
+
+    booking_id: int
+    mode: Literal["waiting", "after"] = Field(
+        ...,
+        description=(
+            "waiting = ระหว่างรอรับของคืน (เช่นฝากรถไว้) จึงต้องอยู่ใกล้ · "
+            "after = ต่อจากคิวที่จบแล้ว เดินทางไกลขึ้นได้"
+        ),
+    )
+    window_start: TimeStr
+    window_end: TimeStr
+    window_minutes: int
+    radius_km: float
+    reason: str = Field(..., description="อธิบายให้ผู้ใช้เข้าใจว่าทำไมถึงแนะนำช่วงนี้")
+    items: list[GapSuggestion] = []
+
 
 # ============================================================
 # ช่วงเวลาว่าง (Availability)
@@ -626,3 +725,36 @@ class Page(BaseModel, Generic[T]):
 
 class Message(BaseModel):
     message: str
+
+
+# ============================================================
+# ตารางทรัพยากร × เวลา (ผังแบบเลือกที่นั่งโรงหนัง)
+# ============================================================
+class ResourceRow(BaseModel):
+    """ทรัพยากรหนึ่งชิ้นกับช่องเวลาทั้งวันของมัน"""
+
+    staff_id: int
+    name: str
+    position: str | None = Field(None, description="ประเภทย่อย เช่น หญ้าเทียม / คอร์ทในร่ม / ห้องเล็ก")
+    closed_reason: str | None = Field(None, description="ถ้าทั้งวันจองไม่ได้ บอกเหตุผลไว้ตรงนี้")
+    slots: list[Slot] = []
+    available_count: int = 0
+
+
+class ResourceGrid(BaseModel):
+    """ตารางทั้งผัง — แถวคือสนาม/คอร์ท/ห้อง คอลัมน์คือเวลา
+
+    มีไว้ให้หน้าเว็บวาดผังแบบเลือกที่นั่งโรงหนังได้ในคำขอเดียว
+    ถ้าไม่มี endpoint นี้ หน้าเว็บต้องยิงถามทีละคอร์ท สนามที่มี 10 คอร์ท
+    จะกลายเป็น 10 คำขอต่อการเปลี่ยนวันหนึ่งครั้ง
+    """
+
+    service_id: int
+    service_name: str
+    duration_minutes: int
+    booking_date: date
+    resource_label: str = "ช่าง"
+    open_time: TimeStr
+    close_time: TimeStr
+    times: list[TimeStr] = Field([], description="หัวคอลัมน์ เรียงตามเวลา ใช้ร่วมกันทุกแถว")
+    rows: list[ResourceRow] = []

@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608221056" />
+  <link rel="stylesheet" href="css/app.css?v=202608221323" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -197,8 +197,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202608221056"></script>
-  <script src="js/ui.js?v=202608221056"></script>
+  <script src="js/api.js?v=202608221323"></script>
+  <script src="js/ui.js?v=202608221323"></script>
   <script>
     renderNavbar("bookings");
     renderFooter();
@@ -219,6 +219,11 @@
     //   ส่งของด่วน   → "รับที่" / "ส่งที่"   (ของเดินทางจาก A ไป B)
     //   บริการถึงที่ → "ออกจาก" / "ไปที่"   (คนเดินทางจากร้านไปหาลูกค้า)
     const isCourier = (shopId) => (shops[shopId] || {}).category_slug === "delivery";
+    // หมวดที่เปิดก๊วนได้ — ต้องตรงกับ TEAM_CATEGORIES ใน app/routers/matches.py
+    const TEAM_CATS = ["football", "badminton", "karaoke"];
+    const isTeam = (shopId) => TEAM_CATS.includes((shops[shopId] || {}).category_slug);
+    // หมวดที่ลูกค้าต้องฝากของไว้แล้วรอ — ตรงกับ WAITING_CATEGORIES ใน app/routers/gaps.py
+    const isWaiting = (shopId) => (shops[shopId] || {}).category_slug === "car-care";
 
     const shopOf = (id) => shops[id] || null;
     const nameOf = (id) => (shops[id] ? shops[id].name : "—");
@@ -483,12 +488,115 @@
                 ${b.payment_state !== "unpaid" ? `<button data-receipt="${b.id}" class="btn btn-ghost btn-sm">${icon("receipt", 14)} ใบเสร็จ</button>` : ""}
                 ${canRebook ? `<a href="shop.html?id=${b.shop_id}" class="btn btn-outline btn-sm">จองอีกครั้ง</a>` : ""}
                 ${canCancel ? `<button data-cancel="${b.id}" class="btn btn-danger btn-sm">ยกเลิกการจอง</button>` : ""}
+                ${canCancel && isTeam(b.shop_id) && b.holds_slot
+                  ? `<button data-match="${b.id}" class="btn btn-outline btn-sm">
+                       ${icon("user", 14)} ${b.open_slots > 0 ? "จัดการก๊วน" : "เปิดก๊วนหาคน"}
+                     </button>` : ""}
               </div>` : ""}
+
+            ${b.open_slots > 0 ? `
+              <div class="mt-3 text-sm" style="color:var(--blue-600)">
+                ${icon("user", 14)} เปิดก๊วนอยู่ · ลงชื่อแล้ว
+                <b class="num">${b.joined_count}</b>/<b class="num">${b.open_slots}</b> คน
+                ${b.share_price > 0 ? ` · คนละ ฿${baht(b.share_price)}` : ""}
+              </div>` : ""}
+
+            ${canCancel && isWaiting(b.shop_id) && b.status !== "cancelled"
+              ? `<div class="mt-3" data-gap="${b.id}"></div>` : ""}
           </div>
         </article>`;
     }
 
+    // ================= ก๊วน =================
+    async function openMatchDialog(b) {
+      const joined = b.joined_count || 0;
+      const want = await promptDialog({
+        title: b.open_slots > 0 ? "จัดการก๊วน" : "เปิดก๊วนหาคน",
+        message:
+          `ประกาศหาคนไปเล่นด้วยกันที่ ${nameOf(b.shop_id)}\n` +
+          `${thaiDate(b.booking_date)} ${shortTime(b.booking_time)}–${shortTime(b.end_time)} น.\n\n` +
+          `ต้องการคนเพิ่มอีกกี่คน (ไม่นับตัวคุณเอง)` +
+          (joined ? `\nตอนนี้มีคนลงชื่อแล้ว ${joined} คน ใส่น้อยกว่านี้ไม่ได้` : ""),
+        value: String(b.open_slots || 9),
+        placeholder: "เช่น 9",
+        confirmText: "บันทึก",
+      });
+      if (want === null) return;
+
+      const n = Number(want);
+      if (!Number.isInteger(n) || n < 1 || n > 40) return toast("ใส่จำนวนคน 1–40", "error");
+
+      const price = await promptDialog({
+        title: "หารกันคนละเท่าไหร่",
+        message:
+          `ค่าบริการทั้งหมด ฿${baht(b.total_price)}\n` +
+          `หาร ${n + 1} คน = ฿${baht(Number(b.total_price) / (n + 1))} ต่อคน\n\n` +
+          `ระบบไม่ได้เก็บเงินแทน — ตัวเลขนี้ใช้บอกคนที่จะมาร่วมเท่านั้น`,
+        value: String(Math.round(Number(b.total_price) / (n + 1))),
+        confirmText: "เปิดก๊วน",
+      });
+      if (price === null) return;
+
+      const note = await promptDialog({
+        title: "ข้อความประกาศ (ไม่บังคับ)",
+        message: "เขียนบอกระดับฝีมือหรือเงื่อนไข จะได้เจอคนที่เข้ากันได้",
+        value: b.match_note || "",
+        placeholder: "เช่น มือใหม่มาได้ ไม่ซีเรียส",
+        confirmText: "เปิดก๊วน",
+      });
+      if (note === null) return;
+
+      try {
+        await apiPost(`/api/bookings/${b.id}/open-match`, {
+          open_slots: n,
+          share_price: Number(price) || 0,
+          match_note: note || null,
+        });
+        toast("เปิดก๊วนแล้ว คนอื่นจะเห็นในหน้าสนาม");
+        load(1);
+      } catch (e) {
+        toast(e.message || "เปิดก๊วนไม่สำเร็จ", "error");
+      }
+    }
+
+    // ================= สิ่งที่ทำได้ระหว่างรอ =================
+    // จุดขายของระบบที่คู่แข่งทำไม่ได้ — เพราะเขาเห็นแค่หมวดเดียว
+    // ระหว่างที่รถอยู่ในร้าน 8 ชั่วโมง ลูกค้าไม่มีพาหนะ ระบบจึงเสนอเฉพาะร้านที่เดินถึง
+    async function loadGaps() {
+      const boxes = document.querySelectorAll("[data-gap]");
+      for (const box of boxes) {
+        try {
+          const g = await apiGet(`/api/bookings/${box.dataset.gap}/gap?limit=4`);
+          if (!g.items || !g.items.length) { box.remove(); continue; }
+          box.innerHTML = `
+            <div class="card p-4" style="background:var(--navy-50);border:0">
+              <div class="text-sm font-semibold">${icon("clock", 14)} ระหว่างรอ ${Math.floor(g.window_minutes / 60)} ชั่วโมงนี้ทำอะไรดี</div>
+              <p class="text-xs text-muted mt-1">${esc(g.reason)}</p>
+              <div class="mt-3 space-y-2">
+                ${g.items.map((it) => `
+                  <a href="shop.html?id=${it.shop_id}" class="gap-item">
+                    <span>
+                      <b>${esc(it.service_name)}</b>
+                      <span class="text-muted"> ที่ ${esc(it.shop_name)}</span>
+                    </span>
+                    <span class="text-xs text-muted num">
+                      ${shortTime(it.start_time)} น. · ${it.distance_km} กม. · ฿${baht(it.price)}
+                    </span>
+                  </a>`).join("")}
+              </div>
+            </div>`;
+        } catch { box.remove(); }
+      }
+    }
+
     function bindActions() {
+      document.querySelectorAll("[data-match]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          const b = lastItems.find((x) => x.id === Number(btn.dataset.match));
+          if (b) openMatchDialog(b);
+        })
+      );
+      loadGaps();
       document.querySelectorAll("[data-pay]").forEach((btn) =>
         btn.addEventListener("click", () => {
           const b = lastItems.find((x) => x.id === Number(btn.dataset.pay));
