@@ -1,5 +1,18 @@
 # คำแนะนำสำหรับผู้ช่วย AI ที่ทำงานกับโปรเจกต์นี้
 
+## เว็บจริงที่เปิดสาธารณะอยู่ — สำคัญ
+
+**https://bookvice.onrender.com/index.html**
+
+นี่คือเว็บหลักที่คนอื่น (รวมถึงอาจารย์) เปิดดูได้จริง ไม่ใช่ของทดลอง
+ทุกอย่างที่ push ขึ้น GitHub แล้วกด deploy จะไปโผล่ที่นี่
+
+- ในเครื่อง `http://localhost:3000` (nginx) · API `http://localhost:8000`
+- ฐานข้อมูลของเว็บจริงอยู่บน **Neon** ไม่ใช่ PostgreSQL ในเครื่อง
+- **Auto-Deploy พัง** ต้องเข้า Render กด Manual Deploy → Deploy latest commit เองทุกครั้งหลัง push
+- รูปที่อัปโหลดบนเว็บจริงเก็บใน `/tmp` **หายทุกครั้งที่ deploy** ต้องอัปซ้ำ
+- ยังไม่ได้ตั้ง `ADMIN_PASSWORD` ใน Render จึงเข้าบัญชี admin บนเว็บจริงไม่ได้
+
 **อ่าน `PROJECT_CONTEXT.md` หัวข้อ 0 ให้จบก่อนแตะโค้ด** — มีทุกอย่างที่ต้องรู้
 ตั้งแต่วิธีรัน บัญชีทดสอบ แผนที่โค้ด กฎที่ห้ามทำผิด และงานที่ค้างอยู่
 
@@ -9,7 +22,7 @@ Bookvice — แพลตฟอร์มจองคิว 12 หมวด แ�
 งานส่งรายวิชา **89033167 Web Application Development**
 
 FastAPI + PostgreSQL + Docker Compose · **74 endpoints · 16 ตาราง**
-เว็บสาธารณะ https://bookvice.onrender.com
+เว็บสาธารณะ https://bookvice.onrender.com/index.html
 
 ## 6 ข้อที่พลาดบ่อยที่สุด
 
