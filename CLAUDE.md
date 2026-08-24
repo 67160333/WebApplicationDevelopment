@@ -42,7 +42,11 @@ FastAPI + PostgreSQL + Docker Compose · **74 endpoints · 16 ตาราง**
 
 ```bash
 docker compose exec api python tests/test_booking_payment.py
+node tests/test_shop_status.js
 ```
+
+ชุดแรกยิงเข้า API ชุดที่สองตรวจตรรกะเวลาในหน้าเว็บ (`shopStatus`)
+**ต้องรันทั้งคู่** — ชุดแรกไม่แตะโค้ดหน้าเว็บเลยสักบรรทัด
 
 ต้องได้ `ไม่ผ่าน 0` — จำนวนข้อที่ผ่านเพิ่มขึ้นตามฟีเจอร์ใหม่ ให้ดูที่ **ไม่ผ่าน** เป็นหลัก
 (รอบล่าสุดที่ยืนยันแล้วคือ 67 ข้อ ก่อนเพิ่มชุดเทสต์ของ 5 ฟีเจอร์ใหม่)

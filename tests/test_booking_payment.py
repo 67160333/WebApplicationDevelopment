@@ -640,6 +640,72 @@ def main():
         check(f"ระยะห่างของ {item['service_name']} ต้องเป็นบวก",
               item["interval_days"] > 0, True)
 
+    # ==================================================================
+    # ADMIN_PASSWORD ต้องมีผลจริง แม้ฐานข้อมูลจะถูก seed ไปแล้ว
+    # ==================================================================
+    #
+    # บั๊กที่เจอบนเว็บจริง 24 ส.ค.: ตั้ง ADMIN_PASSWORD ใน Render แล้ว
+    # แต่ล็อกอิน admin ยังได้ 401 ตลอด
+    #
+    # สาเหตุ: _admin_password() ถูกอ่านตอน "สร้างบัญชีครั้งแรก" เท่านั้น
+    # พอฐานข้อมูลมีข้อมูลแล้ว seed_database() จะ return ตั้งแต่บรรทัดแรก
+    # ค่าที่ตั้งทีหลังจึงไม่มีผลอะไรเลย และรหัสสุ่มที่พิมพ์ลง log ครั้งเดียว
+    # ก็หายไปพร้อม log — เข้าบัญชี admin บนเว็บจริงไม่ได้อีกเลย
+    #
+    # เทสต์นี้จำลองสถานการณ์เดียวกัน: ฐานข้อมูลมีข้อมูลแล้ว → ตั้งค่าใหม่ →
+    # ต้องเข้าได้ด้วยรหัสใหม่ และเข้าไม่ได้ด้วยรหัสเก่า
+    print("\n--- ADMIN_PASSWORD หลังฐานข้อมูลถูก seed แล้ว ---")
+    from app.database import SessionLocal          # noqa: E402
+    from app.seed import DEMO_PASSWORD, sync_admin_password  # noqa: E402
+
+    check("รหัสเดิมของ admin ใช้ได้ก่อนเปลี่ยน", c.post("/api/auth/login", json={
+        "username": "admin", "password": DEMO_PASSWORD,
+    }).status_code, 200)
+
+    NEW_ADMIN_PW = "Rotated-Admin-9f3k"
+    os.environ["ADMIN_PASSWORD"] = NEW_ADMIN_PW
+    db = SessionLocal()
+    try:
+        # seed_database() จะข้ามทันทีเพราะมีข้อมูลแล้ว — นี่คือจุดที่เคยพลาด
+        from app.seed import seed_database
+        seed_database(db)
+    finally:
+        db.close()
+
+    check("เข้าด้วยรหัสใหม่ได้", c.post("/api/auth/login", json={
+        "username": "admin", "password": NEW_ADMIN_PW,
+    }).status_code, 200)
+    check("รหัสเก่าใช้ไม่ได้แล้ว", c.post("/api/auth/login", json={
+        "username": "admin", "password": DEMO_PASSWORD,
+    }).status_code, 401)
+
+    # เรียกซ้ำต้องไม่พัง และต้องไม่เปลี่ยนอะไร (ระบบรีสตาร์ตบ่อยบน Render)
+    db = SessionLocal()
+    try:
+        sync_admin_password(db)
+        sync_admin_password(db)
+    finally:
+        db.close()
+    check("เรียกซ้ำแล้วยังเข้าได้เหมือนเดิม", c.post("/api/auth/login", json={
+        "username": "admin", "password": NEW_ADMIN_PW,
+    }).status_code, 200)
+
+    # ไม่ได้ตั้ง ADMIN_PASSWORD ต้องไม่ไปแตะรหัสเดิมของใคร
+    os.environ.pop("ADMIN_PASSWORD", None)
+    db = SessionLocal()
+    try:
+        sync_admin_password(db)
+    finally:
+        db.close()
+    check("ไม่ได้ตั้งค่าไว้ ต้องไม่รีเซ็ตรหัสเดิม", c.post("/api/auth/login", json={
+        "username": "admin", "password": NEW_ADMIN_PW,
+    }).status_code, 200)
+
+    # บัญชีอื่นต้องไม่ถูกกระทบ
+    check("บัญชีลูกค้าไม่ถูกแตะต้อง", c.post("/api/auth/login", json={
+        "username": "mind", "password": DEMO_PASSWORD,
+    }).status_code, 200)
+
     print("\n" + "=" * 60)
     print(f"สรุป: ผ่าน {ok} · ไม่ผ่าน {fail} · ข้าม {skipped} บล็อก")
     if skipped:
