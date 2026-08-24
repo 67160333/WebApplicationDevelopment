@@ -39,10 +39,46 @@ def _admin_password() -> tuple[str, bool]:
     return secrets.token_urlsafe(12), True
 
 
+def sync_admin_password(db: Session) -> None:
+    """ตั้งรหัส admin ให้ตรงกับ ADMIN_PASSWORD ทุกครั้งที่ระบบเริ่มทำงาน
+
+    ทำไมต้องมีฟังก์ชันนี้แยกออกมา
+    ----------------------------------------------------------------------
+    `_admin_password()` ถูกอ่าน **ตอนสร้างบัญชีครั้งแรกเท่านั้น**
+    พอฐานข้อมูลมีข้อมูลแล้ว `seed_database()` จะ return ทันที
+    การไปตั้ง ADMIN_PASSWORD ทีหลังจึงไม่มีผลอะไรเลย
+
+    อาการที่เจอจริง: ฐานข้อมูลบน Neon ถูก seed ครั้งแรกโดยไม่ได้ตั้ง
+    ADMIN_PASSWORD ระบบจึงสุ่มรหัสให้แล้วพิมพ์ลง log ครั้งเดียว
+    พอ log หมุนหายไป ก็ไม่มีทางเข้าบัญชี admin บนเว็บจริงได้อีกเลย
+    ตั้งค่าใหม่ใน Render กี่ครั้งก็ไม่ช่วย เพราะ seed ข้ามไปแล้ว
+
+    **ทำงานเฉพาะเมื่อตั้ง ADMIN_PASSWORD ไว้จริง ๆ เท่านั้น**
+    ถ้าไม่ได้ตั้ง จะไม่แตะรหัสเดิม เพื่อไม่ให้เผลอรีเซ็ตรหัสของคนอื่น
+    """
+    want = os.getenv("ADMIN_PASSWORD", "").strip()
+    if not want:
+        return
+
+    admin = db.scalar(select(User).where(User.username == "admin"))
+    if admin is None:
+        return
+
+    # ตรวจก่อนว่าตรงอยู่แล้วหรือยัง จะได้ไม่เขียนฐานข้อมูลทุกครั้งที่รีสตาร์ต
+    from app.security import verify_password
+    if verify_password(want, admin.password_hash):
+        return
+
+    admin.password_hash = hash_password(want)
+    db.commit()
+    print("ตั้งรหัสผ่านบัญชี admin ใหม่ตามค่า ADMIN_PASSWORD แล้ว")
+
+
 def seed_database(db: Session) -> None:
     # ถ้ามีข้อมูลอยู่แล้วไม่ต้องใส่ซ้ำ
     if db.scalar(select(User).limit(1)) is not None:
         print("มีข้อมูลอยู่แล้ว ข้ามขั้นตอน seed")
+        sync_admin_password(db)
         return
 
     print("กำลังใส่ข้อมูลตัวอย่าง...")
