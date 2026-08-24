@@ -37,7 +37,20 @@ main_mod.run_migrations = lambda engine: None
 
 from app.routers.bookings import MAX_ADVANCE_DAYS  # noqa: E402
 
-ok = fail = 0
+ok = fail = skipped = 0
+
+
+def skip(label, why):
+    """บันทึกว่าบล็อกทดสอบถูกข้าม
+
+    **สำคัญ**: ชุดทดสอบที่ข้ามบล็อกเงียบ ๆ อันตรายกว่าชุดที่ไม่มีเทสต์เลย
+    เพราะมันขึ้นว่า "ไม่ผ่าน 0" ทั้งที่ไม่ได้ทดสอบอะไร
+    (เคยเกิดจริง — บล็อกเฝ้าช่องเวลาไม่เคยรันเลยสักครั้ง เพราะไปล็อกวันที่ไว้
+    แล้ววันนั้นดันเป็นวันที่ร้านปิด)
+    """
+    global skipped
+    skipped += 1
+    print(f"  ⏭️  ข้าม: {label} — {why}")
 
 
 def check(label, got, want):
@@ -402,6 +415,10 @@ def main():
 
             back = c.post(f"/api/bookings/{bk['id']}/join", headers=nong)
             check("ถอนตัวแล้วกลับเข้ามาใหม่ได้", back.status_code, 201)
+        else:
+            skip("ก๊วน", "ไม่มีช่องว่างในคอร์ทแบดวันที่ทดสอบ")
+    else:
+        skip("ก๊วน", "ไม่พบคอร์ทแบดในข้อมูลตัวอย่าง")
 
     if salon:
         d2 = c.get(f"/api/shops/{salon['id']}").json()
@@ -418,6 +435,10 @@ def main():
             no = c.post(f"/api/bookings/{b2['id']}/open-match", headers=cust,
                         json={"open_slots": 3, "share_price": 50})
             check("ร้านสปาเปิดก๊วนไม่ได้ (ไม่ใช่กิจกรรมกลุ่ม)", no.status_code, 400)
+        else:
+            skip("สปาเปิดก๊วนไม่ได้", "ไม่มีช่องว่างในร้านสปาวันที่ทดสอบ")
+    else:
+        skip("สปาเปิดก๊วนไม่ได้", "ไม่พบร้านสปาในข้อมูลตัวอย่าง")
 
     # ==================================================================
     # ผังทรัพยากร x เวลา (ตอบฟีดแบ็กอาจารย์ข้อ 3)
@@ -437,73 +458,88 @@ def main():
         row = gd["rows"][0]
         check("แต่ละแถวมีช่องเวลาของตัวเอง", len(row["slots"]) > 0, True)
         check("ความจุของแต่ละคอร์ทคือ 1", row["slots"][0]["capacity"], 1)
+    else:
+        skip("ผังทรัพยากร x เวลา", "ไม่พบคอร์ทแบดในข้อมูลตัวอย่าง")
 
     # ==================================================================
     # เฝ้าช่องเวลาที่เต็ม — การยกเลิกต้องส่งต่อโอกาสให้คนที่รออยู่
     # ==================================================================
     print("\n--- เฝ้าช่องเวลา ---")
-    if salon:
+    if not salon:
+        skip("เฝ้าช่องเวลา", "ไม่พบร้านสปาในข้อมูลตัวอย่าง")
+    else:
         detail = c.get(f"/api/shops/{salon['id']}").json()
         sv = next((x for x in detail["services"]
                    if x["is_active"] and x["booking_mode"] == "scheduled"), None)
         st = next((x for x in detail["staff"] if x["is_active"]), None)
-        day = str(date.today() + timedelta(days=6))
 
+        # ไล่หาวันที่ว่างจริง ไม่ล็อกวันตายตัว
+        # ร้านมีวันหยุดประจำสัปดาห์ ถ้าล็อกวันไว้แล้วบังเอิญตรงวันปิด
+        # บล็อกนี้จะถูกข้ามโดยไม่มีใครรู้ (เกิดขึ้นมาแล้วจริง ๆ)
+        day = free = None
         if sv and st:
-            av = c.get(
-                f"/api/services/{sv['id']}/availability?date={day}&staff_id={st['id']}"
-            ).json()
-            free = next((x for x in av["slots"] if x["available"]), None)
+            for d in range(3, 15):
+                day = str(date.today() + timedelta(days=d))
+                av = c.get(
+                    f"/api/services/{sv['id']}/availability?date={day}&staff_id={st['id']}"
+                ).json()
+                free = next((x for x in av["slots"] if x["available"]), None)
+                if free:
+                    break
 
-            if free:
-                # ลูกค้าคนแรกจองแล้วจ่ายมัดจำ ช่องถูกล็อก
-                b = c.post("/api/bookings", headers=cust, json={
-                    "service_id": sv["id"], "staff_id": st["id"],
-                    "booking_date": day, "booking_time": free["time"],
-                }).json()
-                c.post(f"/api/bookings/{b['id']}/pay", headers=cust,
-                       json={"method": "credit_card"})
+        if not (sv and st):
+            skip("เฝ้าช่องเวลา", "ร้านนี้ไม่มีบริการแบบมีปฏิทินหรือไม่มีช่าง")
+        elif not free:
+            skip("เฝ้าช่องเวลา", "ไม่มีช่องว่างเลยใน 14 วันข้างหน้า")
+        else:
+            # ลูกค้าคนแรกจองแล้วจ่ายมัดจำ ช่องถูกล็อก
+            b = c.post("/api/bookings", headers=cust, json={
+                "service_id": sv["id"], "staff_id": st["id"],
+                "booking_date": day, "booking_time": free["time"],
+            }).json()
+            c.post(f"/api/bookings/{b['id']}/pay", headers=cust,
+                   json={"method": "credit_card"})
 
-                # ลูกค้าคนที่สองเฝ้าช่วงเวลานั้นไว้
-                other = login("nong")
-                before = len(c.get("/api/notifications", headers=other).json()["items"])
-                w = c.post("/api/watches", headers=other, json={
-                    "service_id": sv["id"], "staff_id": st["id"],
-                    "watch_date": day, "from_time": "00:00", "to_time": "23:59",
-                })
-                check("เฝ้าช่วงเวลาได้", w.status_code, 201)
+            # ลูกค้าคนที่สองเฝ้าช่วงเวลานั้นไว้
+            other = login("nong")
+            before = len(c.get("/api/notifications", headers=other).json()["items"])
+            w = c.post("/api/watches", headers=other, json={
+                "service_id": sv["id"], "staff_id": st["id"],
+                "watch_date": day, "from_time": "00:00", "to_time": "23:59",
+            })
+            check("เฝ้าช่วงเวลาได้", w.status_code, 201)
 
-                # เฝ้าซ้ำช่วงเดิมไม่ได้ กันสแปมแจ้งเตือน
-                dup = c.post("/api/watches", headers=other, json={
-                    "service_id": sv["id"], "staff_id": st["id"],
-                    "watch_date": day, "from_time": "00:00", "to_time": "23:59",
-                })
-                check("เฝ้าช่วงเดิมซ้ำไม่ได้", dup.status_code, 409)
+            # เฝ้าซ้ำช่วงเดิมไม่ได้ กันสแปมแจ้งเตือน
+            dup = c.post("/api/watches", headers=other, json={
+                "service_id": sv["id"], "staff_id": st["id"],
+                "watch_date": day, "from_time": "00:00", "to_time": "23:59",
+            })
+            check("เฝ้าช่วงเดิมซ้ำไม่ได้", dup.status_code, 409)
 
-                check("เวลาเริ่มต้องมาก่อนเวลาจบ", c.post("/api/watches", headers=other, json={
-                    "service_id": sv["id"], "watch_date": day,
-                    "from_time": "20:00", "to_time": "18:00",
-                }).status_code, 400)
+            check("เวลาเริ่มต้องมาก่อนเวลาจบ", c.post("/api/watches", headers=other, json={
+                "service_id": sv["id"], "watch_date": day,
+                "from_time": "20:00", "to_time": "18:00",
+            }).status_code, 400)
 
-                check("เฝ้าวันที่ผ่านไปแล้วไม่ได้", c.post("/api/watches", headers=other, json={
-                    "service_id": sv["id"],
-                    "watch_date": str(date.today() - timedelta(days=1)),
-                    "from_time": "10:00", "to_time": "12:00",
-                }).status_code, 400)
+            check("เฝ้าวันที่ผ่านไปแล้วไม่ได้", c.post("/api/watches", headers=other, json={
+                "service_id": sv["id"],
+                "watch_date": str(date.today() - timedelta(days=1)),
+                "from_time": "10:00", "to_time": "12:00",
+            }).status_code, 400)
 
-                # หัวใจของฟีเจอร์: ยกเลิกแล้วคนที่รอต้องได้รับแจ้งเตือน
-                c.delete(f"/api/bookings/{b['id']}", headers=cust)
-                after = c.get("/api/notifications", headers=other).json()["items"]
-                check("ยกเลิกแล้วคนที่เฝ้าไว้ได้รับแจ้งเตือน", len(after) > before, True)
-                check("แจ้งเตือนเป็นชนิดช่องว่าง",
-                      any(x["kind"] == "slot_free" for x in after), True)
+            # หัวใจของฟีเจอร์: ยกเลิกแล้วคนที่รอต้องได้รับแจ้งเตือน
+            c.delete(f"/api/bookings/{b['id']}", headers=cust)
+            after = c.get("/api/notifications", headers=other).json()["items"]
+            check("ยกเลิกแล้วคนที่เฝ้าไว้ได้รับแจ้งเตือน", len(after) > before, True)
+            check("แจ้งเตือนเป็นชนิดช่องว่าง",
+                  any(x["kind"] == "slot_free" for x in after), True)
 
-                # แจ้งไปแล้วต้องไม่ค้างอยู่ในรายการที่ยังรอ ไม่งั้นจะแจ้งซ้ำ
-                still = c.get("/api/watches?only_active=true", headers=other).json()
-                check("แจ้งแล้วรายการหลุดจากคิวรอ",
-                      any(x["id"] == w.json()["id"] for x in still), False)
+            # แจ้งไปแล้วต้องไม่ค้างอยู่ในรายการที่ยังรอ ไม่งั้นจะแจ้งซ้ำ
+            still = c.get("/api/watches?only_active=true", headers=other).json()
+            check("แจ้งแล้วรายการหลุดจากคิวรอ",
+                  any(x["id"] == w.json()["id"] for x in still), False)
 
-    # ==================================================================
+# ==================================================================
     # ก๊วนแบบยังไม่จอง — ตอบฟีดแบ็กอาจารย์ข้อ 2 ให้ครบ
     # (open-match ต้องจ่ายมัดจำก่อน คนไม่มีเพื่อนจึงยังใช้ไม่ได้)
     # ==================================================================
@@ -571,7 +607,9 @@ def main():
     # แนะนำเวลาที่ไม่ทำให้ตารางร้านแตก + เสนอรอบถัดไป
     # ==================================================================
     print("\n--- แนะนำเวลาและรอบถัดไป ---")
-    if salon:
+    if not salon:
+        skip("ป้ายช่องเวลาที่แนะนำ", "ไม่พบร้านสปาในข้อมูลตัวอย่าง")
+    else:
         detail = c.get(f"/api/shops/{salon['id']}").json()
         sv = next((x for x in detail["services"]
                    if x["is_active"] and x["booking_mode"] == "scheduled"), None)
@@ -589,6 +627,8 @@ def main():
             # ถ้าแนะนำว่า "ดี" ก็ต้องไม่มีเวลาตายเหลือ ไม่งั้นป้ายขัดแย้งกันเอง
             check("ช่องที่แนะนำต้องไม่มีเวลาตาย",
                   all(x["wasted_minutes"] == 0 for x in slots if x["fits_well"]), True)
+        else:
+            skip("ป้ายช่องเวลาที่แนะนำ", "ร้านนี้ไม่มีบริการแบบมีปฏิทินหรือไม่มีช่าง")
 
     nr = c.get("/api/me/next-rounds", headers=cust)
     check("ขอรายการรอบถัดไปได้", nr.status_code, 200)
@@ -601,7 +641,9 @@ def main():
               item["interval_days"] > 0, True)
 
     print("\n" + "=" * 60)
-    print(f"สรุป: ผ่าน {ok} · ไม่ผ่าน {fail}")
+    print(f"สรุป: ผ่าน {ok} · ไม่ผ่าน {fail} · ข้าม {skipped} บล็อก")
+    if skipped:
+        print("  ⚠️  มีบล็อกที่ถูกข้าม แปลว่าฟีเจอร์นั้นยังไม่ถูกทดสอบจริง")
     print("=" * 60)
 
 
