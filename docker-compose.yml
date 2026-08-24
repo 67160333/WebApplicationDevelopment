@@ -48,6 +48,11 @@ services:
       # และการ mount ทำให้แก้ไฟล์ทดสอบแล้วรันใหม่ได้ทันที ไม่ต้อง build ใหม่
       # อ่านอย่างเดียว (ro) กัน container เผลอเขียนทับไฟล์ในเครื่อง
       - ./tests:/app/tests:ro
+      # สคริปต์ช่วยงาน (อัปโหลดรูปร้าน) — mount เหมือน tests ด้วยเหตุผลเดียวกัน
+      #
+      # ต่างกันตรงที่ **ไม่ใส่ ro** เพราะ --fetch ต้องเขียนรูปที่โหลดมาลง tools/photos
+      # รูปที่โหลดมาจึงมาอยู่ในเครื่องจริง ไม่หายตอนลบ container (และถูก .gitignore ไว้แล้ว)
+      - ./tools:/app/tools
     depends_on:
       db:
         condition: service_healthy

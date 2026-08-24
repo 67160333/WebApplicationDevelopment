@@ -158,10 +158,13 @@ tests/
 
 ```bash
 docker compose up -d --build
-python tools/upload_photos.py --fetch     # โหลดรูป + อัปเข้าร้านทั้ง 38 แห่ง
+docker compose exec api python tools/upload_photos.py --fetch
 ```
 
-ถ้าเครื่องไม่มี Python ให้รันผ่าน container แทน — วิธีอยู่ในหัวไฟล์ `tools/upload_photos.py`
+**รันผ่าน container เป็นวิธีหลัก** เพราะ Windows ส่วนใหญ่ไม่มี Python ติดมาให้
+(`docker-compose.yml` mount โฟลเดอร์ `tools` เข้าไปแบบเขียนได้ รูปที่โหลดมาจึงอยู่ในเครื่องจริง)
+
+ถ้าเครื่องมี Python อยู่แล้วจะรันตรง ๆ ก็ได้ — `python tools/upload_photos.py --fetch`
 
 **2. รันชุดทดสอบให้ผ่านครบ (ไม่ผ่านต้องเป็น 0)**
 

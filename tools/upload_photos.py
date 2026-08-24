@@ -24,10 +24,13 @@
 
        python tools/upload_photos.py
 
-   ถ้าเครื่องไม่มี Python ให้รันผ่าน container แทน
+   ถ้าเครื่องไม่มี Python (Windows ส่วนใหญ่ไม่มีมาให้) ให้รันผ่าน container แทน
+   docker-compose mount โฟลเดอร์ tools เข้าไปให้แล้ว จึงเรียกได้ตรง ๆ
 
-       docker compose cp tools bookvice-api:/app/tools
-       docker compose exec api python /app/tools/upload_photos.py
+       docker compose exec api python tools/upload_photos.py --fetch
+
+   รูปที่โหลดมาจะไปอยู่ใน tools/photos บนเครื่องจริง (ไม่ใช่ในคอนเทนเนอร์)
+   เพราะ mount แบบเขียนได้ ลบคอนเทนเนอร์แล้วรูปไม่หาย ไม่ต้องโหลดซ้ำ
 
 3. อยากอัปขึ้นเว็บจริงบน Render ก็เปลี่ยนปลายทาง
 
