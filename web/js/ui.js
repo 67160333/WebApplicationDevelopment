@@ -803,21 +803,35 @@ const Favorites = {
 // ร้านนี้เปิดอยู่ไหมตอนนี้ — ช่วยให้ลูกค้ารู้ว่าโทรไปได้เลยหรือยัง
 // ============================================================
 function shopStatus(shop) {
+  // ต้องใช้กติกาเวลาชุดเดียวกับ _windows_for() ใน app/routers/bookings.py
+  // ไม่งั้นหน้าเว็บกับเซิร์ฟเวอร์จะเถียงกันเอง — เคยเกิดจริง สนามที่เปิด 24 ชม.
+  // ขึ้นป้าย "ปิดแล้ววันนี้" อยู่ข้าง ๆ ตัวเลข "24 ชม. เปิดตลอด" บนการ์ดใบเดียวกัน
   const toMin = (t) => Number(String(t).slice(0, 2)) * 60 + Number(String(t).slice(3, 5));
   const now = new Date();
   const cur = now.getHours() * 60 + now.getMinutes();
   const open = toMin(shop.open_time);
   const close = toMin(shop.close_time);
 
-  if (cur < open) {
-    const left = open - cur;
-    return left <= 60
-      ? { text: `เปิดในอีก ${left} นาที`, cls: "st-soon" }
-      : { text: `เปิด ${shortTime(shop.open_time)} น.`, cls: "st-closed" };
-  }
-  if (cur >= close) return { text: "ปิดแล้ววันนี้", cls: "st-closed" };
+  // เปิดเท่ากับปิด = เปิดตลอด 24 ชั่วโมง (กติกาเดียวกับฝั่งเซิร์ฟเวอร์)
+  if (open === close) return { text: "เปิด 24 ชั่วโมง", cls: "st-open" };
 
-  const left = close - cur;
+  // ร้านที่ปิดหลังเที่ยงคืน (คาราโอเกะ 14:00–02:00) มีสองช่วงในวันปฏิทินเดียวกัน
+  // คือ [เปิด, 24:00) กับ [00:00, ปิด) ต้องเช็คทั้งสองช่วง
+  // ไม่งั้นตอนตีหนึ่งซึ่งร้านเปิดอยู่จริง หน้าเว็บจะบอกว่าปิด
+  const overnight = open > close;
+  const openNow = overnight ? (cur >= open || cur < close) : (cur >= open && cur < close);
+
+  if (!openNow) {
+    // นับถอยหลังแบบวนรอบ 24 ชม. เพื่อให้ร้านที่เปิดตอนเช้ามืดคำนวณถูก
+    const until = (open - cur + 1440) % 1440;
+    if (until <= 60) return { text: `เปิดในอีก ${until} นาที`, cls: "st-soon" };
+    // "ปิดแล้ววันนี้" ใช้ได้เฉพาะร้านที่ไม่ข้ามเที่ยงคืน
+    // ร้านข้ามเที่ยงคืนยังจะกลับมาเปิดอีกในวันปฏิทินเดียวกัน
+    if (!overnight && cur >= close) return { text: "ปิดแล้ววันนี้", cls: "st-closed" };
+    return { text: `เปิด ${shortTime(shop.open_time)} น.`, cls: "st-closed" };
+  }
+
+  const left = (close - cur + 1440) % 1440;
   if (left <= 60) return { text: `ใกล้ปิด · อีก ${left} นาที`, cls: "st-soon" };
   return { text: "เปิดอยู่ตอนนี้", cls: "st-open" };
 }
