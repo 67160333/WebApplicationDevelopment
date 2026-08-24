@@ -29,8 +29,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Booking, Category, MatchJoin, Service, Shop, Staff, User
-from app.schemas import MatchJoinOut, MatchOpen, MatchOut, Message
+from app.models import (
+    Booking, Category, MatchInterest, MatchJoin, MatchRequest, Service, Shop, Staff, User,
+)
+from app.schemas import (
+    MatchJoinOut, MatchOpen, MatchOut, MatchRequestCreate, MatchRequestOut, Message,
+)
 from app.routers.notifications import notify
 from app.security import get_current_user
 
@@ -374,3 +378,267 @@ def leave_match(
         )
     db.commit()
     return Message(message="ถอนตัวจากก๊วนแล้ว")
+
+
+# ===========================================================================
+# ประกาศหาคน "ก่อนจอง" — ปิดช่องโหว่ของก๊วนแบบเดิม
+# ===========================================================================
+# ก๊วนข้างบนใช้ได้เฉพาะคิวที่จ่ายมัดจำแล้ว (ดู `if not booking.holds_slot`)
+# แปลว่าช่วยได้เฉพาะคนที่มีก๊วนอยู่แล้วแต่ขาดคน
+#
+# **คนที่ไม่มีเพื่อนเลยสักคนยังตันเหมือนเดิม** เพราะเขาจะไม่ควักเงินจองสนาม
+# 1,500 บาทแล้วภาวนาให้มีคนมา — ส่วนนี้กลับลำดับเป็น "หาคนก่อน ครบแล้วค่อยจอง"
+
+def _to_request(db: Session, req: MatchRequest, me: User | None = None) -> MatchRequestOut:
+    n = db.scalar(
+        select(func.count()).select_from(MatchInterest).where(
+            MatchInterest.request_id == req.id, MatchInterest.status == "in"
+        )
+    ) or 0
+    mine = False
+    if me is not None:
+        mine = bool(db.scalar(
+            select(func.count()).select_from(MatchInterest).where(
+                MatchInterest.request_id == req.id,
+                MatchInterest.user_id == me.id,
+                MatchInterest.status == "in",
+            )
+        ) or 0)
+
+    host = db.get(User, req.user_id)
+    out = MatchRequestOut.model_validate(req)
+    out.host_name = _short_name(host.full_name if host else None)
+    out.interested_count = n
+    out.people_left = max(req.need_people - n, 0)
+    out.is_full = n >= req.need_people
+    out.joined_by_me = mine
+    return out
+
+
+@router.post(
+    "/match-requests",
+    response_model=MatchRequestOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="โพสต์หาคนไปเล่นด้วยกัน (ยังไม่ต้องจองสนาม)",
+    description=(
+        "สำหรับคนที่ยังไม่มีเพื่อนไปด้วย — ประกาศหาคนก่อน พอครบแล้วค่อยจองสนาม\n\n"
+        "**ไม่มีใครต้องเสียเงินจนกว่าคนจะครบ**"
+    ),
+)
+def create_request(
+    payload: MatchRequestCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from app.routers.bookings import _assert_within_window, now_local
+
+    if payload.from_time >= payload.to_time:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "เวลาเริ่มต้องมาก่อนเวลาสิ้นสุด")
+    if payload.play_date < now_local().date():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "โพสต์หาคนสำหรับวันที่ผ่านไปแล้วไม่ได้")
+    _assert_within_window(payload.play_date)
+
+    # กันสแปม — คนหนึ่งเปิดโพสต์ที่ยังหาคนอยู่ได้ไม่เกิน 5 รายการ
+    open_count = db.scalar(
+        select(func.count()).select_from(MatchRequest).where(
+            MatchRequest.user_id == current_user.id, MatchRequest.status == "open"
+        )
+    ) or 0
+    if open_count >= 5:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "คุณมีโพสต์ที่ยังหาคนอยู่ 5 รายการแล้ว กรุณาปิดรายการเก่าก่อน",
+        )
+
+    req = MatchRequest(
+        user_id=current_user.id,
+        sport=payload.sport,
+        district=payload.district,
+        play_date=payload.play_date,
+        from_time=payload.from_time,
+        to_time=payload.to_time,
+        need_people=payload.need_people,
+        note=payload.note,
+    )
+    db.add(req)
+    db.commit()
+    db.refresh(req)
+    return _to_request(db, req, current_user)
+
+
+@router.get(
+    "/match-requests",
+    response_model=list[MatchRequestOut],
+    summary="โพสต์หาคนที่ยังเปิดรับอยู่",
+)
+def list_requests(
+    sport: str | None = Query(None, description="football / badminton / karaoke"),
+    district: str | None = Query(None),
+    on_date: date_cls | None = Query(None, alias="date"),
+    include_full: bool = Query(False, description="รวมโพสต์ที่คนครบแล้วด้วย"),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    from app.routers.bookings import now_local
+
+    stmt = select(MatchRequest).where(
+        MatchRequest.status == "open",
+        MatchRequest.play_date >= now_local().date(),
+    )
+    if sport:
+        stmt = stmt.where(MatchRequest.sport == sport)
+    if district:
+        stmt = stmt.where(MatchRequest.district == district)
+    if on_date:
+        stmt = stmt.where(MatchRequest.play_date == on_date)
+
+    rows = db.scalars(
+        stmt.order_by(MatchRequest.play_date, MatchRequest.from_time).limit(limit * 2)
+    ).all()
+
+    out = []
+    for r in rows:
+        item = _to_request(db, r)
+        if item.is_full and not include_full:
+            continue
+        out.append(item)
+        if len(out) >= limit:
+            break
+    return out
+
+
+@router.post(
+    "/match-requests/{request_id}/interest",
+    response_model=MatchRequestOut,
+    summary="กดสนใจไปด้วย",
+)
+def add_interest(
+    request_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    req = db.get(MatchRequest, request_id)
+    if req is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "ไม่พบโพสต์นี้")
+    if req.status != "open":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "โพสต์นี้ปิดรับแล้ว")
+    if req.user_id == current_user.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "คุณเป็นคนโพสต์เอง")
+
+    row = db.scalar(
+        select(MatchInterest).where(
+            MatchInterest.request_id == request_id, MatchInterest.user_id == current_user.id
+        )
+    )
+    if row is not None and row.status == "in":
+        raise HTTPException(status.HTTP_409_CONFLICT, "คุณกดสนใจไว้แล้ว")
+    if row is not None:
+        row.status = "in"
+    else:
+        db.add(MatchInterest(request_id=request_id, user_id=current_user.id))
+    db.flush()
+
+    item = _to_request(db, req, current_user)
+    notify(
+        db, req.user_id, "match_interest",
+        "มีคนสนใจโพสต์ของคุณ",
+        f"{_short_name(current_user.full_name)} สนใจไปด้วย · "
+        + ("**ครบแล้ว จองสนามได้เลย**" if item.is_full else f"ยังขาดอีก {item.people_left} คน"),
+        link="community.html",
+    )
+    db.commit()
+    return _to_request(db, req, current_user)
+
+
+@router.delete(
+    "/match-requests/{request_id}/interest",
+    response_model=Message,
+    summary="ถอนความสนใจ",
+)
+def remove_interest(
+    request_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    row = db.scalar(
+        select(MatchInterest).where(
+            MatchInterest.request_id == request_id,
+            MatchInterest.user_id == current_user.id,
+            MatchInterest.status == "in",
+        )
+    )
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "คุณไม่ได้กดสนใจโพสต์นี้")
+    row.status = "out"
+    db.commit()
+    return Message(message="ถอนความสนใจแล้ว")
+
+
+@router.delete(
+    "/match-requests/{request_id}",
+    response_model=Message,
+    summary="ปิดโพสต์หาคน",
+)
+def close_request(
+    request_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    req = db.get(MatchRequest, request_id)
+    if req is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "ไม่พบโพสต์นี้")
+    if req.user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "ปิดได้เฉพาะโพสต์ของตัวเอง")
+
+    req.status = "closed"
+    db.commit()
+    return Message(message="ปิดโพสต์แล้ว")
+
+
+@router.post(
+    "/match-requests/{request_id}/link-booking/{booking_id}",
+    response_model=MatchRequestOut,
+    summary="ผูกโพสต์เข้ากับสนามที่จองได้แล้ว",
+    description=(
+        "เรียกหลังจากเจ้าของโพสต์จองสนามสำเร็จ\n\n"
+        "**ทุกคนที่กดสนใจจะได้รับแจ้งเตือนว่าได้สนามไหน กี่โมง** "
+        "— จุดนี้คือที่ที่ระบบหาคนกับระบบจองต่อกันเป็นวงจรเดียว"
+    ),
+)
+def link_booking(
+    request_id: int = Path(..., ge=1),
+    booking_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    req = db.get(MatchRequest, request_id)
+    if req is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "ไม่พบโพสต์นี้")
+    if req.user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "ผูกได้เฉพาะโพสต์ของตัวเอง")
+
+    booking = _get_booking(db, booking_id)
+    if booking.user_id != current_user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "ผูกได้เฉพาะคิวของตัวเอง")
+
+    req.booking_id = booking_id
+    req.status = "booked"
+
+    shop = db.get(Shop, booking.shop_id)
+    rows = db.scalars(
+        select(MatchInterest).where(
+            MatchInterest.request_id == request_id, MatchInterest.status == "in"
+        )
+    ).all()
+    for r in rows:
+        notify(
+            db, r.user_id, "match_booked",
+            "ได้สนามแล้ว",
+            f"{shop.name if shop else 'สนาม'} · "
+            f"{booking.booking_date} {booking.booking_time.strftime('%H:%M')}–"
+            f"{booking.end_time.strftime('%H:%M')} น.",
+            link=f"shop.html?id={booking.shop_id}",
+        )
+    db.commit()
+    db.refresh(req)
+    return _to_request(db, req, current_user)

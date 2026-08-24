@@ -26,6 +26,7 @@ from app.routers import (
     shops,
     staff,
     users,
+    watches,
 )
 from app.seed import seed_database
 from app.seed_extra import backfill_coordinates, enrich_demo_data
@@ -103,6 +104,7 @@ app.include_router(images.router)
 app.include_router(payments.router)
 app.include_router(matches.router)
 app.include_router(gaps.router)
+app.include_router(watches.router)
 # เส้นทางลัดให้ตรงกับรูปแบบที่โจทย์กำหนด (POST /register, GET /me, ...)
 app.include_router(aliases.router)
 

@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608221339" />
+  <link rel="stylesheet" href="css/app.css?v=202608241100" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -165,8 +165,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202608221339"></script>
-  <script src="js/ui.js?v=202608221339"></script>
+  <script src="js/api.js?v=202608241100"></script>
+  <script src="js/ui.js?v=202608241100"></script>
   <script>
     renderNavbar("shops");
     renderFooter();
@@ -258,6 +258,17 @@
         const active = (shop.services || []).filter((x) => x.is_active);
         state.serviceId = active.length ? active[0].id : null;
         state.date = dateList()[0];
+
+        // เปิดหน้านี้มาจากลิงก์ "ถึงรอบจองอีกครั้งแล้ว" ได้ (?service=&date=)
+        // ต้องตรวจว่าค่าที่ส่งมาใช้ได้จริง ไม่ใช่เชื่อ URL ตรง ๆ
+        // เพราะบริการอาจถูกปิดไปแล้ว หรือวันที่หลุดช่วงที่จองได้
+        const qp = new URLSearchParams(location.search);
+        const wantService = Number(qp.get("service"));
+        if (wantService && active.some((x) => x.id === wantService)) {
+          state.serviceId = wantService;
+        }
+        const wantDate = qp.get("date");
+        if (wantDate && dateList().includes(wantDate)) state.date = wantDate;
 
         render(shop);
         // บริการเรียกทันทีไม่มีตารางช่องเวลา จึงไม่ต้องโหลดคิวว่างล่วงหน้า 14 วัน
@@ -806,7 +817,9 @@
             ${next ? `<button type="button" id="jumpNext" class="btn btn-outline btn-sm" style="margin-top:12px">
                 ไปวันที่ว่างที่ใกล้ที่สุด · ${thaiShort(next)}
               </button>` : ""}
+            ${watchBar()}
           </div>`;
+        bindWatch();
         const jump = document.getElementById("jumpNext");
         if (jump) jump.addEventListener("click", () => {
           state.date = next;
@@ -846,7 +859,8 @@
             </div>
             <div class="slot-grid">
               ${list.map((s) => `
-                <button type="button" class="slot" data-time="${s.time}"
+                <button type="button" class="slot${s.available && s.fits_well === false ? " is-gappy" : ""}"
+                        data-time="${s.time}"
                         ${s.available ? "" : "disabled"}
                         aria-pressed="${s.available && s.time === pickedTime}"
                         aria-label="${esc(
@@ -854,7 +868,7 @@
                             ? `จอง ${shortTime(s.time)} ถึง ${shortTime(s.end_time)} น.`
                             : `${shortTime(s.time)} น. — ${s.reason || "จองไม่ได้"}`
                         )}"
-                        title="${esc(s.available ? `${shortTime(s.time)}–${shortTime(s.end_time)} น.${lowNote(s)}` : s.reason || "")}">
+                        title="${esc(s.available ? `${shortTime(s.time)}–${shortTime(s.end_time)} น.${lowNote(s)}${gapNote(s)}` : s.reason || "")}">
                   <span class="num">${shortTime(s.time)}</span>
                   <span class="slot-end num">${shortTime(s.end_time)}</span>
                   ${lowBadge(s)}
@@ -867,6 +881,66 @@
       box.querySelectorAll("[data-time]").forEach((b) =>
         b.addEventListener("click", () => openConfirm(b.dataset.time))
       );
+    }
+
+    // ================= เฝ้าช่องเวลาที่เต็ม =================
+    // คู่แข่งจบที่คำว่า "เต็มแล้ว" ทั้งที่ระบบรู้อยู่แล้วว่าผู้ใช้อยากได้วันไหน
+    // เก็บความต้องการไว้ แล้วตามให้ตอนมีคนยกเลิก (ดู app/routers/watches.py)
+    //
+    // ให้เลือกเป็น "ช่วง" ไม่ใช่ "จุดเวลา" เพราะคนที่อยากเตะบอลคืนวันศุกร์
+    // ยอมรับได้ทั้งสามทุ่มและสี่ทุ่ม ถ้าบังคับให้เลือกจุดเดียวจะพลาดโอกาสไปเยอะ
+    const WATCH_BANDS = [
+      { key: "morning", name: "ช่วงเช้า", from: "06:00", to: "12:00" },
+      { key: "afternoon", name: "ช่วงบ่าย", from: "12:00", to: "18:00" },
+      { key: "evening", name: "ช่วงเย็น", from: "18:00", to: "23:59" },
+    ];
+
+    function watchBar() {
+      // บริการเรียกทันทีไม่มีช่องเวลา จึงไม่มีอะไรให้เฝ้า
+      if (INSTANT || !state.serviceId) return "";
+      return `
+        <div class="mt-4 pt-4" style="border-top:1px solid var(--border)">
+          <div class="text-sm font-medium">อยากได้วันนี้จริง ๆ ใช่ไหม</div>
+          <div class="text-xs text-muted mt-1">
+            เลือกช่วงที่สะดวก ถ้ามีคนยกเลิก เราจะแจ้งเตือนให้ทันที
+          </div>
+          <div class="flex gap-2 mt-3 flex-wrap justify-center">
+            ${WATCH_BANDS.map((w) => `
+              <button type="button" class="btn btn-outline btn-sm" data-watch="${w.key}">
+                ${w.name} · ${w.from}–${w.to}
+              </button>`).join("")}
+          </div>
+        </div>`;
+    }
+
+    function bindWatch() {
+      document.querySelectorAll("[data-watch]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (!Auth.isLoggedIn) {
+            location.href = `login.html?next=${encodeURIComponent(currentPage())}`;
+            return;
+          }
+          const band = WATCH_BANDS.find((w) => w.key === btn.dataset.watch);
+          if (!band) return;
+          btnBusy(btn, true, "กำลังบันทึก");
+          try {
+            await apiPost("/api/watches", {
+              service_id: state.serviceId,
+              // ถ้าผู้ใช้เจาะจงคนหรือคอร์ทไว้ ก็เฝ้าเฉพาะอันนั้น
+              staff_id: state.staffId ?? null,
+              watch_date: state.date,
+              from_time: band.from,
+              to_time: band.to,
+            });
+            btn.textContent = `กำลังเฝ้า ${band.name} อยู่`;
+            btn.disabled = true;
+            toast("บันทึกแล้ว ถ้ามีคนยกเลิกช่วงนี้ เราจะแจ้งเตือนให้");
+          } catch (e) {
+            btnBusy(btn, false);
+            toast(e.message || "บันทึกไม่สำเร็จ", "error");
+          }
+        });
+      });
     }
 
     // ================= ก๊วน — หาคนไปเล่นด้วยกัน =================
@@ -1034,6 +1108,15 @@
         })
       );
     }
+
+    // ช่องที่จองแล้วทำให้ตารางร้านแตก — บอกเป็นข้อความในทูลทิป ไม่ปิดกั้นการกด
+    //
+    // ตั้งใจไม่ห้ามจอง เพราะเวลาของลูกค้าสำคัญกว่าประสิทธิภาพตารางร้าน
+    // แค่บอกให้รู้ว่ามีช่องอื่นที่ดีกว่าทั้งสองฝ่าย ถ้าเขาสะดวก
+    const gapNote = (s) =>
+      s.fits_well === false && s.wasted_minutes > 0
+        ? ` · ช่องนี้จะเหลือเวลาว่าง ${s.wasted_minutes} นาทีที่ร้านรับใครไม่ได้`
+        : "";
 
     /** ย้ายเครื่องหมาย "ช่องที่เลือกอยู่" ไปที่เวลาที่ระบุ */
     function markSlot(time) {

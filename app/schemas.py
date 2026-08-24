@@ -498,6 +498,18 @@ class Slot(BaseModel):
         0,
         description="จำนวนที่ยังรับได้ในช่วงเวลานี้ (คอร์ท/ช่าง/สนาม ที่ยังว่าง)",
     )
+    # ---- คะแนน "ช่องนี้ทำให้ตารางร้านแตกไหม" ----
+    # ดูคำอธิบายเต็มใน _score_slots() ที่ bookings.py
+    fits_well: bool = Field(
+        True,
+        description=(
+            "จองช่องนี้แล้วร้านยังรับคิวได้เท่าเดิมหรือไม่ "
+            "false = จองแล้วทำให้ร้านเสียคิวไปโดยเปล่าประโยชน์"
+        ),
+    )
+    wasted_minutes: int = Field(
+        0, description="นาทีที่จะกลายเป็นเวลาตายถ้าจองช่องนี้ (สั้นเกินกว่าจะรับใครได้อีก)"
+    )
     capacity: int = Field(
         1,
         description="จำนวนที่รับได้พร้อมกันทั้งหมดของร้านในวันนั้น",
@@ -767,3 +779,92 @@ class ResourceGrid(BaseModel):
     close_time: TimeStr
     times: list[TimeStr] = Field([], description="หัวคอลัมน์ เรียงตามเวลา ใช้ร่วมกันทุกแถว")
     rows: list[ResourceRow] = []
+
+
+# ============================================================
+# เฝ้าช่องเวลาที่เต็ม (waitlist)
+# ============================================================
+class SlotWatchCreate(BaseModel):
+    """ขอให้แจ้งเตือนเมื่อช่วงเวลาที่ต้องการว่าง"""
+
+    service_id: int = Field(..., ge=1)
+    staff_id: int | None = Field(None, ge=1, description="เจาะจงคอร์ท/ช่าง หรือเว้นว่าง = อันไหนก็ได้")
+    watch_date: date = Field(..., description="วันที่ต้องการ")
+    from_time: TimeStr = Field(..., description="ช่วงเวลาที่ยอมรับได้ — เริ่ม", examples=["19:00"])
+    to_time: TimeStr = Field(..., description="ช่วงเวลาที่ยอมรับได้ — สิ้นสุด", examples=["22:00"])
+
+
+class SlotWatchOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    shop_id: int
+    shop_name: str = ""
+    service_id: int
+    service_name: str = ""
+    staff_id: int | None = None
+    staff_name: str | None = None
+    watch_date: date
+    from_time: TimeStr
+    to_time: TimeStr
+    status: Literal["active", "notified", "cancelled"]
+    created_at: datetime
+
+
+# ============================================================
+# ประกาศหาคนก่อนจอง (community)
+# ============================================================
+class MatchRequestCreate(BaseModel):
+    """โพสต์หาคนไปเล่นด้วยกัน โดยยังไม่ต้องจองสนาม"""
+
+    sport: Literal["football", "badminton", "karaoke"] = Field(..., examples=["football"])
+    district: str | None = Field(None, max_length=100, examples=["ลาดพร้าว"])
+    play_date: date = Field(..., description="วันที่อยากเล่น")
+    from_time: TimeStr = Field(..., examples=["20:00"])
+    to_time: TimeStr = Field(..., examples=["22:00"])
+    need_people: int = Field(..., ge=1, le=40, description="ต้องการคนเพิ่มอีกกี่คน", examples=[8])
+    note: str | None = Field(None, max_length=300, examples=["มือใหม่มาได้ ไม่ซีเรียส"])
+
+
+class MatchRequestOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: int
+    host_name: str = Field("", description="ชื่อคนโพสต์ นามสกุลย่อเหลือตัวอักษรเดียว")
+    sport: str
+    district: str | None = None
+    play_date: date
+    from_time: TimeStr
+    to_time: TimeStr
+    need_people: int
+    note: str | None = None
+    status: Literal["open", "booked", "closed"]
+    booking_id: int | None = None
+    created_at: datetime
+
+    interested_count: int = Field(0, description="กดสนใจแล้วกี่คน")
+    people_left: int = Field(0, description="ยังขาดอีกกี่คน")
+    is_full: bool = Field(False, description="ครบแล้วหรือยัง — ครบแล้วจองสนามได้")
+    joined_by_me: bool = False
+
+
+# ============================================================
+# เสนอวันจองรอบถัดไป
+# ============================================================
+class NextRoundSuggestion(BaseModel):
+    """เดารอบถัดไปจากพฤติกรรมการจองที่ผ่านมา
+
+    การจองครั้งนี้บอกใบ้ครั้งหน้าอยู่แล้ว — ตัดผมทุก 3 สัปดาห์
+    เตะบอลทุกอังคาร ระบบเห็นรูปแบบนี้ในประวัติของผู้ใช้เอง
+    """
+
+    service_id: int
+    service_name: str
+    shop_id: int
+    shop_name: str
+    last_booked: date = Field(..., description="ครั้งล่าสุดที่ใช้บริการนี้")
+    interval_days: int = Field(..., description="ระยะห่างเฉลี่ยที่ผ่านมา (วัน)")
+    times_used: int = Field(..., description="เคยจองบริการนี้มาแล้วกี่ครั้ง")
+    suggested_date: date = Field(..., description="วันที่แนะนำสำหรับรอบถัดไป")
+    reason: str = Field(..., description="อธิบายให้ผู้ใช้เข้าใจว่าทำไมถึงแนะนำวันนี้")

@@ -42,7 +42,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Booking, Category, Service, Shop, User
-from app.schemas import GapSuggestion, GapWindow
+from app.schemas import GapSuggestion, GapWindow, NextRoundSuggestion
 from app.security import get_current_user
 
 router = APIRouter(prefix="/api", tags=["11. แนะนำระหว่างรอ"])
@@ -227,3 +227,97 @@ def booking_gap(
 
     empty.items = out[:limit]
     return empty
+
+
+# ===========================================================================
+# เสนอวันจองรอบถัดไป — "การจองครั้งนี้บอกใบ้ครั้งหน้าอยู่แล้ว"
+# ===========================================================================
+@router.get(
+    "/me/next-rounds",
+    response_model=list[NextRoundSuggestion],
+    summary="บริการที่น่าจะถึงรอบจองอีกครั้งแล้ว",
+    description=(
+        "ดูจากประวัติการจองของผู้ใช้เอง ว่าบริการไหนใช้เป็นรอบ ๆ "
+        "แล้วเสนอวันที่ควรจองรอบถัดไป\n\n"
+        "เช่นตัดผมทุก 3 สัปดาห์ · เตะบอลทุกอังคาร"
+    ),
+)
+def my_next_rounds(
+    limit: int = Query(5, ge=1, le=20),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from app.routers.bookings import MAX_ADVANCE_DAYS, now_local
+    from datetime import timedelta
+
+    today = now_local().date()
+
+    # เอาเฉพาะคิวที่ใช้บริการจริงแล้ว — คิวที่ยกเลิกไม่นับเป็นรูปแบบการใช้งาน
+    rows = db.scalars(
+        select(Booking)
+        .where(
+            Booking.user_id == current_user.id,
+            Booking.status.in_(["completed", "confirmed"]),
+            Booking.booking_date <= today,
+        )
+        .order_by(Booking.booking_date)
+    ).all()
+
+    # จัดกลุ่มตามบริการ เพราะรอบของแต่ละบริการไม่เท่ากัน
+    # (ตัดผมทุก 3 สัปดาห์ แต่เคลือบแก้วปีละครั้ง)
+    by_service: dict[int, list[date_cls]] = {}
+    for b in rows:
+        by_service.setdefault(b.service_id, []).append(b.booking_date)
+
+    out: list[NextRoundSuggestion] = []
+    for service_id, dates in by_service.items():
+        # ต้องมีอย่างน้อย 2 ครั้งถึงจะรู้ระยะห่าง ครั้งเดียวเดาไม่ได้
+        if len(dates) < 2:
+            continue
+
+        gaps = [(dates[i] - dates[i - 1]).days for i in range(1, len(dates))]
+        gaps = [g for g in gaps if g > 0]
+        if not gaps:
+            continue
+
+        # ใช้ค่ามัธยฐาน ไม่ใช่ค่าเฉลี่ย — ครั้งที่เว้นยาวผิดปกติ (เช่นไปต่างประเทศ)
+        # จะดึงค่าเฉลี่ยเพี้ยนไปมาก แต่แทบไม่กระทบมัธยฐาน
+        gaps.sort()
+        interval = gaps[len(gaps) // 2]
+
+        last = dates[-1]
+        suggested = last + timedelta(days=interval)
+        # ถ้าเลยกำหนดมาแล้ว ให้เสนอวันพรุ่งนี้แทนวันในอดีต
+        if suggested <= today:
+            suggested = today + timedelta(days=1)
+        if (suggested - today).days > MAX_ADVANCE_DAYS:
+            continue
+
+        service = db.get(Service, service_id)
+        if service is None or not service.is_active:
+            continue
+        shop = db.get(Shop, service.shop_id)
+        if shop is None or not shop.is_active:
+            continue
+
+        overdue = (today - (last + timedelta(days=interval))).days
+        if overdue > 0:
+            reason = f"ปกติคุณจอง{service.name}ทุก ~{interval} วัน · เลยรอบมาแล้ว {overdue} วัน"
+        else:
+            reason = f"ปกติคุณจอง{service.name}ทุก ~{interval} วัน · ครั้งล่าสุด {last}"
+
+        out.append(NextRoundSuggestion(
+            service_id=service.id,
+            service_name=service.name,
+            shop_id=shop.id,
+            shop_name=shop.name,
+            last_booked=last,
+            interval_days=interval,
+            times_used=len(dates),
+            suggested_date=suggested,
+            reason=reason,
+        ))
+
+    # เรียงให้อันที่เลยรอบมานานที่สุดขึ้นก่อน
+    out.sort(key=lambda x: x.suggested_date)
+    return out[:limit]

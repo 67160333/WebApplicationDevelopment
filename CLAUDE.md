@@ -8,7 +8,7 @@
 Bookvice — แพลตฟอร์มจองคิว 12 หมวด แบ่ง 4 กลุ่ม
 งานส่งรายวิชา **89033167 Web Application Development**
 
-FastAPI + PostgreSQL + Docker Compose · **64 endpoints · 13 ตาราง · ทดสอบ 67 ข้อ**
+FastAPI + PostgreSQL + Docker Compose · **74 endpoints · 16 ตาราง**
 เว็บสาธารณะ https://bookvice.onrender.com
 
 ## 5 ข้อที่พลาดบ่อยที่สุด
@@ -28,7 +28,8 @@ FastAPI + PostgreSQL + Docker Compose · **64 endpoints · 13 ตาราง ·
 docker compose exec api python tests/test_booking_payment.py
 ```
 
-ต้องได้ `สรุป: ผ่าน 67 · ไม่ผ่าน 0`
+ต้องได้ `ไม่ผ่าน 0` — จำนวนข้อที่ผ่านเพิ่มขึ้นตามฟีเจอร์ใหม่ ให้ดูที่ **ไม่ผ่าน** เป็นหลัก
+(รอบล่าสุดที่ยืนยันแล้วคือ 67 ข้อ ก่อนเพิ่มชุดเทสต์ของ 5 ฟีเจอร์ใหม่)
 
 ## สไตล์ที่เจ้าของโปรเจกต์ต้องการ
 

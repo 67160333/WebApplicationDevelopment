@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608221339" />
+  <link rel="stylesheet" href="css/app.css?v=202608241100" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -90,8 +90,8 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202608221339"></script>
-  <script src="js/ui.js?v=202608221339"></script>
+  <script src="js/api.js?v=202608241100"></script>
+  <script src="js/ui.js?v=202608241100"></script>
   <script>
     renderNavbar(groupKey ? "g:" + groupKey : "shops");
 
@@ -114,6 +114,9 @@
             <div class="gb-sub">${esc(g.detail)}</div>
           </div>
           <div class="gb-switch">
+            ${g.key === "play"
+              ? `<a href="community.html" class="btn btn-primary btn-sm">ยังไม่มีคนไปด้วย?</a>`
+              : ""}
             ${GROUPS.filter((x) => x.key !== g.key).map((x) =>
               `<a href="shops.html?group=${x.key}" class="btn btn-ghost btn-sm">${esc(x.name)}</a>`
             ).join("")}

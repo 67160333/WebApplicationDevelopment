@@ -145,6 +145,13 @@ def _apply_cancellation(db: Session, booking: Booking, by: str) -> tuple[Decimal
     booking.cancellation_fee = fee
     # ปล่อยช่องเวลาคืนทันที ให้ลูกค้าคนอื่นจองต่อได้
     booking.holds_slot = False
+
+    # แจ้งคนที่รอช่วงเวลานี้อยู่ — การยกเลิกไม่ใช่แค่คืนช่อง
+    # แต่เป็นการส่งต่อโอกาสให้คนที่ลงชื่อรอไว้จริง
+    # นำเข้าตรงนี้เพื่อเลี่ยง circular import (watches.py อ้างถึง bookings.py)
+    from app.routers.watches import notify_slot_free
+    notify_slot_free(db, booking)
+
     return fee, paid - fee
 
 
@@ -479,6 +486,85 @@ def _windows_for(shop: Shop, member: Staff | None) -> list[tuple[int, int]]:
     return sorted((s, e) for s, e in clipped if e > s)
 
 
+def _score_slots(
+    slots: list[Slot],
+    windows: list[tuple[int, int]],
+    busy: list[tuple[int, int]],
+    duration: int,
+    capacity: int,
+) -> None:
+    """ติดป้ายว่าช่องไหน "จองแล้วไม่ทำให้ตารางร้านแตก" — แก้ค่าใน slots โดยตรง
+
+    ปัญหาที่แก้
+    ------------------------------------------------------------------
+    ร้านเปิด 10:00-18:00 (480 นาที) ช่างคนเดียว บริการยาว 90 นาที
+    ทั้งวันรับได้มากสุด 5 คิว แต่ **ขึ้นอยู่กับว่าคิวแรกจองกี่โมง**
+
+        จอง 10:00  ->  เหลือ 11:30-18:00 = 390 นาที  ->  รับได้อีก 4  ->  รวม 5 คิว
+        จอง 11:00  ->  เหลือ 10:00-11:00 = 60 นาที (สั้นเกินรับใคร)
+                       และ 12:30-18:00 = 330 นาที -> 3     ->  รวม 4 คิว
+
+    **จอง 11:00 ทำให้ร้านเสียรายได้ไปทั้งคิว** เพราะช่องหน้า 60 นาที
+    สั้นเกินกว่าจะรับใครได้ กลายเป็นเวลาตายสนิท
+
+    วิธีคิด
+    ------------------------------------------------------------------
+    สำหรับแต่ละช่องที่ยังว่าง สมมติว่าจองช่องนั้นแล้ววัดว่า
+    "ช่วงที่เหลือรับได้อีกกี่คิว" เทียบกับช่องที่ดีที่สุดของวันนั้น
+    ช่องที่ให้ผลเท่ากับค่าดีที่สุด = ไม่ทำให้เสียคิว
+
+    คิดเฉพาะกรณีความจุ 1 เท่านั้น
+    ------------------------------------------------------------------
+    ร้านที่มีหลายคน/หลายคอร์ทคิดแบบนี้ไม่ได้ เพราะคิวที่ทับกันไปตกที่คนอื่นได้
+    การเดาว่าใครจะรับคิวไหนจะกลายเป็นการเดาที่ผิดมากกว่าถูก
+    จึงปล่อยให้ร้านหลายทรัพยากรเป็น fits_well = True ทั้งหมด (ไม่ตัดสิน)
+    """
+    if capacity != 1 or not slots:
+        return
+
+    def free_gaps(extra: tuple[int, int] | None) -> list[tuple[int, int]]:
+        """ช่วงที่ยังว่างในวันนั้น หลังหักคิวที่มีอยู่ (และคิวสมมติถ้าส่งมา)"""
+        taken = sorted(busy + ([extra] if extra else []))
+        gaps: list[tuple[int, int]] = []
+        for w_start, w_end in windows:
+            cursor = w_start
+            for b_start, b_end in taken:
+                if b_end <= cursor or b_start >= w_end:
+                    continue
+                if b_start > cursor:
+                    gaps.append((cursor, min(b_start, w_end)))
+                cursor = max(cursor, b_end)
+            if cursor < w_end:
+                gaps.append((cursor, w_end))
+        return gaps
+
+    def capacity_of(gaps: list[tuple[int, int]]) -> tuple[int, int]:
+        """รับได้อีกกี่คิว และเหลือเวลาตายกี่นาที"""
+        fits = wasted = 0
+        for g_start, g_end in gaps:
+            length = g_end - g_start
+            n = length // duration
+            fits += n
+            wasted += length - n * duration
+        return fits, wasted
+
+    scored: list[tuple[Slot, int, int]] = []
+    for slot in slots:
+        if not slot.available:
+            continue
+        start = _minutes(slot.time)
+        fits, wasted = capacity_of(free_gaps((start, start + duration)))
+        scored.append((slot, fits, wasted))
+
+    if not scored:
+        return
+
+    best = max(f for _, f, _ in scored)
+    for slot, fits, wasted in scored:
+        slot.fits_well = fits >= best
+        slot.wasted_minutes = wasted
+
+
 def _fits_window(start_at: time_cls, duration: int, windows: list[tuple[int, int]]) -> bool:
     """คิวนี้เริ่มและจบอยู่ในช่วงเปิดทำการช่วงใดช่วงหนึ่งหรือไม่
 
@@ -682,6 +768,9 @@ def get_availability(
 
     # เรียงตามเวลาอีกครั้ง เพราะช่วงหลังเที่ยงคืนถูกสร้างก่อนช่วงกลางวัน
     slots.sort(key=lambda s: s.time)
+
+    # ติดป้าย "ช่วงเวลาแนะนำ" — ช่องที่จองแล้วร้านยังรับคิวได้เท่าเดิม
+    _score_slots(slots, windows, busy_staff if staff_id else busy_all, duration, shop_cap)
 
     return AvailabilityOut(
         service_id=service.id,

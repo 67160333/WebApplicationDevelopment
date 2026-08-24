@@ -552,3 +552,151 @@ class MatchJoin(Base):
         # (แถวเดิมถูกเปลี่ยนสถานะเป็น left ไม่ได้ลบทิ้ง จะได้เก็บประวัติไว้)
         Index("uq_match_join_user", "booking_id", "user_id", unique=True),
     )
+
+
+class SlotWatch(Base):
+    """คนที่รอให้ช่องเวลาที่ต้องการว่าง
+
+    ทำไมต้องมี
+    --------------------------------------------------------------------
+    สนามดังคืนวันศุกร์เต็มตลอด ผู้ใช้เปิดมาเห็นว่าเต็มแล้วก็ปิดเว็บไป
+    **ทั้งที่ระบบรู้อยู่แล้วว่าเขาอยากได้ช่องไหน**
+
+    ตารางนี้เก็บความต้องการนั้นไว้ พอมีคนยกเลิกคิวในช่วงเวลานั้น
+    ระบบจะยิงแจ้งเตือนให้ทันที — ซึ่งเข้ากับกติกาค่าปรับที่มีอยู่แล้วพอดี
+    เพราะการยกเลิกไม่ได้แค่ปล่อยช่องคืน แต่มีคนรออยู่จริง
+
+    ทำไมเก็บ "ช่วงเวลา" ไม่ใช่ "คิว"
+    --------------------------------------------------------------------
+    คิวที่เขาอยากได้ยังไม่มีอยู่จริง (เพราะเต็ม) จึงอ้างถึง booking ไม่ได้
+    เก็บเป็นความต้องการ (ร้าน + บริการ + วัน + ช่วงเวลา) แทน
+
+    `staff_id` ว่างได้ = ขอคอร์ทไหนก็ได้ · ระบุ = ขอคอร์ทนั้นเท่านั้น
+    """
+
+    __tablename__ = "slot_watches"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    shop_id: Mapped[int] = mapped_column(ForeignKey("shops.id", ondelete="CASCADE"), index=True)
+    service_id: Mapped[int] = mapped_column(ForeignKey("services.id", ondelete="CASCADE"))
+    staff_id: Mapped[int | None] = mapped_column(
+        ForeignKey("staff.id", ondelete="CASCADE"), nullable=True
+    )
+    watch_date: Mapped[date] = mapped_column(Date, index=True)
+    # ช่วงเวลาที่ยอมรับได้ ไม่ใช่จุดเวลาเดียว
+    # เพราะคนที่อยากเตะบอล "คืนวันศุกร์" ยอมรับได้ทั้ง 19:00 และ 21:00
+    # ถ้าเก็บเป็นจุดเดียวจะพลาดโอกาสที่เขาก็โอเคไปเยอะมาก
+    from_time: Mapped[time] = mapped_column(Time)
+    to_time: Mapped[time] = mapped_column(Time)
+
+    # active = ยังรออยู่ · notified = แจ้งไปแล้ว · cancelled = ยกเลิกเอง
+    status: Mapped[str] = mapped_column(String(10), default="active", index=True)
+    notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    user: Mapped["User"] = relationship()
+    shop: Mapped["Shop"] = relationship()
+    service: Mapped["Service"] = relationship()
+
+    __table_args__ = (
+        CheckConstraint("status IN ('active','notified','cancelled')", name="ck_slot_watch_status"),
+        # คนเดียวเฝ้าช่วงเดียวกันซ้ำไม่ได้ นับเฉพาะที่ยังรออยู่
+        Index(
+            "uq_slot_watch_active",
+            "user_id", "service_id", "watch_date", "from_time",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+            sqlite_where=text("status = 'active'"),
+        ),
+    )
+
+
+class MatchRequest(Base):
+    """ประกาศหาคนไปเล่นด้วยกัน **ก่อน** ที่จะจองสนาม
+
+    ช่องโหว่ที่ตารางนี้ปิด
+    --------------------------------------------------------------------
+    `MatchJoin` (ก๊วน) ใช้ได้เฉพาะกับคิวที่ **จ่ายมัดจำแล้ว** เท่านั้น
+    ดูเงื่อนไข `if not booking.holds_slot` ใน matches.py
+
+    แปลว่ามันช่วยได้เฉพาะ "คนที่มีก๊วนอยู่แล้วแต่ขาดคน"
+    ส่วนคนที่ **ไม่มีเพื่อนเลยสักคน** ยังตันเหมือนเดิม เพราะเขาจะไม่ควักเงิน
+    จองสนาม 1,500 บาทแล้วภาวนาให้มีคนมา
+
+    ตารางนี้กลับลำดับ — **หาคนก่อน ครบแล้วค่อยจอง**
+    ไม่มีใครเสียเงินจนกว่าคนจะครบ
+
+    ทำไมไม่ใช่เว็บบอร์ดทั่วไป
+    --------------------------------------------------------------------
+    ทุกโพสต์ต้องมี กีฬา · วัน · ช่วงเวลา · โซน · จำนวนคน เป็น **ฟิลด์จริง**
+    ไม่ใช่ข้อความลอย ๆ จะได้กรอง จัดเรียง และเชื่อมกับการจองได้
+    ถ้าปล่อยให้พิมพ์อะไรก็ได้ มันจะกลายเป็นเว็บบอร์ดที่ไม่เกี่ยวกับการจอง
+
+    เมื่อจองสนามได้แล้ว `booking_id` จะถูกเติม และทุกคนที่กดสนใจได้รับแจ้งเตือน
+    — ตรงนี้คือจุดที่สองระบบต่อกันเป็นวงจรเดียว
+    """
+
+    __tablename__ = "match_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    # หมวดกีฬาที่ต้องการ (football / badminton / karaoke) เก็บเป็น slug
+    # ไม่ผูกกับ category_id เพราะโพสต์เกิดก่อนที่จะเลือกร้าน
+    sport: Mapped[str] = mapped_column(String(30), index=True)
+    district: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    play_date: Mapped[date] = mapped_column(Date, index=True)
+    from_time: Mapped[time] = mapped_column(Time)
+    to_time: Mapped[time] = mapped_column(Time)
+    need_people: Mapped[int] = mapped_column(Integer, default=1)
+    note: Mapped[str | None] = mapped_column(String(300), nullable=True)
+
+    # open = ยังหาคน · booked = จองสนามแล้ว · closed = ปิดเอง/เลยวัน
+    status: Mapped[str] = mapped_column(String(10), default="open", index=True)
+    # เติมเมื่อเจ้าของโพสต์จองสนามสำเร็จ — เชื่อมโพสต์เข้ากับคิวจริง
+    booking_id: Mapped[int | None] = mapped_column(
+        ForeignKey("bookings.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    user: Mapped["User"] = relationship()
+    interests: Mapped[list["MatchInterest"]] = relationship(
+        back_populates="request", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        CheckConstraint("status IN ('open','booked','closed')", name="ck_match_req_status"),
+        CheckConstraint("need_people BETWEEN 1 AND 40", name="ck_match_req_need"),
+    )
+
+
+class MatchInterest(Base):
+    """คนที่กดสนใจโพสต์หาคน
+
+    แยกจาก `MatchJoin` เพราะคนละสถานะกัน — อันนั้นคือ "ลงชื่อกับคิวที่มีอยู่จริง"
+    ส่วนอันนี้คือ "สนใจไปด้วยถ้าหาสนามได้" ซึ่งยังไม่มีคิวให้ผูก
+    """
+
+    __tablename__ = "match_interests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    request_id: Mapped[int] = mapped_column(
+        ForeignKey("match_requests.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(10), default="in")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    request: Mapped["MatchRequest"] = relationship(back_populates="interests")
+    user: Mapped["User"] = relationship()
+
+    __table_args__ = (
+        CheckConstraint("status IN ('in','out')", name="ck_match_interest_status"),
+        Index("uq_match_interest_user", "request_id", "user_id", unique=True),
+    )

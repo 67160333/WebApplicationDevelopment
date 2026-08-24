@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>หาคนไปเล่นด้วยกัน — Bookvice</title>
+  <meta name="description" content="ยังไม่มีเพื่อนก็จองสนามได้ โพสต์หาคนก่อน พอครบแล้วค่อยจ่ายค่าสนาม" />
+  <meta name="theme-color" content="#16233F" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><defs><linearGradient id='a' x1='11' y1='5' x2='36' y2='27' gradientUnits='userSpaceOnUse'><stop stop-color='%23F9AE8B'/><stop offset='1' stop-color='%23E8785A'/></linearGradient><linearGradient id='b' x1='11' y1='21' x2='38' y2='43' gradientUnits='userSpaceOnUse'><stop stop-color='%233FC0D6'/><stop offset='1' stop-color='%2322A898'/></linearGradient></defs><rect width='48' height='48' rx='11' fill='%23fff'/><path d='M11 5h16a11 11 0 0 1 0 22H11z' fill='url(%23a)'/><path d='M11 21h18a11 11 0 0 1 0 22H11z' fill='url(%23b)'/><path d='m16.5 32.5 4.5 4.5 9-9' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='5' y='5' width='6.5' height='38' rx='3.25' fill='%2316233F'/></svg>" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Bookvice" />
+  <meta property="og:title" content="หาคนไปเล่นด้วยกัน — Bookvice" />
+  <meta property="og:description" content="ยังไม่มีเพื่อนก็จองสนามได้ โพสต์หาคนก่อน พอครบแล้วค่อยจ่ายค่าสนาม" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202608241100" />
+</head>
+<body>
+  <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
+  <div id="navbar"></div>
+
+  <main id="main" class="max-w-4xl mx-auto px-5 py-12">
+    <h1 class="h1">หาคนไปเล่นด้วยกัน</h1>
+    <p class="text-sm text-muted mt-1.5" style="max-width:56ch">
+      สนามบอลราคาเป็นพัน คนเดียวจองไม่ไหว และไม่มีใครอยากจ่ายก่อนแล้วค่อยลุ้นว่าจะมีคนมา
+      ที่นี่จึงกลับลำดับใหม่ — <b>โพสต์หาคนก่อน พอครบแล้วค่อยจองสนาม</b>
+    </p>
+
+    <div class="card p-5 mt-8">
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <div class="font-semibold">โพสต์ของคุณ</div>
+        <button id="btnNew" class="btn btn-primary btn-sm">โพสต์หาคน</button>
+      </div>
+      <form id="formNew" class="mt-4" style="display:none" novalidate>
+        <div id="newAlert"></div>
+        <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+          <div>
+            <label class="label" for="fSport">กีฬา / กิจกรรม</label>
+            <select id="fSport" class="input">
+              <option value="football">ฟุตบอล</option>
+              <option value="badminton">แบดมินตัน</option>
+              <option value="karaoke">คาราโอเกะ</option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="fDistrict">ย่าน (ไม่บังคับ)</label>
+            <input id="fDistrict" class="input" maxlength="100" placeholder="เช่น ลาดพร้าว" />
+          </div>
+          <div>
+            <label class="label" for="fDate">วันที่</label>
+            <input id="fDate" type="date" class="input" />
+          </div>
+          <div>
+            <label class="label" for="fFrom">ตั้งแต่</label>
+            <input id="fFrom" type="time" class="input" value="19:00" step="900" />
+          </div>
+          <div>
+            <label class="label" for="fTo">ถึง</label>
+            <input id="fTo" type="time" class="input" value="21:00" step="900" />
+          </div>
+          <div>
+            <label class="label" for="fNeed">ต้องการอีกกี่คน</label>
+            <input id="fNeed" type="number" class="input num" min="1" max="40" value="8" />
+          </div>
+        </div>
+        <div class="mt-3">
+          <label class="label" for="fNote">บอกอะไรเพิ่มไหม (ไม่บังคับ)</label>
+          <input id="fNote" class="input" maxlength="300" placeholder="เช่น มือใหม่มาได้ ไม่ซีเรียส" />
+        </div>
+        <div class="flex gap-2 mt-4">
+          <button type="submit" class="btn btn-primary">โพสต์เลย</button>
+          <button type="button" id="btnCancelNew" class="btn btn-ghost">ยกเลิก</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="flex gap-2 mt-8 flex-wrap" id="filters"></div>
+    <div id="list" class="mt-5 space-y-4"></div>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/api.js?v=202608241100"></script>
+  <script src="js/ui.js?v=202608241100"></script>
+  <script>
+    renderNavbar("community");
+    renderFooter();
+    prefetchOnHover();
+
+    // ต้องตรงกับ TEAM_CATEGORIES ใน app/routers/matches.py
+    const SPORTS = [
+      { key: "", name: "ทั้งหมด" },
+      { key: "football", name: "ฟุตบอล", slug: "football" },
+      { key: "badminton", name: "แบดมินตัน", slug: "badminton" },
+      { key: "karaoke", name: "คาราโอเกะ", slug: "karaoke" },
+    ];
+    const SPORT_NAME = Object.fromEntries(
+      SPORTS.filter((s) => s.key).map((s) => [s.key, s.name])
+    );
+
+    let sport = "";
+    const list = document.getElementById("list");
+    const alertBox = document.getElementById("newAlert");
+
+    // ---------- แถบกรอง ----------
+    function renderFilters() {
+      const box = document.getElementById("filters");
+      box.innerHTML = SPORTS.map((s) => `
+        <button type="button" data-sport="${s.key}"
+                class="btn btn-sm ${s.key === sport ? "btn-primary" : "btn-outline"}">
+          ${s.name}
+        </button>`).join("");
+      box.querySelectorAll("[data-sport]").forEach((b) => {
+        b.addEventListener("click", () => {
+          sport = b.dataset.sport;
+          renderFilters();
+          load();
+        });
+      });
+    }
+
+    // ---------- รายการโพสต์ ----------
+    async function load() {
+      list.innerHTML = `<div class="card p-5"><span class="skeleton sk-line" style="width:60%"></span></div>`;
+      let rows = [];
+      try {
+        const q = new URLSearchParams({ limit: 30, include_full: "true" });
+        if (sport) q.set("sport", sport);
+        rows = await apiGet(`/api/match-requests?${q}`);
+      } catch (e) {
+        list.innerHTML = `<p class="text-sm" style="color:var(--danger)">${esc(e.message || "โหลดไม่สำเร็จ")}</p>`;
+        return;
+      }
+
+      if (!rows.length) {
+        list.innerHTML = `
+          <div class="card p-8 text-center">
+            <p class="font-semibold">ยังไม่มีใครโพสต์หาคนในตอนนี้</p>
+            <p class="text-sm text-muted mt-1">
+              ลองเป็นคนแรกดู — โพสต์ไว้ไม่เสียอะไร ยังไม่ต้องจ่ายค่าสนาม
+            </p>
+          </div>`;
+        return;
+      }
+      list.innerHTML = rows.map(card).join("");
+      bind();
+    }
+
+    function card(r) {
+      const mine = Auth.user && Auth.user.id === r.user_id;
+      return `
+        <div class="card p-5">
+          <div class="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div class="font-semibold">
+                ${esc(SPORT_NAME[r.sport] || r.sport)}
+                ${r.district ? `<span class="text-sm text-muted"> · ${esc(r.district)}</span>` : ""}
+              </div>
+              <div class="text-sm text-muted mt-1">
+                ${thaiDate(r.play_date)} · ${esc(r.from_time)}–${esc(r.to_time)} น.
+              </div>
+              <div class="text-xs text-muted mt-1">โพสต์โดย ${esc(r.host_name || "สมาชิก")}</div>
+            </div>
+            <div class="text-right">
+              <div class="num font-semibold" style="color:var(--blue-600)">
+                ${r.interested_count}/${r.need_people}
+              </div>
+              <div class="text-xs text-muted">
+                ${r.is_full ? "ครบแล้ว" : `ขาดอีก ${r.people_left} คน`}
+              </div>
+            </div>
+          </div>
+
+          ${r.note ? `<p class="text-sm mt-3">${esc(r.note)}</p>` : ""}
+
+          ${r.is_full && !r.booking_id ? `
+            <p class="text-sm mt-3" style="color:var(--blue-600)">
+              คนครบแล้ว — ถึงเวลาจองสนามได้
+            </p>` : ""}
+
+          <div class="flex gap-2 mt-4 flex-wrap">
+            ${mine ? `
+              <a class="btn btn-primary btn-sm" href="shops.html?group=play">เลือกสนามแล้วจอง</a>
+              <button class="btn btn-ghost btn-sm" data-close="${r.id}">ปิดโพสต์</button>
+            ` : r.joined_by_me ? `
+              <button class="btn btn-outline btn-sm" data-leave="${r.id}">ถอนความสนใจ</button>
+            ` : `
+              <button class="btn btn-primary btn-sm" data-join="${r.id}">สนใจไปด้วย</button>
+            `}
+          </div>
+        </div>`;
+    }
+
+    function bind() {
+      const act = async (btn, run, okMsg) => {
+        if (!Auth.isLoggedIn) {
+          location.href = `login.html?next=${encodeURIComponent(currentPage())}`;
+          return;
+        }
+        btnBusy(btn, true);
+        try {
+          await run();
+          toast(okMsg);
+          load();
+        } catch (e) {
+          btnBusy(btn, false);
+          toast(e.message || "ทำรายการไม่สำเร็จ", "error");
+        }
+      };
+
+      list.querySelectorAll("[data-join]").forEach((b) =>
+        b.addEventListener("click", () =>
+          act(b, () => apiPost(`/api/match-requests/${b.dataset.join}/interest`, {}),
+              "บันทึกแล้ว เจ้าของโพสต์จะเห็นชื่อคุณ")));
+
+      list.querySelectorAll("[data-leave]").forEach((b) =>
+        b.addEventListener("click", () =>
+          act(b, () => apiDelete(`/api/match-requests/${b.dataset.leave}/interest`),
+              "ถอนความสนใจแล้ว")));
+
+      list.querySelectorAll("[data-close]").forEach((b) =>
+        b.addEventListener("click", () =>
+          act(b, () => apiDelete(`/api/match-requests/${b.dataset.close}`),
+              "ปิดโพสต์แล้ว")));
+    }
+
+    // ---------- ฟอร์มโพสต์ใหม่ ----------
+    const form = document.getElementById("formNew");
+    const btnNew = document.getElementById("btnNew");
+
+    // ตั้งวันเริ่มต้นเป็นพรุ่งนี้ และห้ามเลือกวันในอดีต
+    // (เซิร์ฟเวอร์ก็กันอีกชั้นอยู่แล้ว ตรงนี้แค่ทำให้ผู้ใช้ไม่ต้องลองผิด)
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const iso = d.toISOString().slice(0, 10);
+    document.getElementById("fDate").value = iso;
+    document.getElementById("fDate").min = new Date().toISOString().slice(0, 10);
+
+    btnNew.addEventListener("click", () => {
+      if (!Auth.isLoggedIn) {
+        location.href = `login.html?next=${encodeURIComponent(currentPage())}`;
+        return;
+      }
+      const open = form.style.display !== "none";
+      form.style.display = open ? "none" : "block";
+      btnNew.textContent = open ? "โพสต์หาคน" : "ซ่อนฟอร์ม";
+    });
+
+    document.getElementById("btnCancelNew").addEventListener("click", () => {
+      form.style.display = "none";
+      btnNew.textContent = "โพสต์หาคน";
+      hideAlert(alertBox);
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideAlert(alertBox);
+
+      const from = document.getElementById("fFrom").value;
+      const to = document.getElementById("fTo").value;
+      if (!from || !to) return showAlert(alertBox, "กรุณาระบุช่วงเวลาที่อยากเล่น");
+      if (from >= to) return showAlert(alertBox, "เวลาเริ่มต้องมาก่อนเวลาสิ้นสุด");
+
+      const need = Number(document.getElementById("fNeed").value);
+      if (!Number.isInteger(need) || need < 1 || need > 40) {
+        return showAlert(alertBox, "จำนวนคนที่ต้องการต้องอยู่ระหว่าง 1 ถึง 40");
+      }
+
+      const btn = form.querySelector('button[type="submit"]');
+      btnBusy(btn, true, "กำลังโพสต์");
+      try {
+        await apiPost("/api/match-requests", {
+          sport: document.getElementById("fSport").value,
+          district: document.getElementById("fDistrict").value.trim() || null,
+          play_date: document.getElementById("fDate").value,
+          from_time: from,
+          to_time: to,
+          need_people: need,
+          note: document.getElementById("fNote").value.trim() || null,
+        });
+        form.style.display = "none";
+        btnNew.textContent = "โพสต์หาคน";
+        toast("โพสต์แล้ว รอคนกดสนใจได้เลย");
+        // กรองอยู่ที่กีฬาอื่นจะทำให้โพสต์ที่เพิ่งสร้างหายไป จึงล้างตัวกรองให้
+        sport = "";
+        renderFilters();
+        load();
+      } catch (err) {
+        showAlert(alertBox, err.message || "โพสต์ไม่สำเร็จ");
+      } finally {
+        btnBusy(btn, false);
+      }
+    });
+
+    renderFilters();
+    load();
+  </script>
+</body>
+</html>

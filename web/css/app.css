@@ -2993,3 +2993,12 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .gb-name { font-size: 15.5px; font-weight: 700; }
 .gb-sub  { font-size: 12.5px; color: var(--muted); margin-top: 1px; }
 .gb-switch { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ช่องเวลาที่จองแล้วทำให้ตารางร้านแตก — บอกด้วยเส้นประ ไม่ปิดกั้นการกด
+   เวลาของลูกค้าสำคัญกว่าประสิทธิภาพตารางร้าน แค่ให้รู้ว่ามีช่องที่ดีกว่า */
+.slot.is-gappy { border-style: dashed; }
+.slot.is-gappy::after {
+  content: ""; position: absolute; top: 5px; right: 5px;
+  width: 5px; height: 5px; border-radius: 50%; background: var(--amber-500, #e0a030);
+}
+.slot { position: relative; }

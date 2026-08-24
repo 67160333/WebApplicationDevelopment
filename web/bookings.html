@@ -18,7 +18,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608221339" />
+  <link rel="stylesheet" href="css/app.css?v=202608241100" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -26,6 +26,8 @@
 
   <main id="main" class="max-w-4xl mx-auto px-5 py-12">
     <h1 class="h1">การจองของฉัน</h1>
+
+    <div id="next-rounds" class="mt-6"></div>
 
     <div id="tabs" class="flex gap-2 mt-6 flex-wrap" style="min-height:32px"></div>
     <div id="alert" class="alert mt-5" style="display:none"></div>
@@ -197,8 +199,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202608221339"></script>
-  <script src="js/ui.js?v=202608221339"></script>
+  <script src="js/api.js?v=202608241100"></script>
+  <script src="js/ui.js?v=202608241100"></script>
   <script>
     renderNavbar("bookings");
     renderFooter();
@@ -503,6 +505,9 @@
 
             ${canCancel && isWaiting(b.shop_id) && b.status !== "cancelled"
               ? `<div class="mt-3" data-gap="${b.id}"></div>` : ""}
+
+            ${canCancel && !isInstant && b.status !== "cancelled"
+              ? `<div class="mt-2" data-leave="${b.id}"></div>` : ""}
           </div>
         </article>`;
     }
@@ -559,6 +564,104 @@
       }
     }
 
+    // ================= ถึงรอบจองอีกครั้งแล้ว =================
+    // การจองครั้งนี้บอกใบ้ครั้งหน้าอยู่แล้ว — ตัดผมทุก 3 สัปดาห์ เตะบอลทุกอังคาร
+    // เซิร์ฟเวอร์หาระยะห่างมัธยฐานจากประวัติจริงของผู้ใช้ ไม่ได้ตั้งค่าตายตัว
+    async function loadNextRounds() {
+      const box = document.getElementById("next-rounds");
+      if (!box) return;
+      let rows = [];
+      try {
+        rows = await apiGet("/api/me/next-rounds?limit=3");
+      } catch {
+        return;   // เป็นข้อมูลเสริม ล้มเหลวก็ไม่ควรรบกวนผู้ใช้
+      }
+      if (!rows.length) return;
+
+      box.innerHTML = `
+        <div class="card p-4">
+          <div class="font-semibold">ถึงรอบจองอีกครั้งแล้ว</div>
+          <div class="mt-3 space-y-2">
+            ${rows.map((r) => `
+              <div class="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <div class="text-sm font-medium">${esc(r.service_name)} · ${esc(r.shop_name)}</div>
+                  <div class="text-xs text-muted">${esc(r.reason)}</div>
+                </div>
+                <a class="btn btn-outline btn-sm"
+                   href="shop.html?id=${r.shop_id}&service=${r.service_id}&date=${r.suggested_date}">
+                  จอง ${thaiDate(r.suggested_date)}
+                </a>
+              </div>`).join("")}
+          </div>
+        </div>`;
+    }
+
+    // ================= ต้องออกจากบ้านกี่โมง =================
+    // ขอตำแหน่งครั้งเดียวต่อการเปิดหน้า ไม่ถามซ้ำทุกการ์ด
+    // ถ้าผู้ใช้ปฏิเสธก็เงียบไป ไม่ขึ้น error เพราะเป็นข้อมูลเสริม ไม่ใช่สิ่งจำเป็น
+    let myPos = null;
+    let posAsked = false;
+
+    // เบราว์เซอร์เด้งขออนุญาตตำแหน่งเองตอนเปิดหน้าเป็นประสบการณ์ที่แย่
+    // และเบราว์เซอร์รุ่นใหม่บล็อกให้ด้วยถ้าไม่ได้มาจากการกดของผู้ใช้
+    // จึงแสดงปุ่มไว้ก่อน แล้วค่อยขอตอนกด
+    function offerLeaveTimes() {
+      const boxes = [...document.querySelectorAll("[data-leave]")];
+      if (!boxes.length) return;
+      if (myPos) return renderLeave(boxes);
+      if (posAsked) return boxes.forEach((b) => b.remove());
+
+      boxes[0].innerHTML = `
+        <button id="ask-leave" class="btn btn-ghost btn-sm">
+          ${icon("navigate", 14)} คำนวณว่าต้องออกเดินทางกี่โมง
+        </button>`;
+      const btn = document.getElementById("ask-leave");
+      if (btn) btn.onclick = () => { btn.disabled = true; loadLeaveTimes(); };
+    }
+
+    async function loadLeaveTimes() {
+      const boxes = [...document.querySelectorAll("[data-leave]")];
+      if (!boxes.length) return;
+
+      if (!posAsked) {
+        posAsked = true;
+        try {
+          myPos = await askLocation(6000);
+        } catch (e) {
+          myPos = null;
+          toast(e.message || "ระบุตำแหน่งไม่สำเร็จ", "error");
+        }
+      }
+      if (!myPos) return boxes.forEach((b) => b.remove());
+
+      renderLeave(boxes);
+    }
+
+    function renderLeave(boxes) {
+      for (const box of boxes) {
+        const b = lastItems.find((x) => x.id === Number(box.dataset.leave));
+        const shop = b && shopOf(b.shop_id);
+        if (!b || !shop || shop.latitude == null || shop.longitude == null) {
+          box.remove();
+          continue;
+        }
+        const km = haversineKm(myPos, {
+          lat: Number(shop.latitude), lng: Number(shop.longitude),
+        });
+        const leave = leaveByText(b.booking_time, km);
+        if (!leave) { box.remove(); continue; }
+
+        box.innerHTML = `
+          <div class="text-sm" style="color:var(--blue-600)">
+            ${icon("navigate", 14)} ควรออกเดินทางประมาณ <b class="num">${leave}</b> น.
+            <span class="text-xs text-muted">
+              · ห่าง ${distanceText(km)} · เผื่อเวลาเดินทาง ${travelMinutes(km)} นาที
+            </span>
+          </div>`;
+      }
+    }
+
     // ================= สิ่งที่ทำได้ระหว่างรอ =================
     // จุดขายของระบบที่คู่แข่งทำไม่ได้ — เพราะเขาเห็นแค่หมวดเดียว
     // ระหว่างที่รถอยู่ในร้าน 8 ชั่วโมง ลูกค้าไม่มีพาหนะ ระบบจึงเสนอเฉพาะร้านที่เดินถึง
@@ -597,6 +700,7 @@
         })
       );
       loadGaps();
+      offerLeaveTimes();
       document.querySelectorAll("[data-pay]").forEach((btn) =>
         btn.addEventListener("click", () => {
           const b = lastItems.find((x) => x.id === Number(btn.dataset.pay));
@@ -1039,6 +1143,7 @@
 
     renderTabs();
     load(1);
+    loadNextRounds();
   </script>
 </body>
 </html>

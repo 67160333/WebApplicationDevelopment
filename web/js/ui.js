@@ -686,6 +686,7 @@ function renderFooter() {
           ${col("สำหรับผู้ใช้บริการ", [
             ["ค้นหาร้าน", "shops.html"],
             ["ราคาและดีล", "promotions.html"],
+            ["หาคนไปเล่นด้วยกัน", "community.html"],
             ["การจองของฉัน", "bookings.html"],
             ["คำถามที่พบบ่อย", "index.html#main"],
           ])}
@@ -1560,4 +1561,38 @@ function printReceipt(r) {
 </body></html>`;
 
   openPrintWindow(html, 620, 800);
+}
+
+// ============================================================
+// เวลาที่ต้องออกเดินทาง
+// ============================================================
+// การจองสร้างข้อผูกพันเรื่องการเดินทางเสมอ แต่ไม่มีใครบอกผู้ใช้ว่า
+// "ต้องออกจากบ้านกี่โมง" — เขาต้องเปิดแอปแผนที่คำนวณเอง
+//
+// ระบบรู้พิกัดร้านและเวลานัดอยู่แล้ว ขาดแค่พิกัดผู้ใช้ซึ่งขอจากเบราว์เซอร์ได้
+//
+// **ตั้งใจไม่เก็บพิกัดผู้ใช้ลงฐานข้อมูล** — คำนวณในเบราว์เซอร์แล้วทิ้ง
+// ที่อยู่บ้านเป็นข้อมูลอ่อนไหวเกินกว่าจะเก็บไว้โดยไม่จำเป็น
+// (หลักการเดียวกับที่หน้าค้นหาตัดพิกัดออกจาก URL เสมอ)
+
+/** ระยะทางเส้นตรงระหว่างสองพิกัด (กิโลเมตร) — สูตร haversine เหมือนฝั่งเซิร์ฟเวอร์ */
+function haversineKm(a, b) {
+  const R = 6371, rad = (d) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 +
+            Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/** ประมาณเวลาเดินทาง — ต้องตรงกับ _travel_minutes() ใน app/routers/gaps.py */
+const travelMinutes = (km) => Math.round(10 + km * 4);
+
+/** เวลาที่ควรออกจากที่อยู่ปัจจุบัน เพื่อไปถึงก่อนเวลานัด */
+function leaveByText(bookingTime, km, bufferMin = 10) {
+  const [h, m] = String(bookingTime).split(":").map(Number);
+  const total = h * 60 + m - travelMinutes(km) - bufferMin;
+  if (total < 0) return null;   // ต้องออกตั้งแต่เมื่อวาน = ข้อมูลไม่สมเหตุสมผล
+  const hh = String(Math.floor(total / 60) % 24).padStart(2, "0");
+  const mm = String(total % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
 }

@@ -438,6 +438,168 @@ def main():
         check("แต่ละแถวมีช่องเวลาของตัวเอง", len(row["slots"]) > 0, True)
         check("ความจุของแต่ละคอร์ทคือ 1", row["slots"][0]["capacity"], 1)
 
+    # ==================================================================
+    # เฝ้าช่องเวลาที่เต็ม — การยกเลิกต้องส่งต่อโอกาสให้คนที่รออยู่
+    # ==================================================================
+    print("\n--- เฝ้าช่องเวลา ---")
+    if salon:
+        detail = c.get(f"/api/shops/{salon['id']}").json()
+        sv = next((x for x in detail["services"]
+                   if x["is_active"] and x["booking_mode"] == "scheduled"), None)
+        st = next((x for x in detail["staff"] if x["is_active"]), None)
+        day = str(date.today() + timedelta(days=6))
+
+        if sv and st:
+            av = c.get(
+                f"/api/services/{sv['id']}/availability?date={day}&staff_id={st['id']}"
+            ).json()
+            free = next((x for x in av["slots"] if x["available"]), None)
+
+            if free:
+                # ลูกค้าคนแรกจองแล้วจ่ายมัดจำ ช่องถูกล็อก
+                b = c.post("/api/bookings", headers=cust, json={
+                    "service_id": sv["id"], "staff_id": st["id"],
+                    "booking_date": day, "booking_time": free["time"],
+                }).json()
+                c.post(f"/api/bookings/{b['id']}/pay", headers=cust,
+                       json={"method": "credit_card"})
+
+                # ลูกค้าคนที่สองเฝ้าช่วงเวลานั้นไว้
+                other = login("nong")
+                before = len(c.get("/api/notifications", headers=other).json()["items"])
+                w = c.post("/api/watches", headers=other, json={
+                    "service_id": sv["id"], "staff_id": st["id"],
+                    "watch_date": day, "from_time": "00:00", "to_time": "23:59",
+                })
+                check("เฝ้าช่วงเวลาได้", w.status_code, 201)
+
+                # เฝ้าซ้ำช่วงเดิมไม่ได้ กันสแปมแจ้งเตือน
+                dup = c.post("/api/watches", headers=other, json={
+                    "service_id": sv["id"], "staff_id": st["id"],
+                    "watch_date": day, "from_time": "00:00", "to_time": "23:59",
+                })
+                check("เฝ้าช่วงเดิมซ้ำไม่ได้", dup.status_code, 409)
+
+                check("เวลาเริ่มต้องมาก่อนเวลาจบ", c.post("/api/watches", headers=other, json={
+                    "service_id": sv["id"], "watch_date": day,
+                    "from_time": "20:00", "to_time": "18:00",
+                }).status_code, 400)
+
+                check("เฝ้าวันที่ผ่านไปแล้วไม่ได้", c.post("/api/watches", headers=other, json={
+                    "service_id": sv["id"],
+                    "watch_date": str(date.today() - timedelta(days=1)),
+                    "from_time": "10:00", "to_time": "12:00",
+                }).status_code, 400)
+
+                # หัวใจของฟีเจอร์: ยกเลิกแล้วคนที่รอต้องได้รับแจ้งเตือน
+                c.delete(f"/api/bookings/{b['id']}", headers=cust)
+                after = c.get("/api/notifications", headers=other).json()["items"]
+                check("ยกเลิกแล้วคนที่เฝ้าไว้ได้รับแจ้งเตือน", len(after) > before, True)
+                check("แจ้งเตือนเป็นชนิดช่องว่าง",
+                      any(x["kind"] == "slot_free" for x in after), True)
+
+                # แจ้งไปแล้วต้องไม่ค้างอยู่ในรายการที่ยังรอ ไม่งั้นจะแจ้งซ้ำ
+                still = c.get("/api/watches?only_active=true", headers=other).json()
+                check("แจ้งแล้วรายการหลุดจากคิวรอ",
+                      any(x["id"] == w.json()["id"] for x in still), False)
+
+    # ==================================================================
+    # ก๊วนแบบยังไม่จอง — ตอบฟีดแบ็กอาจารย์ข้อ 2 ให้ครบ
+    # (open-match ต้องจ่ายมัดจำก่อน คนไม่มีเพื่อนจึงยังใช้ไม่ได้)
+    # ==================================================================
+    print("\n--- โพสต์หาคนก่อนจอง ---")
+    day = str(date.today() + timedelta(days=7))
+    req = c.post("/api/match-requests", headers=cust, json={
+        "sport": "football", "district": "ลาดพร้าว", "play_date": day,
+        "from_time": "20:00", "to_time": "22:00", "need_people": 2,
+        "note": "มือใหม่มาได้",
+    })
+    check("โพสต์หาคนได้โดยยังไม่ต้องจองสนาม", req.status_code, 201)
+
+    if req.status_code == 201:
+        rid = req.json()["id"]
+        check("เริ่มต้นยังไม่มีใครกดสนใจ", req.json()["interested_count"], 0)
+
+        check("กีฬาที่ไม่รองรับต้องถูกปฏิเสธ", c.post("/api/match-requests", headers=cust, json={
+            "sport": "spa-massage", "play_date": day,
+            "from_time": "20:00", "to_time": "22:00", "need_people": 2,
+        }).status_code, 422)
+
+        check("วันที่ผ่านไปแล้วโพสต์ไม่ได้", c.post("/api/match-requests", headers=cust, json={
+            "sport": "football", "play_date": str(date.today() - timedelta(days=1)),
+            "from_time": "20:00", "to_time": "22:00", "need_people": 2,
+        }).status_code, 400)
+
+        friend = login("nong")
+        j = c.post(f"/api/match-requests/{rid}/interest", headers=friend, json={})
+        check("กดสนใจได้", j.status_code, 200)
+        check("นับจำนวนคนสนใจถูก", j.json()["interested_count"], 1)
+        check("ยังขาดอีกหนึ่งคน", j.json()["people_left"], 1)
+
+        check("กดสนใจซ้ำไม่ได้",
+              c.post(f"/api/match-requests/{rid}/interest",
+                     headers=friend, json={}).status_code, 409)
+
+        # เจ้าของโพสต์กดสนใจโพสต์ตัวเองไม่ได้ ไม่งั้นตัวเลขจะหลอกคนอื่น
+        check("เจ้าของโพสต์กดสนใจตัวเองไม่ได้",
+              c.post(f"/api/match-requests/{rid}/interest",
+                     headers=cust, json={}).status_code, 400)
+
+        lst = c.get(f"/api/match-requests?sport=football&date={day}").json()
+        check("โพสต์ขึ้นในรายการสาธารณะ",
+              any(x["id"] == rid for x in lst), True)
+
+        out = c.delete(f"/api/match-requests/{rid}/interest", headers=friend)
+        check("ถอนความสนใจได้", out.status_code, 200)
+        check("ถอนแล้วตัวเลขลดลง",
+              next(x["interested_count"] for x in
+                   c.get(f"/api/match-requests?date={day}").json() if x["id"] == rid), 0)
+        check("ถอนซ้ำไม่ได้",
+              c.delete(f"/api/match-requests/{rid}/interest",
+                       headers=friend).status_code, 404)
+
+        # คนอื่นปิดโพสต์ของเราไม่ได้
+        check("คนอื่นปิดโพสต์ไม่ได้",
+              c.delete(f"/api/match-requests/{rid}", headers=friend).status_code, 403)
+        check("เจ้าของปิดโพสต์เองได้",
+              c.delete(f"/api/match-requests/{rid}", headers=cust).status_code, 200)
+        check("ปิดแล้วหลุดจากรายการสาธารณะ",
+              any(x["id"] == rid for x in
+                  c.get(f"/api/match-requests?date={day}").json()), False)
+
+    # ==================================================================
+    # แนะนำเวลาที่ไม่ทำให้ตารางร้านแตก + เสนอรอบถัดไป
+    # ==================================================================
+    print("\n--- แนะนำเวลาและรอบถัดไป ---")
+    if salon:
+        detail = c.get(f"/api/shops/{salon['id']}").json()
+        sv = next((x for x in detail["services"]
+                   if x["is_active"] and x["booking_mode"] == "scheduled"), None)
+        st = next((x for x in detail["staff"] if x["is_active"]), None)
+        if sv and st:
+            av = c.get(
+                f"/api/services/{sv['id']}/availability"
+                f"?date={date.today() + timedelta(days=8)}&staff_id={st['id']}"
+            ).json()
+            slots = av["slots"]
+            check("ทุกช่องมีป้ายบอกว่าคุ้มจะจองไหม",
+                  all("fits_well" in x for x in slots), True)
+            check("ทุกช่องมีจำนวนนาทีที่จะเสียไป",
+                  all(isinstance(x["wasted_minutes"], int) for x in slots), True)
+            # ถ้าแนะนำว่า "ดี" ก็ต้องไม่มีเวลาตายเหลือ ไม่งั้นป้ายขัดแย้งกันเอง
+            check("ช่องที่แนะนำต้องไม่มีเวลาตาย",
+                  all(x["wasted_minutes"] == 0 for x in slots if x["fits_well"]), True)
+
+    nr = c.get("/api/me/next-rounds", headers=cust)
+    check("ขอรายการรอบถัดไปได้", nr.status_code, 200)
+    check("ต้องล็อกอินก่อนถึงจะดูรอบถัดไปได้",
+          c.get("/api/me/next-rounds").status_code, 401)
+    for item in nr.json():
+        check(f"รอบถัดไปของ {item['service_name']} ต้องเป็นวันในอนาคต",
+              item["suggested_date"] > str(date.today()), True)
+        check(f"ระยะห่างของ {item['service_name']} ต้องเป็นบวก",
+              item["interval_days"] > 0, True)
+
     print("\n" + "=" * 60)
     print(f"สรุป: ผ่าน {ok} · ไม่ผ่าน {fail}")
     print("=" * 60)
