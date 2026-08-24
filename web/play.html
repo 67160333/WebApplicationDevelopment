@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>กีฬา & สังสรรค์ — Bookvice</title>
+  <meta name="description" content="สนามฟุตบอล คอร์ทแบดมินตัน ห้องคาราโอเกะ — ดูผังสนามทั้งหมดในหน้าเดียว ไม่มีเพื่อนก็หาก๊วนได้" />
+  <meta name="theme-color" content="#16233F" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><defs><linearGradient id='a' x1='11' y1='5' x2='36' y2='27' gradientUnits='userSpaceOnUse'><stop stop-color='%23F9AE8B'/><stop offset='1' stop-color='%23E8785A'/></linearGradient><linearGradient id='b' x1='11' y1='21' x2='38' y2='43' gradientUnits='userSpaceOnUse'><stop stop-color='%233FC0D6'/><stop offset='1' stop-color='%2322A898'/></linearGradient></defs><rect width='48' height='48' rx='11' fill='%23fff'/><path d='M11 5h16a11 11 0 0 1 0 22H11z' fill='url(%23a)'/><path d='M11 21h18a11 11 0 0 1 0 22H11z' fill='url(%23b)'/><path d='m16.5 32.5 4.5 4.5 9-9' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='5' y='5' width='6.5' height='38' rx='3.25' fill='%2316233F'/></svg>" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Bookvice" />
+  <meta property="og:title" content="กีฬา & สังสรรค์ — Bookvice" />
+  <meta property="og:description" content="สนามฟุตบอล คอร์ทแบดมินตัน ห้องคาราโอเกะ — ดูผังสนามทั้งหมดในหน้าเดียว ไม่มีเพื่อนก็หาก๊วนได้" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202608241100" />
+</head>
+<body>
+  <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
+  <div id="navbar"></div>
+
+  <main id="main" class="max-w-6xl mx-auto px-5 py-10">
+    <section class="grp-hero grp-play">
+      <div class="grp-hero-in">
+        <span class="grp-ic" data-ic="football"></span>
+        <div>
+          <h1 class="h1 grp-h1">กีฬา & สังสรรค์</h1>
+          <p class="grp-lead">จองสถานที่ ไปกันเป็นกลุ่ม · เห็นผังสนามทุกสนามพร้อมกัน ไม่ต้องกดเข้าออกทีละอัน</p>
+        </div>
+      </div>
+      <div class="grp-cta">
+        <div>
+          <div class="grp-cta-t">ยังไม่มีคนไปด้วย?</div>
+          <div class="grp-cta-s">โพสต์หาคนก่อน พอครบแล้วค่อยจ่ายค่าสนาม</div>
+        </div>
+        <a href="community.html" class="btn btn-primary btn-sm">ไปหาคน</a>
+      </div>
+
+      <nav class="grp-switch" aria-label="เปลี่ยนกลุ่มบริการ"></nav>
+    </section>
+
+    <div id="browse"></div>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/api.js?v=202608241100"></script>
+  <script src="js/ui.js?v=202608241100"></script>
+  <script src="js/browse.js?v=202608241100"></script>
+  <script>
+    renderNavbar("g:play");
+    renderFooter();
+    prefetchOnHover();
+
+
+    // ไอคอนหัวหน้าเพจ — ใส่จาก JS เพราะชุดไอคอนอยู่ใน ui.js ไฟล์เดียว
+    document.querySelectorAll("[data-ic]").forEach((el) => {
+      el.innerHTML = icon(el.dataset.ic, 26);
+    });
+
+    // แถบสลับกลุ่ม — สร้างจาก GROUPS ใน ui.js ไม่ใช่พิมพ์ชื่อซ้ำในทุกหน้า
+    // ถ้าวันหนึ่งเปลี่ยนชื่อกลุ่ม จะเปลี่ยนที่เดียวแล้วถูกทั้งเว็บ
+    document.querySelector(".grp-switch").innerHTML = GROUPS
+      .filter((g) => g.key !== "play")
+      .map((g) => `<a href="${g.key}.html">${icon(g.icon, 15)} ${esc(g.name)}</a>`)
+      .join("");
+
+    // สนามกีฬาแทบไม่มีรีวิว การโชว์ดาว 0 ดวงทำให้ดูเหมือนร้านห่วย
+    // ทั้งที่ความจริงคือยังไม่มีใครรีวิว การ์ดกลุ่มนี้จึงเอา "ของจริง" ขึ้นแทน
+    // — ราคาต่อชั่วโมง · มีกี่สนาม · ปิดกี่โมง
+    const SPORT_CHIPS = [
+      { slug: "football", name: "ฟุตบอล", icon: "football" },
+      { slug: "badminton", name: "แบดมินตัน", icon: "badminton" },
+      { slug: "karaoke", name: "คาราโอเกะ", icon: "mic" },
+    ];
+    let activeSport = "";
+
+    BrowsePage.init({
+      group: "play",
+      page: "play.html",
+      limit: 9,
+      searchLabel: "ค้นหาสนาม เช่น รามอินทรา หญ้าเทียม ห้องใหญ่",
+      sortHint: "เรียงตามคะแนนรีวิว",
+      empty: "ไม่พบสนามที่ตรงกับเงื่อนไข",
+      emptyAvail: "ไม่มีสนามไหนว่างในวันนั้น",
+      // ตรารับรองความสะอาดเป็นเกณฑ์ของร้านความงาม ไม่เกี่ยวกับสนามกีฬาเลย
+      // คะแนนขั้นต่ำก็ตัดออก เพราะสนามส่วนใหญ่ยังไม่มีรีวิว กรองแล้วจะไม่เหลืออะไร
+      filters: { category: false, district: true, rating: false, certified: false, near: true },
+      quickChips: [
+        { label: "ทั้งหมด", value: "" },
+        { label: "ว่างคืนนี้", value: "today" },
+        { label: "ว่างพรุ่งนี้", value: "tomorrow" },
+      ],
+      onResetChips: () => { activeSport = ""; paintSports(); },
+      card: (s) => {
+        const late = s.open_time === s.close_time;
+        return `
+        <a href="shop.html?id=${s.id}" class="card card-link overflow-hidden">
+          ${shopArt(s, "h-36")}
+          <div class="p-5">
+            <h3 class="h3 leading-snug">${esc(s.name)}</h3>
+            <div class="venue-figs mt-3">
+              <div>
+                <div class="vf-n num">${s.resource_count}</div>
+                <div class="vf-l">${esc(s.resource_label)}</div>
+              </div>
+              <div>
+                <div class="vf-n num">${s.price_from != null ? "฿" + baht(s.price_from) : "—"}</div>
+                <div class="vf-l">เริ่มต้น</div>
+              </div>
+              <div>
+                <div class="vf-n num">${late ? "24 ชม." : shortTime(s.close_time)}</div>
+                <div class="vf-l">${late ? "เปิดตลอด" : "ปิด"}</div>
+              </div>
+            </div>
+            ${cardFoot(s)}
+          </div>
+        </a>`;
+      },
+    });
+
+    // ชิปเลือกกีฬา — วางไว้เหนือแถบตัวกรอง เพราะเป็นคำถามแรกที่คนกลุ่มนี้ตอบ
+    // ("จะเล่นอะไร" มาก่อน "ที่ไหน" เสมอ)
+    (async () => {
+      let cats = [];
+      try { cats = await apiGet("/api/categories"); } catch { return; }
+      const byslug = Object.fromEntries(cats.map((c) => [c.slug, c]));
+      const bar = document.createElement("div");
+      bar.className = "sport-bar";
+      bar.innerHTML = SPORT_CHIPS
+        .filter((x) => byslug[x.slug])
+        .map((x) => `
+          <button type="button" class="sport-chip" data-slug="${x.slug}"
+                  data-id="${byslug[x.slug].id}">
+            ${icon(x.icon, 20)}<span>${esc(x.name)}</span>
+          </button>`).join("");
+
+      const host = document.getElementById("browse");
+      host.parentNode.insertBefore(bar, host);
+
+      // มาจากลิงก์ "ฟุตบอล" ในหน้าแรก — ต้องเห็นว่าชิปไหนถูกเลือกอยู่
+      // ไม่งั้นผู้ใช้จะงงว่าทำไมเห็นแค่สนามบอลทั้งที่ไม่ได้กดอะไร
+      const fromUrl = new URLSearchParams(location.search).get("category_id");
+      if (fromUrl) {
+        const hit = SPORT_CHIPS.find((x) => byslug[x.slug]
+          && String(byslug[x.slug].id) === String(fromUrl));
+        if (hit) activeSport = hit.slug;
+      }
+
+      bar.querySelectorAll("[data-slug]").forEach((b) =>
+        b.addEventListener("click", () => {
+          // กดชิปเดิมซ้ำ = ยกเลิกการกรอง ผู้ใช้ไม่ต้องหาปุ่ม "ทั้งหมด"
+          activeSport = activeSport === b.dataset.slug ? "" : b.dataset.slug;
+          paintSports();
+          BrowsePage.setCategory(activeSport ? b.dataset.id : "");
+        }));
+      paintSports();
+    })();
+
+    function paintSports() {
+      document.querySelectorAll("[data-slug]").forEach((x) => {
+        const on = x.dataset.slug === activeSport;
+        x.classList.toggle("is-active", on);
+        x.setAttribute("aria-pressed", String(on));
+      });
+    }
+  </script>
+</body>
+</html>

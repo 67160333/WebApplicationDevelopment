@@ -32,7 +32,7 @@
       <!-- คุมจุดตัดบรรทัดเอง ไม่ปล่อยให้เบราว์เซอร์ตัดกลางวลีจนอ่านสะดุด -->
       <p class="hero-slogan">จองง่าย ได้ครบ จบที่เดียว</p>
       <h1 class="hero-title">
-        จองคิวร้านดูแลตัวเอง<br class="hidden sm:block" />
+        จองคิวร้าน สนาม และช่าง<br class="hidden sm:block" />
         ได้ในไม่กี่นาที
       </h1>
       <p class="hero-sub">
@@ -74,11 +74,17 @@
       <div class="section-head">
         <div>
           <h2>วันนี้มาทำอะไร</h2>
-          <p class="lede">แต่ละกลุ่มจองคนละแบบ เลือกกลุ่มก่อนแล้วหน้าจะเปลี่ยนตาม</p>
+          <p class="lede">
+            แต่ละกลุ่มจองคนละแบบ จึงมีหน้าเป็นของตัวเอง — เลือกกลุ่มแล้วทั้งหน้าจะเปลี่ยนตาม
+          </p>
         </div>
       </div>
       <div id="groupRow" class="group-row"></div>
-      <div id="categories" class="cat-row mt-6"></div>
+
+      <details class="cat-more mt-6">
+        <summary>หรือเลือกจากหมวดย่อยทั้ง 12 หมวด</summary>
+        <div id="categories" class="cat-row mt-4"></div>
+      </details>
     </section>
 
     <!-- ========== ร้านแนะนำ ========== -->
@@ -219,7 +225,7 @@
           gbox.innerHTML = GROUPS.map((g) => {
             const n = cats.filter((c) => (c.group_key || "care") === g.key).length;
             return `
-              <a href="shops.html?group=${g.key}" class="group-card">
+              <a href="${g.key}.html" class="group-card">
                 <span class="gc-ic">${icon(g.icon, 22)}</span>
                 <span class="gc-name">${esc(g.name)}</span>
                 <span class="gc-tag">${esc(g.tagline)}</span>
@@ -238,7 +244,7 @@
               <div class="cat-group-head">${esc(g.name)}</div>
               <div class="cat-group-items">
                 ${mine.map((c) => `
-                  <a href="shops.html?category_id=${c.id}" class="cat-item">
+                  <a href="${g.key}.html?category_id=${c.id}" class="cat-item">
                     <span class="ic">${icon(CATEGORY_ICON[c.slug] || "sparkle", 18)}</span>
                     <span class="nm">${esc(c.name)}</span>
                   </a>`).join("")}

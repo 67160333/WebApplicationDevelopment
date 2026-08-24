@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>เรียกมาหาที่บ้าน — Bookvice</title>
+  <meta name="description" content="ส่งของด่วน และช่างตัดผมนอกสถานที่ — กดเรียกแล้วออกเดินทางทันที คิดค่าบริการตามระยะทางจริง" />
+  <meta name="theme-color" content="#16233F" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><defs><linearGradient id='a' x1='11' y1='5' x2='36' y2='27' gradientUnits='userSpaceOnUse'><stop stop-color='%23F9AE8B'/><stop offset='1' stop-color='%23E8785A'/></linearGradient><linearGradient id='b' x1='11' y1='21' x2='38' y2='43' gradientUnits='userSpaceOnUse'><stop stop-color='%233FC0D6'/><stop offset='1' stop-color='%2322A898'/></linearGradient></defs><rect width='48' height='48' rx='11' fill='%23fff'/><path d='M11 5h16a11 11 0 0 1 0 22H11z' fill='url(%23a)'/><path d='M11 21h18a11 11 0 0 1 0 22H11z' fill='url(%23b)'/><path d='m16.5 32.5 4.5 4.5 9-9' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='5' y='5' width='6.5' height='38' rx='3.25' fill='%2316233F'/></svg>" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Bookvice" />
+  <meta property="og:title" content="เรียกมาหาที่บ้าน — Bookvice" />
+  <meta property="og:description" content="ส่งของด่วน และช่างตัดผมนอกสถานที่ — กดเรียกแล้วออกเดินทางทันที คิดค่าบริการตามระยะทางจริง" />
+  <meta name="twitter:card" content="summary" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202608241100" />
+</head>
+<body>
+  <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
+  <div id="navbar"></div>
+
+  <main id="main" class="max-w-6xl mx-auto px-5 py-10">
+    <section class="grp-hero grp-come">
+      <div class="grp-hero-in">
+        <span class="grp-ic" data-ic="scooter"></span>
+        <div>
+          <h1 class="h1 grp-h1">เรียกมาหาที่บ้าน</h1>
+          <p class="grp-lead">ไม่ต้องเลือกวันเวลา · กดเรียกแล้วออกเดินทางทันที ค่าบริการคิดตามระยะทางจริง</p>
+        </div>
+      </div>
+
+      <nav class="grp-switch" aria-label="เปลี่ยนกลุ่มบริการ"></nav>
+    </section>
+
+    <div id="browse"></div>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/api.js?v=202608241100"></script>
+  <script src="js/ui.js?v=202608241100"></script>
+  <script src="js/browse.js?v=202608241100"></script>
+  <script>
+    renderNavbar("g:come");
+    renderFooter();
+    prefetchOnHover();
+
+
+    // ไอคอนหัวหน้าเพจ — ใส่จาก JS เพราะชุดไอคอนอยู่ใน ui.js ไฟล์เดียว
+    document.querySelectorAll("[data-ic]").forEach((el) => {
+      el.innerHTML = icon(el.dataset.ic, 26);
+    });
+
+    // แถบสลับกลุ่ม — สร้างจาก GROUPS ใน ui.js ไม่ใช่พิมพ์ชื่อซ้ำในทุกหน้า
+    // ถ้าวันหนึ่งเปลี่ยนชื่อกลุ่ม จะเปลี่ยนที่เดียวแล้วถูกทั้งเว็บ
+    document.querySelector(".grp-switch").innerHTML = GROUPS
+      .filter((g) => g.key !== "come")
+      .map((g) => `<a href="${g.key}.html">${icon(g.icon, 15)} ${esc(g.name)}</a>`)
+      .join("");
+
+    // กลุ่มนี้ไม่มีปฏิทิน (booking_mode = instant) การใส่ปุ่ม "ว่างวันนี้/พรุ่งนี้"
+    // จึงเป็นบั๊กเชิงความหมาย — กดแล้วไม่มีอะไรเกิดขึ้น เพราะไม่มีช่องเวลาให้ตรวจ
+    // ปุ่มลัดของกลุ่มนี้จึงเหลือแค่ "ใกล้ฉัน" ซึ่งเป็นสิ่งที่มีผลจริงกับราคา
+    BrowsePage.init({
+      group: "come",
+      page: "come.html",
+      limit: 9,
+      searchLabel: "ค้นหาศูนย์บริการ เช่น ส่งของ ตัดผมถึงบ้าน",
+      sortHint: "เรียงตามคะแนนรีวิว",
+      empty: "ไม่พบศูนย์บริการที่ตรงกับเงื่อนไข",
+      filters: { category: true, district: true, rating: false, certified: false, near: true },
+      categoryLabel: "ประเภทที่เรียกได้",
+      quickChips: [],
+      card: (s) => `
+        <a href="shop.html?id=${s.id}" class="card card-link overflow-hidden">
+          ${shopArt(s, "h-36")}
+          <div class="p-5">
+            <h3 class="h3 leading-snug">${esc(s.name)}</h3>
+            <div class="instant-note">
+              ${icon("navigate", 14)}
+              <span>เรียกได้ทันที ไม่ต้องเลือกวันเวลา</span>
+            </div>
+            <div class="flex items-center gap-3 mt-3 text-xs text-muted flex-wrap">
+              <span>${icon("user", 13)} ${s.resource_count} ${esc(s.resource_label)}</span>
+              ${priceFrom(s) ? `<span>${priceFrom(s)} + ค่าระยะทาง</span>` : ""}
+            </div>
+            ${cardFoot(s)}
+          </div>
+        </a>`,
+    });
+  </script>
+</body>
+</html>

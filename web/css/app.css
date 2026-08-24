@@ -3002,3 +3002,148 @@ details:not([open]) > *:not(summary) { display: none !important; }
   width: 5px; height: 5px; border-radius: 50%; background: var(--amber-500, #e0a030);
 }
 .slot { position: relative; }
+
+/* ============================================================
+   หน้ากลุ่มบริการ — care / play / auto / come
+   ============================================================
+   อาจารย์ให้ฟีดแบ็กว่า "ถ้าเข้าสนามบอล UI ก็ควรเปลี่ยนทั้งหมด"
+   ทางแก้คือแยกเป็นไฟล์จริง 4 หน้า แล้วให้แต่ละหน้ามีสีนำของตัวเอง
+
+   **สีเป็นแค่ตัวช่วยจำ ไม่ใช่ตัวบอกความหมาย** — ทุกหน้ายังใช้สีน้ำเงินกรมท่า
+   เป็นสีหลักเหมือนเดิม เปลี่ยนแค่แถบหัวหน้าเพจ เพื่อให้ผู้ใช้รู้ตัวว่าย้ายกลุ่มแล้ว
+   โดยไม่ต้องอ่านหัวข้อ แต่ไม่ทำให้เว็บดูเหมือนคนละเว็บ
+   ============================================================ */
+
+.grp-hero {
+  border-radius: var(--r-lg);
+  padding: 22px 24px;
+  margin-bottom: 6px;
+  background: var(--navy-50);
+  border-left: 4px solid var(--navy-800);
+}
+.grp-hero-in { display: flex; align-items: flex-start; gap: 16px; }
+.grp-ic {
+  width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; color: var(--navy-800);
+  box-shadow: var(--shadow-sm);
+}
+.grp-h1 { margin: 0; }
+.grp-lead {
+  font-size: 14px; color: var(--muted); margin: 5px 0 0;
+  max-width: 62ch; line-height: 1.65;
+}
+
+/* สีนำของแต่ละกลุ่ม — ต่างกันแค่เส้นขอบซ้ายกับพื้นอ่อน ๆ */
+.grp-care { background: var(--navy-50);  border-left-color: var(--navy-800); }
+.grp-play { background: var(--blue-50);  border-left-color: var(--blue-600); }
+.grp-auto { background: #f4f2ee;         border-left-color: #8a7a62; }
+.grp-come { background: #eef7f5;         border-left-color: var(--teal-500); }
+.grp-play .grp-ic { color: var(--blue-600); }
+.grp-auto .grp-ic { color: #7a6a52; }
+.grp-come .grp-ic { color: var(--teal-500); }
+
+/* กล่องชวนทำสิ่งต่อไปในกลุ่มนั้น ๆ (หาก๊วน / เตือนเรื่องฝากรถ) */
+.grp-cta {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+  margin-top: 16px; padding: 13px 16px;
+  background: #fff; border-radius: 10px; border: 1px solid var(--border);
+}
+.grp-cta-t { font-size: 14px; font-weight: 600; }
+.grp-cta-s { font-size: 12.5px; color: var(--muted); margin-top: 2px; max-width: 60ch; }
+
+.grp-switch {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-top: 16px; padding-top: 14px;
+  border-top: 1px solid rgba(0, 0, 0, .07);
+}
+.grp-switch a {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--muted); text-decoration: none;
+  padding: 5px 11px; border-radius: 999px; background: rgba(255, 255, 255, .75);
+  transition: color var(--t) var(--ease), background var(--t) var(--ease);
+}
+.grp-switch a:hover { color: var(--ink); background: #fff; }
+
+/* ---------- แถบเลือกกีฬา (เฉพาะหน้า play) ----------
+   "จะเล่นอะไร" เป็นคำถามแรกของคนกลุ่มนี้เสมอ มาก่อน "ที่ไหน"
+   จึงวางไว้เหนือแถบตัวกรอง ไม่ใช่ซ่อนในดรอปดาวน์ */
+.sport-bar {
+  display: grid; gap: 10px; margin-top: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+.sport-chip {
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  padding: 14px 12px; border-radius: var(--r);
+  border: 1px solid var(--border); background: var(--surface);
+  font-size: 14.5px; font-weight: 500; color: var(--ink); cursor: pointer;
+  transition: border-color var(--t) var(--ease), background var(--t) var(--ease),
+              color var(--t) var(--ease);
+}
+.sport-chip:hover { border-color: var(--border-strong); }
+.sport-chip.is-active {
+  background: var(--navy-800); border-color: var(--navy-800); color: #fff;
+}
+
+/* ---------- ตัวเลขบนการ์ดสนาม ----------
+   สนามส่วนใหญ่ยังไม่มีรีวิว การโชว์ดาว 0 ดวงทำให้ดูเหมือนร้านห่วย
+   ทั้งที่ความจริงคือยังไม่มีใครรีวิว จึงเอาตัวเลขที่มีจริงขึ้นแทน */
+.venue-figs {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 8px; text-align: center;
+}
+.venue-figs > div {
+  padding: 9px 4px; border-radius: 9px; background: var(--navy-50);
+}
+.vf-n { font-size: 16px; font-weight: 700; line-height: 1.2; }
+.vf-l { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ---------- ความยาวงาน (เฉพาะหน้า auto) ----------
+   เคลือบแก้ว 480 นาที = ต้องว่างทั้งวัน ถ้าไม่บอกตั้งแต่หน้ารายการ
+   ลูกค้าจะรู้ตอนจองเสร็จแล้วซึ่งสายเกินไป */
+.job-len {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  margin-top: 11px; padding: 8px 11px; border-radius: 9px;
+  font-size: 12.5px; color: var(--ink-soft); background: var(--navy-50);
+}
+.job-len.is-long { background: var(--warn-bg); color: var(--warn); }
+.job-tag {
+  font-size: 11px; font-weight: 600; padding: 1px 7px;
+  border-radius: 999px; background: rgba(0, 0, 0, .07);
+}
+
+/* ---------- ป้ายเรียกทันที (เฉพาะหน้า come) ----------
+   กลุ่มนี้ไม่มีปฏิทิน ต้องบอกให้ชัดตั้งแต่การ์ด ไม่งั้นผู้ใช้จะมองหาปุ่มเลือกวัน */
+.instant-note {
+  display: flex; align-items: center; gap: 7px;
+  margin-top: 11px; padding: 8px 11px; border-radius: 9px;
+  font-size: 12.5px; color: var(--teal-500); background: #eef7f5;
+}
+
+@media (max-width: 640px) {
+  .grp-hero { padding: 18px 16px; }
+  .grp-hero-in { gap: 12px; }
+  .grp-ic { width: 40px; height: 40px; }
+}
+
+/* ป้ายบอกกลุ่มบนการ์ดของหน้ารวม — จำเป็นเฉพาะหน้าที่ทุกหมวดปนกัน
+   หน้ากลุ่มไม่ต้องใช้ เพราะผู้ใช้รู้อยู่แล้วว่าอยู่กลุ่มไหน */
+.mix-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  padding: 2px 8px; border-radius: 999px; background: var(--navy-50);
+}
+
+/* หมวดย่อย 12 หมวดบนหน้าแรก — พับเก็บไว้เป็นทางเลือกรอง
+   ทางเข้าหลักคือการ์ด 4 กลุ่ม การวางหมวดย่อยกางไว้ตลอดทำให้มีทางเลือก
+   16 อันพร้อมกัน ซึ่งเป็นสาเหตุที่ผู้ใช้บอกว่า "งง ไม่รู้จะกดอะไร" */
+.cat-more > summary {
+  cursor: pointer; font-size: 13.5px; color: var(--muted);
+  padding: 9px 14px; border-radius: 999px; display: inline-block;
+  background: var(--navy-50); list-style: none;
+  transition: color var(--t) var(--ease);
+}
+.cat-more > summary::-webkit-details-marker { display: none; }
+.cat-more > summary:hover { color: var(--ink); }
+.cat-more[open] > summary { color: var(--ink); font-weight: 500; }

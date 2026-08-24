@@ -73,19 +73,68 @@ def _group_map(db: Session) -> dict[int, str]:
     return {c.id: (c.group_key or "care") for c in db.scalars(select(Category)).all()}
 
 
+def _stats_map(db: Session, shop_ids: list[int]) -> dict[int, dict]:
+    """สรุปตัวเลขของหลายร้านในสองคำสั่ง — ใช้เติมการ์ดในหน้ารายการ
+
+    ทำไมต้องมี: การ์ดของแต่ละกลุ่มตัดสินใจด้วยข้อมูลคนละอย่าง
+      กีฬา   ต้องรู้ว่ามีกี่สนาม และเริ่มต้นชั่วโมงละเท่าไหร่
+      รถยนต์ ต้องรู้ว่างานยาวสุดกี่ชั่วโมง (ตัวเลขนี้คือเหตุผลที่ฟีเจอร์ "ระหว่างรอ" มีอยู่)
+      ถึงที่  ต้องรู้ค่าบริการเริ่มต้น เพราะไม่มีปฏิทินให้ดูอย่างอื่น
+
+    ถ้าไปดึงจาก /api/shops/{id} ทีละใบจะกลายเป็น N+1 — หน้าละ 9 ร้านคือ 10 คำขอ
+    """
+    if not shop_ids:
+        return {}
+
+    svc = db.execute(
+        select(
+            Service.shop_id,
+            func.min(Service.price),
+            func.max(Service.duration_minutes),
+            func.count(Service.id),
+        )
+        .where(Service.shop_id.in_(shop_ids), Service.is_active.is_(True))
+        .group_by(Service.shop_id)
+    ).all()
+
+    stf = db.execute(
+        select(Staff.shop_id, func.count(Staff.id))
+        .where(Staff.shop_id.in_(shop_ids), Staff.is_active.is_(True))
+        .group_by(Staff.shop_id)
+    ).all()
+
+    out: dict[int, dict] = {sid: {} for sid in shop_ids}
+    for sid, price, dur, n in svc:
+        out[sid].update(
+            price_from=float(price) if price is not None else None,
+            duration_max=int(dur) if dur is not None else None,
+            service_count=int(n),
+        )
+    for sid, n in stf:
+        out[sid]["resource_count"] = int(n)
+    return out
+
+
 def _to_out(
     db: Session, rows: list[Shop], distances: dict[int, float] | None = None
 ) -> list[ShopOut]:
     """แปลง Shop เป็น ShopOut พร้อมเติมรูปปก ระยะทาง และคำเรียกทรัพยากร"""
-    covers = _cover_map(db, [s.id for s in rows])
+    ids = [s.id for s in rows]
+    covers = _cover_map(db, ids)
     labels = _label_map(db)
     groups = _group_map(db)
+    stats = _stats_map(db, ids)
     out: list[ShopOut] = []
     for shop in rows:
         item = ShopOut.model_validate(shop)
         item.cover_url = covers.get(shop.id)
         item.resource_label, item.category_slug = labels.get(shop.category_id, ("ช่าง", None))
         item.group_key = groups.get(shop.category_id, "care")
+        st = stats.get(shop.id, {})
+        item.price_from = st.get("price_from")
+        item.duration_max = st.get("duration_max")
+        item.service_count = st.get("service_count", 0)
+        item.resource_count = st.get("resource_count", 0)
         if distances is not None:
             item.distance_km = distances.get(shop.id)
         out.append(item)

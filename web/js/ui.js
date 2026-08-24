@@ -511,7 +511,7 @@ function renderNavbar(active = "") {
           ${link("index.html", "หน้าแรก", "home")}
           ${/* แยกทางเข้าตามกลุ่ม ไม่ให้ผู้ใช้ที่มาหาสนามบอลต้องเลื่อนผ่านร้านทำเล็บ */""}
           ${GROUPS.map((g) =>
-            `<a href="shops.html?group=${g.key}"
+            `<a href="${g.key}.html"
                 class="nav-link${active === "g:" + g.key ? " is-active" : ""}">${esc(g.name)}</a>`
           ).join("")}
           ${link("promotions.html", "ราคาและดีล", "promo")}
@@ -683,18 +683,21 @@ function renderFooter() {
               แพลตฟอร์มจองบริการสุขภาพและความงาม รวมร้านที่ผ่านการคัดกรองมาตรฐานไว้ในที่เดียว
             </p>
           </div>
+          ${col("บริการทั้ง 4 กลุ่ม", [
+            ...GROUPS.map((g) => [g.name, `${g.key}.html`]),
+            ["ค้นหาทุกหมวดรวมกัน", "shops.html"],
+          ])}
           ${col("สำหรับผู้ใช้บริการ", [
-            ["ค้นหาร้าน", "shops.html"],
-            ["ราคาและดีล", "promotions.html"],
             ["หาคนไปเล่นด้วยกัน", "community.html"],
+            ["ราคาและดีล", "promotions.html"],
             ["การจองของฉัน", "bookings.html"],
             ["คำถามที่พบบ่อย", "index.html#main"],
           ])}
-          ${col("สำหรับร้านค้า", [
+          ${/* ยุบสองคอลัมน์เดิมเข้าด้วยกัน เพราะเพิ่มคอลัมน์ "บริการทั้ง 4 กลุ่ม" เข้ามา
+                แล้วตารางท้ายเว็บ (4 ช่อง) จะตกบรรทัดเป็นแถวเดี่ยวที่ดูเหมือนพลาด */""}
+          ${col("ร้านค้าและเอกสารระบบ", [
             ["เปิดร้านบน Bookvice", "register.html"],
             ["จัดการร้านของฉัน", "manage.html"],
-          ])}
-          ${col("เอกสารระบบ", [
             ["เอกสาร API (Swagger)", `${API_BASE}/docs`],
             ["เอกสาร API (ReDoc)", `${API_BASE}/redoc`],
           ])}

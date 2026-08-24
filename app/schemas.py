@@ -170,6 +170,16 @@ class ShopOut(BaseModel):
     category_slug: str | None = Field(None, description="รหัสหมวดหมู่ เช่น football, delivery")
     group_key: str = Field("care", description="กลุ่มใหญ่ของหมวด — ดู CategoryOut.group_key")
 
+    # ---- ตัวเลขสรุป ใช้วาดการ์ดในหน้ารายการโดยไม่ต้องยิงถามทีละร้าน ----
+    price_from: float | None = Field(None, description="ราคาถูกที่สุดของร้านนี้")
+    duration_max: int | None = Field(
+        None, description="บริการที่ใช้เวลานานที่สุด (นาที) — ใช้เตือนงานยาวอย่างเคลือบแก้วรถ"
+    )
+    service_count: int = Field(0, description="จำนวนบริการที่เปิดอยู่")
+    resource_count: int = Field(
+        0, description="จำนวนสิ่งที่จองได้ — ช่างกี่คน สนามกี่สนาม ห้องกี่ห้อง"
+    )
+
 
 class ServiceCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=150, examples=["นวดแผนไทย 60 นาที"])
