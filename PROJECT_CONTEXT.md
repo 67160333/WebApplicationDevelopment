@@ -54,14 +54,16 @@ docker compose up -d --build
 | หมวดบริการ | **12 หมวด · 4 กลุ่มใหญ่ · 4 หน้าแยกจริง** |
 | ร้านตัวอย่าง | **38 แห่ง** |
 | Docker container | **4 ตัว** (api · db · web · pgadmin) |
-| ชุดทดสอบอัตโนมัติ | **~103 ข้อ** ยิง API จริง + **22 ข้อ** ฝั่งหน้าเว็บ |
+| ชุดทดสอบอัตโนมัติ | **102 ข้อ** ยิง API จริง + **22 ข้อ** ฝั่งหน้าเว็บ · ผ่านหมด ไม่มีข้าม |
 | รูปภาพร้าน | **ยังไม่มีสักรูป** — ดูหัวข้อ 0.6 |
 
 **คำสั่งตรวจว่าทุกอย่างยังดีอยู่**
 
 ```bash
-docker compose exec api python tests/test_booking_payment.py   # ฝั่ง API
-node tests/test_shop_status.js                                 # ฝั่งหน้าเว็บ
+docker compose up -d --build
+docker compose exec api python tests/test_booking_payment.py   # ฝั่ง API — 102 ข้อ
+docker run --rm -v "${PWD}:/app" -w /app node:20-alpine \
+  node tests/test_shop_status.js                               # ฝั่งหน้าเว็บ — 22 ข้อ
 ```
 
 ต้องจบด้วย **`ไม่ผ่าน 0`** — จำนวนข้อที่ผ่านเพิ่มขึ้นทุกครั้งที่มีฟีเจอร์ใหม่
@@ -145,7 +147,7 @@ web/
 tools/
   upload_photos.py  อัปรูปยกโฟลเดอร์ + โหลดรูปจาก photo_urls.txt ให้เอง
 tests/
-  test_booking_payment.py   ~103 ข้อ ยิง API จริงบน SQLite ชั่วคราว
+  test_booking_payment.py   102 ข้อ ยิง API จริงบน SQLite ชั่วคราว
   test_shop_status.js       22 ข้อ ตรวจตรรกะเวลาในหน้าเว็บด้วย Node ล้วน
 ```
 

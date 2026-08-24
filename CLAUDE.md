@@ -40,13 +40,18 @@ FastAPI + PostgreSQL + Docker Compose · **74 endpoints · 16 ตาราง**
 
 ## ก่อนบอกว่าเสร็จ ให้รันสิ่งนี้เสมอ
 
-```bash
+```powershell
+docker compose up -d --build
 docker compose exec api python tests/test_booking_payment.py
-node tests/test_shop_status.js
+docker run --rm -v "${PWD}:/app" -w /app node:20-alpine node tests/test_shop_status.js
 ```
 
-ชุดแรกยิงเข้า API ชุดที่สองตรวจตรรกะเวลาในหน้าเว็บ (`shopStatus`)
-**ต้องรันทั้งคู่** — ชุดแรกไม่แตะโค้ดหน้าเว็บเลยสักบรรทัด
+- ชุดแรกยิงเข้า API · ชุดที่สองตรวจตรรกะเวลาในหน้าเว็บ (`shopStatus`)
+  **ต้องรันทั้งคู่** — ชุดแรกไม่แตะโค้ดหน้าเว็บเลยสักบรรทัด
+- `--build` ห้ามลืม ไม่งั้นจะเจอ `ImportError` จากโค้ดเก่าที่ค้างใน image
+- เทสต์ JS ต้องยืม image ของ Node เพราะทั้ง api (python) และ web (nginx) ไม่มี Node
+
+ผลที่ถูกต้อง: **`ไม่ผ่าน 0 · ข้าม 0`** ทั้งสองชุด (ล่าสุด 102 ข้อ + 22 ข้อ)
 
 ต้องได้ `ไม่ผ่าน 0` — จำนวนข้อที่ผ่านเพิ่มขึ้นตามฟีเจอร์ใหม่ ให้ดูที่ **ไม่ผ่าน** เป็นหลัก
 (รอบล่าสุดที่ยืนยันแล้วคือ 67 ข้อ ก่อนเพิ่มชุดเทสต์ของ 5 ฟีเจอร์ใหม่)

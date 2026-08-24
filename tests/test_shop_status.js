@@ -25,8 +25,12 @@
        node tests/test_shop_status.js
 
    ไม่ต้องติดตั้งอะไรเพิ่ม ใช้ Node ล้วน ๆ ไม่พึ่ง jest หรือ browser
-   ถ้าเครื่องไม่มี Node ให้รันในคอนเทนเนอร์ web ซึ่งเป็น nginx:alpine
-       docker compose run --rm --entrypoint sh web -c "apk add --no-cache nodejs >/dev/null && node /usr/share/nginx/html/../tests/test_shop_status.js"
+
+   **Windows ส่วนใหญ่ไม่มี Node ติดมาให้** และคอนเทนเนอร์ในโปรเจกต์นี้ก็ไม่มีเช่นกัน
+   (api เป็น python:3.12-slim · web เป็น nginx:alpine) จึงต้องยืม image ของ Node มาใช้
+       docker run --rm -v "${PWD}:/app" -w /app node:20-alpine node tests/test_shop_status.js
+
+   ยืนยันแล้วว่าคำสั่งนี้ใช้ได้จริงบน PowerShell (24 ส.ค. 2026)
 
    จบด้วยรหัส 0 = ผ่านหมด · 1 = มีข้อที่ไม่ผ่าน
 */
