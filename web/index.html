@@ -19,7 +19,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608250230" />
+  <link rel="stylesheet" href="css/app.css?v=202608250400" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -28,7 +28,14 @@
   <!-- ========== ส่วนหัว ========== -->
   <section class="hero">
     <div class="hero-grid"></div>
-    <div class="max-w-6xl mx-auto px-5 pt-16 pb-24 sm:pt-20 sm:pb-28">
+    <!-- ลำดับในส่วนหัว: พาดหัว → คำอธิบาย → ช่องค้นหา → ตัวเลขยืนยัน
+         =========================================================
+         ของเดิมการ์ดค้นหาลอยอยู่นอกส่วนหัวแล้วดึงขึ้นมาด้วย margin-top:-58px
+         ซึ่งเป็นการวางทับแบบเดาระยะ พอความสูงของข้อความเปลี่ยนไปนิดเดียว
+         การ์ดก็ทับข้อความจริง ๆ — วัดได้ว่าทับ 10px และบังแถบตัวเลขจนมิด
+
+         เอาทุกอย่างมาเรียงในสายเดียวกันแทน ไม่มีระยะติดลบให้ผิดพลาดอีก -->
+    <div class="hero-inner max-w-6xl mx-auto px-5">
       <!-- คุมจุดตัดบรรทัดเอง ไม่ปล่อยให้เบราว์เซอร์ตัดกลางวลีจนอ่านสะดุด -->
       <p class="hero-slogan">จองง่าย ได้ครบ จบที่เดียว</p>
       <h1 class="hero-title">
@@ -40,14 +47,7 @@
         แล้วยืนยันได้ทันที ไม่ต้องทักไปถามแล้วรอตอบ
       </p>
 
-      <!-- ข้อเท็จจริงจากฐานข้อมูล ไม่ใช่คำโฆษณา -->
-      <div class="hero-facts" id="heroFacts"></div>
-    </div>
-  </section>
-
-  <!-- การ์ดค้นหา ลอยคร่อมส่วนหัว -->
-  <div class="max-w-6xl mx-auto px-5" style="margin-top:-58px;position:relative;z-index:10">
-    <form id="searchForm" class="search-card">
+      <form id="searchForm" class="search-card">
       <div class="search-grid">
         <div class="search-field">
           <label class="label" for="sCat">บริการที่ต้องการ</label>
@@ -66,7 +66,12 @@
         </button>
       </div>
     </form>
-  </div>
+
+      <!-- ข้อเท็จจริงจากฐานข้อมูล ไม่ใช่คำโฆษณา -->
+      <div class="hero-facts" id="heroFacts"></div>
+    </div>
+  </section>
+
 
   <main id="main" class="max-w-6xl mx-auto px-5 pt-16 pb-4">
     <!-- ========== หมวดหมู่ ========== -->
@@ -129,8 +134,8 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202608250230"></script>
-  <script src="js/ui.js?v=202608250230"></script>
+  <script src="js/api.js?v=202608250400"></script>
+  <script src="js/ui.js?v=202608250400"></script>
   <script>
     renderNavbar("home");
     renderFooter();
