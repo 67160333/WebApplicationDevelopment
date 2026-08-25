@@ -31,6 +31,7 @@ from app.routers import (
 from app.seed import seed_database
 from app.seed_extra import backfill_coordinates, enrich_demo_data
 from app.seed_men import seed_category_groups, seed_men_services
+from app.seed_photos import seed_stock_photos
 from app.seed_venues import seed_venues
 from app.storage import UPLOAD_ROOT, ensure_dirs
 
@@ -59,6 +60,8 @@ async def lifespan(app: FastAPI):
             seed_category_groups(db)
             # ร้านเก่าถูกสร้างก่อนที่ระบบจะมีแผนที่ จึงต้องย้อนไปเติมพิกัดให้
             backfill_coordinates(db)
+            # รูปตัวอย่างที่มากับโค้ด — ต้องทำหลัง seed ร้านครบทุกชุดแล้ว
+            seed_stock_photos(db)
         finally:
             db.close()
 

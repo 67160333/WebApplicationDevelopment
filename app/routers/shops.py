@@ -57,7 +57,8 @@ def _cover_map(db: Session, shop_ids: list[int]) -> dict[int, str]:
             ShopImage.shop_id.in_(shop_ids), ShopImage.is_cover.is_(True)
         )
     ).all()
-    return {sid: f"/uploads/shops/{sid}/{fn}" for sid, fn in rows}
+    from app.storage import image_url
+    return {sid: image_url(sid, fn) for sid, fn in rows}
 
 
 def _label_map(db: Session) -> dict[int, tuple[str, str]]:

@@ -674,7 +674,8 @@ class ShopImageOut(BaseModel):
     @computed_field(description="ที่อยู่ไฟล์สำหรับเรียกดูรูป")
     @property
     def url(self) -> str:
-        return f"/uploads/shops/{self.shop_id}/{self.filename}"
+        from app.storage import image_url
+        return image_url(self.shop_id, self.filename)
 
 
 # ============================================================

@@ -258,7 +258,16 @@ const CATEGORY_TINT = {
 };
 
 // ที่อยู่เต็มของไฟล์ที่อัปโหลด — API คืนมาเป็นเส้นทางสั้น ๆ เช่น /uploads/shops/4/ab12.webp
-const fileUrl = (path) => (path ? `${API_BASE}${path}` : "");
+const fileUrl = (path) => {
+  if (!path) return "";
+  // รูปที่มากับโค้ด (web/photos/) เสิร์ฟจากเว็บโดยตรง ไม่ใช่จาก API
+  //
+  // ในเครื่อง nginx อยู่พอร์ต 3000 ส่วน API อยู่ 8000 คนละที่กัน
+  // ถ้าเติม API_BASE ให้เส้นทางนี้ รูปจะ 404 เพราะ API ไม่ได้เสิร์ฟโฟลเดอร์ web
+  // (บน Render เป็นพอร์ตเดียวกันจึงไม่เห็นปัญหา — เคยพลาดแบบนี้มาแล้ว)
+  if (path.startsWith("/photos/")) return path;
+  return `${API_BASE}${path}`;
+};
 
 function shopArt(shop, heightClass = "h-32", opts = {}) {
   const id = Number(shop.id) || 1;
@@ -490,7 +499,9 @@ function renderNavbar(active = "") {
          ${link("bookings.html", "การจองของฉัน", "bookings")}
          <a href="profile.html" class="flex items-center gap-2.5 pl-3.5 pr-1.5 py-1.5 no-underline"
             style="background:rgba(255,255,255,.1);border-radius:999px">
-           <span class="text-sm hidden sm:inline" style="color:rgba(255,255,255,.92)">${esc(user.full_name)}</span>
+           <span class="text-sm hidden sm:inline" title="${esc(user.full_name)}"
+                 style="color:rgba(255,255,255,.92);white-space:nowrap;overflow:hidden;
+                        text-overflow:ellipsis;max-width:15ch">${esc(user.full_name)}</span>
            <span class="w-7 h-7 grid place-items-center text-xs font-semibold"
                  style="background:var(--blue-600);color:#fff;border-radius:999px">${esc(user.full_name.trim().charAt(0))}</span>
          </a>

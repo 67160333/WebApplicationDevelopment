@@ -401,7 +401,11 @@ body {
 
 /* ---------- แถบเมนู ---------- */
 .nav-link {
-  padding: 8px 13px;
+  /* ห้ามตัดคำเด็ดขาด — เมนูมี 6 รายการซึ่งเบียดกันพอดีในแถบกว้าง ~690px
+     ถ้าปล่อยให้ตัดได้ ทุกรายการจะกลายเป็นสองบรรทัดแล้วล้นออกนอกแถบสูง 64px
+     พร้อมกันทั้งหมด ทำให้ส่วนหัวเว็บดูพังทันที (เกิดขึ้นจริงบนเว็บจริง 25 ส.ค.) */
+  white-space: nowrap;
+  padding: 8px 11px;
   border-radius: var(--r);
   font-size: 14px;
   font-weight: 500;
@@ -1834,11 +1838,26 @@ details:not([open]) > *:not(summary) { display: none !important; }
   gap: 8px;
   height: 340px;
 }
-/* มีรูปย่อยแค่รูปเดียวก็ให้กินเต็มช่อง ไม่ต้องเหลือที่ว่าง */
+/* ตารางรูปย่อยเป็น 2x2 ซึ่งพอดีเฉพาะตอนมีรูปย่อยครบ 4 รูป
+   ร้านส่วนใหญ่มีรูป 4 รูป = รูปใหญ่ 1 + รูปย่อย 3 ช่องขวาล่างจึงว่าง
+   กลายเป็นช่องโหว่รูปตัว L ที่เห็นชัดมาก ต้องจัดผังใหม่ตามจำนวนรูปจริง */
+
+/* รูปย่อย 1 รูป — กินเต็มช่องขวา */
 .gal-side:has(.gal-thumb:only-child) { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+
+/* รูปย่อย 2 รูป — วางซ้อนกันในคอลัมน์เดียว สูงเท่ารูปใหญ่พอดี */
+.gal-side:has(.gal-thumb:nth-child(2):last-child) { grid-template-columns: 1fr; }
+
+/* รูปย่อย 3 รูป — รูปสุดท้ายกินสองช่องล่าง ไม่เหลือรูโหว่ */
+.gal-side:has(.gal-thumb:nth-child(3):last-child) .gal-thumb:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
 .gal-thumb { border-radius: 0; }
+.gal-side .gal-thumb:first-child { border-top-right-radius: var(--r-lg); }
+.gal-side:has(.gal-thumb:nth-child(2):not(:last-child)) .gal-thumb:first-child { border-top-right-radius: 0; }
 .gal-side .gal-thumb:nth-child(2) { border-top-right-radius: var(--r-lg); }
-.gal-side .gal-thumb:last-child:nth-child(4) { border-bottom-right-radius: var(--r-lg); }
+.gal-side .gal-thumb:last-child { border-bottom-right-radius: var(--r-lg); }
 
 .gal-count {
   position: absolute; right: 12px; bottom: 12px;
