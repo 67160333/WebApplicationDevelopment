@@ -452,8 +452,12 @@ body {
 /* ---------- ส่วนหัวหน้าแรก ---------- */
 .hero {
   position: relative;
+  /* แสงไล่สีเคยอยู่ที่ 88% ซึ่งเป็นฝั่งขวาที่ไม่มีเนื้อหาเลย
+     สายตาจึงถูกดึงไปกองที่ที่ว่าง ทำให้ส่วนหัวดูเอียงและโล่ง
+     ย้ายมาไว้หลังตัวหนังสือ แล้วเพิ่มแสงจาง ๆ ทางขวาเพื่อไม่ให้ฝั่งนั้นตายสนิท */
   background:
-    radial-gradient(1100px 420px at 88% 18%, rgba(53,110,196,.55) 0%, rgba(15,41,75,0) 62%),
+    radial-gradient(880px 380px at 26% 26%, rgba(53,110,196,.50) 0%, rgba(15,41,75,0) 64%),
+    radial-gradient(620px 300px at 92% 76%, rgba(34,168,152,.17) 0%, rgba(15,41,75,0) 70%),
     linear-gradient(180deg, var(--navy-800) 0%, var(--navy-900) 100%);
 }
 
@@ -2964,31 +2968,6 @@ details:not([open]) > *:not(summary) { display: none !important; }
    ก่อนจะรู้ว่าตัวเองควรกดอันไหน ตอนนี้เหลือ 4 ทางเลือกที่บอกชัดว่า
    แต่ละกลุ่ม "จองแบบไหน" ซึ่งเป็นสิ่งที่ผู้ใช้อยากรู้จริง ๆ
    ------------------------------------------------------------ */
-.group-row {
-  display: grid; gap: 14px;
-  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
-}
-.group-card {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 18px 18px 16px; border-radius: 14px;
-  background: var(--surface); border: 1px solid var(--border);
-  text-decoration: none; color: inherit;
-  transition: border-color var(--t) var(--ease), transform var(--t) var(--ease),
-              box-shadow var(--t) var(--ease);
-}
-.group-card:hover {
-  border-color: var(--blue-600); transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(18, 50, 92, .1), 0 2px 4px rgba(18, 50, 92, .06);
-}
-.gc-ic {
-  width: 42px; height: 42px; border-radius: 11px; margin-bottom: 8px;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--blue-50); color: var(--navy-800);
-}
-.gc-name   { font-size: 16.5px; font-weight: 700; line-height: 1.3; }
-.gc-tag    { font-size: 13px; color: var(--blue-600); font-weight: 600; }
-.gc-detail { font-size: 12.5px; color: var(--muted); line-height: 1.55; margin-top: 2px; }
-.gc-count  { font-size: 11.5px; color: var(--muted); margin-top: 10px; }
 
 /* หมวดย่อย — ยังมีอยู่แต่จัดกลุ่มให้เห็นว่าอันไหนอยู่กลุ่มไหน */
 .cat-group { margin-bottom: 18px; }
@@ -3166,3 +3145,80 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .cat-more > summary::-webkit-details-marker { display: none; }
 .cat-more > summary:hover { color: var(--ink); }
 .cat-more[open] > summary { color: var(--ink); font-weight: 500; }
+
+/* ============================================================
+   แผ่นภาพหมวดบริการบนหน้าแรก
+   ============================================================
+   เดิมหมวดทั้ง 4 ถูกแขวนไว้บนแถบเมนู ซึ่งผิดที่สองชั้น
+
+   1. แถบเมนูมีพื้นที่จำกัด พอมี 8 รายการก็ตัดคำเป็นสองบรรทัดทุกอัน
+   2. หมวดบริการคือ **เนื้อหา** ที่ผู้ใช้ต้องเลือก ไม่ใช่ **เครื่องมือ** ที่ต้องหยิบ
+      ได้ตลอดเวลา ที่ของมันคือหน้าแรกซึ่งมีพื้นที่พอให้เห็นภาพและคำอธิบาย
+
+   ใช้ภาพจริงแทนการ์ดตัวหนังสือล้วน เพราะคนเลือกหมวดจากภาพได้เร็วกว่าอ่าน
+   และภาพช่วยบอกว่า "สนามบอล" กับ "สปา" ต่างกันทันทีโดยไม่ต้องอ่านชื่อ
+   ============================================================ */
+.group-row {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(236px, 1fr));
+}
+
+.group-tile {
+  position: relative;
+  display: block;
+  height: 208px;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  text-decoration: none;
+  background: var(--navy-800);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--t) var(--ease), box-shadow var(--t) var(--ease);
+}
+.group-tile:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.group-tile:focus-visible { outline: 3px solid var(--blue-600); outline-offset: 2px; }
+
+.group-tile img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform .55s cubic-bezier(.2,.7,.3,1);
+}
+.group-tile:hover img { transform: scale(1.06); }
+
+/* ไล่สีเข้มจากล่างขึ้นบน ทำให้ตัวหนังสืออ่านออกทุกภาพ
+   ไม่ว่าภาพนั้นจะสว่างหรือมืด — ไม่ต้องเลือกภาพให้เข้ากับสีตัวอักษร */
+.gt-shade {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg,
+    rgba(10, 26, 48, .12) 0%,
+    rgba(10, 26, 48, .55) 52%,
+    rgba(10, 26, 48, .88) 100%);
+}
+
+.gt-text {
+  position: absolute; left: 16px; right: 16px; bottom: 14px;
+  display: flex; flex-direction: column; gap: 3px;
+  color: #fff;
+}
+.gt-ic {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; margin-bottom: 6px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .18);
+  backdrop-filter: blur(3px);
+}
+.gt-name { font-size: 17px; font-weight: 700; line-height: 1.25; }
+.gt-tag  { font-size: 12.5px; color: rgba(255, 255, 255, .82); line-height: 1.45; }
+
+.gt-count {
+  position: absolute; right: 12px; top: 12px;
+  font-size: 11.5px; font-weight: 600;
+  color: var(--navy-800); background: rgba(255, 255, 255, .92);
+  padding: 3px 9px; border-radius: 999px;
+}
+
+@media (max-width: 640px) {
+  .group-tile { height: 168px; }
+  .gt-name { font-size: 16px; }
+}

@@ -19,7 +19,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608250100" />
+  <link rel="stylesheet" href="css/app.css?v=202608250230" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -28,7 +28,7 @@
   <!-- ========== ส่วนหัว ========== -->
   <section class="hero">
     <div class="hero-grid"></div>
-    <div class="max-w-6xl mx-auto px-5 pt-20 pb-28 sm:pt-24 sm:pb-32">
+    <div class="max-w-6xl mx-auto px-5 pt-16 pb-24 sm:pt-20 sm:pb-28">
       <!-- คุมจุดตัดบรรทัดเอง ไม่ปล่อยให้เบราว์เซอร์ตัดกลางวลีจนอ่านสะดุด -->
       <p class="hero-slogan">จองง่าย ได้ครบ จบที่เดียว</p>
       <h1 class="hero-title">
@@ -74,9 +74,7 @@
       <div class="section-head">
         <div>
           <h2>วันนี้มาทำอะไร</h2>
-          <p class="lede">
-            แต่ละกลุ่มจองคนละแบบ จึงมีหน้าเป็นของตัวเอง — เลือกกลุ่มแล้วทั้งหน้าจะเปลี่ยนตาม
-          </p>
+          <p class="lede">เลือกสิ่งที่อยากทำ แล้วเราจะพาไปหน้าที่ทำเรื่องนั้นโดยเฉพาะ</p>
         </div>
       </div>
       <div id="groupRow" class="group-row"></div>
@@ -131,8 +129,8 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202608250100"></script>
-  <script src="js/ui.js?v=202608250100"></script>
+  <script src="js/api.js?v=202608250230"></script>
+  <script src="js/ui.js?v=202608250230"></script>
   <script>
     renderNavbar("home");
     renderFooter();
@@ -224,13 +222,18 @@
         if (gbox) {
           gbox.innerHTML = GROUPS.map((g) => {
             const n = cats.filter((c) => (c.group_key || "care") === g.key).length;
+            // แผ่นภาพแทนการ์ดตัวหนังสือล้วน — คนเลือกหมวดจากภาพได้เร็วกว่าอ่าน
+            // รูปมาจาก web/photos/ ซึ่งอยู่ใน repo จึงไม่มีทางหาย
             return `
-              <a href="${g.key}.html" class="group-card">
-                <span class="gc-ic">${icon(g.icon, 22)}</span>
-                <span class="gc-name">${esc(g.name)}</span>
-                <span class="gc-tag">${esc(g.tagline)}</span>
-                <span class="gc-detail">${esc(g.detail)}</span>
-                <span class="gc-count num">${n} ประเภท</span>
+              <a href="${g.key}.html" class="group-tile">
+                <img src="${g.photo}" alt="" loading="lazy" decoding="async" />
+                <span class="gt-shade" aria-hidden="true"></span>
+                <span class="gt-text">
+                  <span class="gt-ic">${icon(g.icon, 18)}</span>
+                  <span class="gt-name">${esc(g.name)}</span>
+                  <span class="gt-tag">${esc(g.tagline)}</span>
+                </span>
+                <span class="gt-count num">${n} ประเภท</span>
               </a>`;
           }).join("");
         }

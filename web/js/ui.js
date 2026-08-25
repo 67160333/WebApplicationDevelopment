@@ -213,6 +213,7 @@ const GROUPS = [
     tagline: "ไปที่ร้าน มีคนดูแลให้",
     detail: "เลือกช่างที่ถูกใจ ดูรีวิวรายคน จองคนเดียวก็ไปได้",
     icon: "leaf",
+    photo: "/photos/spa-massage/01.webp",
   },
   {
     key: "play",
@@ -220,6 +221,7 @@ const GROUPS = [
     tagline: "จองสถานที่ ไปกันเป็นกลุ่ม",
     detail: "เห็นผังสนามทั้งหมดในหน้าเดียว · ไม่มีเพื่อนไปด้วยก็หาก๊วนได้",
     icon: "football",
+    photo: "/photos/football/01.webp",
   },
   {
     key: "auto",
@@ -227,6 +229,7 @@ const GROUPS = [
     tagline: "ฝากรถไว้ แล้วรอรับคืน",
     detail: "งานยาวหลายชั่วโมง ระบบแนะนำที่เที่ยวใกล้ ๆ ให้ระหว่างรอ",
     icon: "car",
+    photo: "/photos/car-care/02.webp",
   },
   {
     key: "come",
@@ -234,6 +237,7 @@ const GROUPS = [
     tagline: "ไม่ต้องเลือกวันเวลา",
     detail: "กดเรียกแล้วออกเดินทางทันที คิดค่าบริการตามระยะทางจริง",
     icon: "scooter",
+    photo: "/photos/mobile-barber/01.webp",
   },
 ];
 
@@ -518,16 +522,21 @@ function renderNavbar(active = "") {
           ${brandMark(28, "#fff")}
           <span class="text-xl text-white brand-name">Bookvice</span>
         </a>
-        <nav class="hidden md:flex items-center gap-1 mx-auto">
+        ${/* แถบบนเก็บเฉพาะสิ่งที่ต้องใช้ได้จากทุกหน้า
+              --------------------------------------------------------------
+              เดิมเอาหมวดบริการทั้ง 4 กลุ่มมาแขวนไว้ตรงนี้ รวมเป็น 8 รายการ
+              เบียดกันจนตัดคำเป็นสองบรรทัดทุกอัน และทำให้ส่วนหัวแย่งความสนใจ
+              ไปจากเนื้อหาจริง
+
+              หมวดบริการเป็น "เนื้อหา" ไม่ใช่ "เครื่องมือนำทาง"
+              ที่ของมันคือหน้าแรกซึ่งมีพื้นที่พอให้เห็นภาพและคำอธิบาย
+              ส่วนการสลับกลุ่มระหว่างหน้ามีแถบ .grp-switch อยู่ในทุกหน้ากลุ่มแล้ว */""}
+        <nav class="hidden md:flex items-center gap-1">
           ${link("index.html", "หน้าแรก", "home")}
-          ${/* แยกทางเข้าตามกลุ่ม ไม่ให้ผู้ใช้ที่มาหาสนามบอลต้องเลื่อนผ่านร้านทำเล็บ */""}
-          ${GROUPS.map((g) =>
-            `<a href="${g.key}.html"
-                class="nav-link${active === "g:" + g.key ? " is-active" : ""}">${esc(g.name)}</a>`
-          ).join("")}
-          ${link("promotions.html", "ราคาและดีล", "promo")}
+          ${link("shops.html", "ค้นหาร้าน", "shops")}
+          ${link("community.html", "หาคนไปเล่น", "community")}
         </nav>
-        <div class="ml-auto md:ml-0">${right}</div>
+        <div class="ml-auto">${right}</div>
       </div>
     </header>
 
