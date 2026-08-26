@@ -19,7 +19,7 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608250400" />
+  <link rel="stylesheet" href="css/app.css?v=202608250600" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -49,10 +49,8 @@
 
       <form id="searchForm" class="search-card">
       <div class="search-grid">
-        <div class="search-field">
-          <label class="label" for="sCat">บริการที่ต้องการ</label>
-          <select id="sCat" class="select"><option value="">ทุกประเภทบริการ</option></select>
-        </div>
+        <!-- ไม่มีดรอปดาวน์ "บริการที่ต้องการ" ตรงนี้แล้ว — ซ้ำกับแถวหมวดด้านล่าง
+             ซึ่งกดได้ทีเดียวจบและเห็นตัวเลือกทั้งหมดพร้อมกันโดยไม่ต้องกางเมนู -->
         <div class="search-field">
           <label class="label" for="sDistrict">โซน / เขต</label>
           <select id="sDistrict" class="select"><option value="">ทุกพื้นที่</option></select>
@@ -74,20 +72,23 @@
 
 
   <main id="main" class="max-w-6xl mx-auto px-5 pt-16 pb-4">
-    <!-- ========== หมวดหมู่ ========== -->
+    <!-- ========== หมวดหมู่ — ชั้นเดียว ==========
+         เดิมมีสองชั้นซ้อนกัน: แผ่นภาพกลุ่มใหญ่ 4 ใบ + หมวดย่อย 12 หมวดใต้ details
+         ซึ่งเป็นการให้เลือกเรื่องเดียวกันสองรอบ ผู้ใช้ต้องคิดว่า
+         "ฟุตบอลอยู่กลุ่มไหน" ก่อนถึงจะกดฟุตบอลได้
+
+         เหลือชั้นเดียว — 12 หมวดจริง กดแล้วไปหน้าค้นหาที่กรองหมวดนั้นให้แล้ว
+         ถ้าวันหนึ่งหมวดเยอะขึ้นจนแถวนี้ยาวเกิน ให้แก้ด้วยตัวกรองในหน้าค้นหา
+         ไม่ใช่เอากลุ่มใหญ่มาซ้อนอีกชั้น -->
     <section class="reveal">
       <div class="section-head">
         <div>
           <h2>วันนี้มาทำอะไร</h2>
-          <p class="lede">เลือกสิ่งที่อยากทำ แล้วเราจะพาไปหน้าที่ทำเรื่องนั้นโดยเฉพาะ</p>
+          <p class="lede">กดหมวดที่ต้องการ แล้วเราจะพาไปหน้าค้นหาที่กรองไว้ให้แล้ว</p>
         </div>
+        <a href="shops.html" class="see-all">ดูทั้งหมด <span id="ic0"></span></a>
       </div>
-      <div id="groupRow" class="group-row"></div>
-
-      <details class="cat-more mt-6">
-        <summary>หรือเลือกจากหมวดย่อยทั้ง 12 หมวด</summary>
-        <div id="categories" class="cat-row mt-4"></div>
-      </details>
+      <div id="categories" class="cat-tiles"></div>
     </section>
 
     <!-- ========== ร้านแนะนำ ========== -->
@@ -102,27 +103,6 @@
       <div id="shops" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
     </section>
 
-    <!-- ========== เสียงจากผู้ใช้จริง ========== -->
-    <section class="sect reveal" id="voices">
-      <div class="section-head">
-        <div>
-          <h2>ความเห็นจากผู้ใช้บริการ</h2>
-          <p class="lede">
-            ทุกข้อความมาจากรีวิวในระบบ เขียนได้เฉพาะผู้ที่จองผ่านเว็บและร้านยืนยันว่าใช้บริการแล้ว
-          </p>
-        </div>
-      </div>
-      <div id="testimonials" class="grid sm:grid-cols-3 gap-5"></div>
-    </section>
-
-    <!-- ========== มาตรฐานของเรา ========== -->
-    <section class="sect reveal">
-      <div class="section-head">
-        <h2>สิ่งที่เรารับประกันให้คุณ</h2>
-      </div>
-      <div id="valueProps" class="pledge"></div>
-    </section>
-
     <!-- ========== คำถามที่พบบ่อย ========== -->
     <section class="sect reveal">
       <div class="section-head">
@@ -130,26 +110,38 @@
       </div>
       <div id="faq" class="card" style="padding:4px 26px"></div>
     </section>
+
+    <!-- ========== มาตรฐานของเรา ==========
+         ย้ายลงมาท้ายสุดและพับเก็บไว้ ของเดิมเป็นหัวข้อใหญ่กลางหน้า
+         ซึ่งเด่นเกินความสำคัญจริง — เป็นคำสัญญาของเรา ไม่ใช่สิ่งที่ผู้ใช้มาหา
+         คนเข้าเว็บนี้มาเพื่อจองคิว ไม่ได้มาอ่านว่าเรารับประกันอะไร -->
+    <section class="sect reveal">
+      <details class="pledge-more">
+        <summary>สิ่งที่เรารับประกันให้คุณ</summary>
+        <div id="valueProps" class="pledge mt-4"></div>
+      </details>
+    </section>
   </main>
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202608250400"></script>
-  <script src="js/ui.js?v=202608250400"></script>
+  <script src="js/api.js?v=202608250600"></script>
+  <script src="js/ui.js?v=202608250600"></script>
   <script>
     renderNavbar("home");
     renderFooter();
     prefetchOnHover();
-    document.getElementById("ic1").innerHTML = icon("chevronRight", 14);
+    for (const id of ["ic0", "ic1"]) {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = icon("chevronRight", 14);
+    }
 
     // ---------- ค้นหา ----------
     document.getElementById("searchForm").addEventListener("submit", (e) => {
       e.preventDefault();
       const q = new URLSearchParams();
-      const cat = document.getElementById("sCat").value;
       const dis = document.getElementById("sDistrict").value;
       const kw = document.getElementById("sKeyword").value.trim();
-      if (cat) q.set("category_id", cat);
       if (dis) q.set("district", dis);
       if (kw) q.set("search", kw);
       location.href = q.toString() ? `shops.html?${q}` : "shops.html";
@@ -214,50 +206,32 @@
         <p>${desc}</p>
       </div>`).join("");
 
+    // ชื่อหมวดตาม slug — เติมตอนโหลดรายการหมวด ใช้ติดป้ายบนการ์ดร้าน
+    const CATEGORY_NAME = {};
+
     // ---------- หมวดหมู่ ----------
     async function loadCategories() {
       const box = document.getElementById("categories");
       try {
         const cats = await apiGet("/api/categories");
-        const sel = document.getElementById("sCat");
-        cats.forEach((c) => sel.add(new Option(c.name, c.id)));
+        cats.forEach((c) => { CATEGORY_NAME[c.slug] = c.name; });
 
-        // การ์ดกลุ่มใหญ่ — ทางเข้าหลัก บอกด้วยว่าแต่ละกลุ่มจองแบบไหน
-        const gbox = document.getElementById("groupRow");
-        if (gbox) {
-          gbox.innerHTML = GROUPS.map((g) => {
-            const n = cats.filter((c) => (c.group_key || "care") === g.key).length;
-            // แผ่นภาพแทนการ์ดตัวหนังสือล้วน — คนเลือกหมวดจากภาพได้เร็วกว่าอ่าน
-            // รูปมาจาก web/photos/ ซึ่งอยู่ใน repo จึงไม่มีทางหาย
-            return `
-              <a href="${g.key}.html" class="group-tile">
-                <img src="${g.photo}" alt="" loading="lazy" decoding="async" />
-                <span class="gt-shade" aria-hidden="true"></span>
-                <span class="gt-text">
-                  <span class="gt-ic">${icon(g.icon, 18)}</span>
-                  <span class="gt-name">${esc(g.name)}</span>
-                  <span class="gt-tag">${esc(g.tagline)}</span>
-                </span>
-                <span class="gt-count num">${n} ประเภท</span>
-              </a>`;
-          }).join("");
-        }
-
-        // หมวดย่อยยังมีอยู่ แต่จัดกลุ่มให้เห็นว่าอันไหนอยู่กลุ่มไหน
-        box.innerHTML = GROUPS.map((g) => {
-          const mine = cats.filter((c) => (c.group_key || "care") === g.key);
-          if (!mine.length) return "";
+        // กดหมวดแล้วต้องไปเจอร้านของหมวดนั้นจริง ๆ
+        // ------------------------------------------------------------------
+        // ของเดิมพาไปหน้ากลุ่มใหญ่ (เช่น play.html) ซึ่งแสดงทั้งฟุตบอล แบดมินตัน
+        // และคาราโอเกะปนกัน กดฟุตบอลแล้วไม่ได้ฟุตบอลอย่างเดียว
+        //
+        // ส่งไปหน้ากลุ่มพร้อม category_id เพื่อให้ได้ทั้งสองอย่าง — ตัวกรอง
+        // และหน้าตาเฉพาะทางของกลุ่มนั้น (สนามกีฬาโชว์จำนวนคอร์ท ศูนย์รถโชว์
+        // เวลาที่ต้องฝากรถ) browse.js รับ category_id อยู่แล้วแม้หน้านั้น
+        // จะไม่มีดรอปดาวน์หมวดก็ตาม
+        box.innerHTML = cats.map((c) => {
+          const g = c.group_key || "care";
           return `
-            <div class="cat-group">
-              <div class="cat-group-head">${esc(g.name)}</div>
-              <div class="cat-group-items">
-                ${mine.map((c) => `
-                  <a href="${g.key}.html?category_id=${c.id}" class="cat-item">
-                    <span class="ic">${icon(CATEGORY_ICON[c.slug] || "sparkle", 18)}</span>
-                    <span class="nm">${esc(c.name)}</span>
-                  </a>`).join("")}
-              </div>
-            </div>`;
+            <a href="${g}.html?category_id=${c.id}" class="cat-tile">
+              <span class="ct-ic">${icon(CATEGORY_ICON[c.slug] || "sparkle", 22)}</span>
+              <span class="ct-name">${esc(c.name)}</span>
+            </a>`;
         }).join("");
       } catch (err) {
         box.innerHTML = `
@@ -289,7 +263,6 @@
 
         if (!res.items.length) {
           box.innerHTML = emptyHTML("search", "ยังไม่มีร้านในระบบ");
-          document.getElementById("voices").style.display = "none";
           return;
         }
 
@@ -319,7 +292,6 @@
         revealOnScroll("#shops .reveal");
 
         paintFacts(res, detail.filter(Boolean));
-        loadVoices(res.items);
       } catch (err) {
         // ต้องมีทางไปต่อเสมอ — เน็ตสะดุดครั้งเดียวไม่ควรบังคับให้ผู้ใช้รีเฟรชทั้งหน้า
         box.innerHTML = `
@@ -362,7 +334,14 @@
         <a href="shop.html?id=${s.id}" class="card card-link overflow-hidden shop-card reveal">
           ${shopArt(s, "h-40", { tag: s.is_certified ? "ผ่านการรับรอง" : null })}
           <div class="body">
-            <h3>${esc(s.name)}</h3>
+            ${/* ป้ายหมวด — หน้านี้เอาร้านคะแนนสูงสุดจากทุกหมวดมาปนกัน
+                  ถ้าไม่บอกว่าร้านไหนคือหมวดอะไร ผู้ใช้ต้องกดเข้าไปดูถึงจะรู้ */""}
+            ${CATEGORY_NAME[s.category_slug] ? `
+              <div class="mix-tag">
+                ${icon(CATEGORY_ICON[s.category_slug] || "sparkle", 12)}
+                ${esc(CATEGORY_NAME[s.category_slug])}
+              </div>` : ""}
+            <h3 class="mt-1.5">${esc(s.name)}</h3>
             <div class="meta">
               ${starRow(s.rating_avg, 13)}
               <span class="num">${Number(s.rating_avg).toFixed(1)}</span>
@@ -381,53 +360,6 @@
     }
 
     // ---------- ความเห็นจริงจากฐานข้อมูล ----------
-    async function loadVoices(shops) {
-      const box = document.getElementById("testimonials");
-      const section = document.getElementById("voices");
-      box.innerHTML = skeletonCards(3, 160, 341);
-
-      try {
-        const withReviews = shops.filter((s) => s.rating_count > 0).slice(0, 6);
-        const results = await Promise.all(
-          withReviews.map((s) =>
-            apiGet(`/api/shops/${s.id}/reviews?page=1&limit=3`)
-              .then((r) => r.items.map((rv) => ({ ...rv, shopName: s.name })))
-              .catch(() => [])
-          )
-        );
-        // เอาเฉพาะรีวิวที่เขียนยาวพอจะมีเนื้อหา ข้อความสั้น ๆ ไม่ช่วยให้ใครตัดสินใจ
-        // และหยิบร้านละไม่เกิน 1 รีวิว — สามรีวิวจากร้านเดียวกันดูเหมือนรีวิวปั้น
-        const seen = new Set();
-        const all = [];
-        for (const r of results.flat()) {
-          if (!r.comment || r.comment.length < 40) continue;
-          if (seen.has(r.shopName)) continue;
-          seen.add(r.shopName);
-          all.push(r);
-          if (all.length === 3) break;
-        }
-
-        if (!all.length) {
-          section.style.display = "none";
-          return;
-        }
-        box.innerHTML = all.map((r) => `
-          <blockquote class="card voice">
-            ${starRow(r.rating, 15)}
-            <p class="said">${esc(r.comment)}</p>
-            <footer class="who">
-              <span class="av">${esc((r.user_name || "?").trim().charAt(0))}</span>
-              <span class="nm">${esc(r.user_name || "ผู้ใช้บริการ")}</span>
-              <span class="sep">·</span>
-              <a href="shop.html?id=${r.shop_id}" class="voice-shop">
-                ${esc(r.shopName)}${icon("chevronRight", 12)}
-              </a>
-            </footer>
-          </blockquote>`).join("");
-      } catch {
-        section.style.display = "none";
-      }
-    }
 
     loadCategories();
     loadShops();

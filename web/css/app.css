@@ -3265,3 +3265,68 @@ details:not([open]) > *:not(summary) { display: none !important; }
   .hero-inner { padding-top: 72px; padding-bottom: 64px; }
   .hero-inner .search-card { margin-top: 34px; }
 }
+
+/* ============================================================
+   หมวดหมู่บนหน้าแรก — ชั้นเดียว แบบไอคอน
+   ============================================================
+   เดิมหน้าแรกให้เลือกเรื่องเดียวกันสองรอบ: แผ่นภาพกลุ่มใหญ่ 4 ใบ
+   แล้วค่อยมีหมวดย่อย 12 หมวดซ่อนอยู่ใต้ปุ่มกาง
+
+   ผู้ใช้ที่อยากจองสนามบอลต้องคิดก่อนว่า "ฟุตบอลอยู่กลุ่มไหน"
+   ทั้งที่เขารู้อยู่แล้วว่าต้องการอะไร — เป็นการเพิ่มขั้นตอนโดยไม่ได้อะไรกลับมา
+
+   เหลือชั้นเดียวคือหมวดจริง 12 อัน กดทีเดียวถึงร้านที่ต้องการ
+   ถ้าวันหนึ่งหมวดเยอะขึ้นจนแถวนี้ยาวเกินไป ให้แก้ด้วยตัวกรองในหน้าค้นหา
+   ไม่ใช่เอากลุ่มใหญ่มาซ้อนอีกชั้น
+   ============================================================ */
+.cat-tiles {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+}
+
+.cat-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 18px 10px;
+  border-radius: var(--r);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--ink);
+  text-align: center;
+  transition: border-color var(--t) var(--ease), transform var(--t) var(--ease),
+              box-shadow var(--t) var(--ease);
+}
+.cat-tile:hover {
+  border-color: var(--blue-600);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+.cat-tile:focus-visible { outline: 2px solid var(--blue-600); outline-offset: 2px; }
+
+.ct-ic {
+  display: flex; align-items: center; justify-content: center;
+  width: 46px; height: 46px; border-radius: 13px;
+  background: var(--blue-50); color: var(--navy-800);
+  transition: background var(--t) var(--ease), color var(--t) var(--ease);
+}
+.cat-tile:hover .ct-ic { background: var(--navy-800); color: #fff; }
+.ct-name { font-size: 13.5px; font-weight: 600; line-height: 1.35; }
+
+/* "สิ่งที่เรารับประกัน" พับเก็บไว้ท้ายหน้า — เป็นคำสัญญาของเรา
+   ไม่ใช่สิ่งที่ผู้ใช้เข้าเว็บมาหา จึงไม่ควรกินพื้นที่กลางหน้า */
+.pledge-more > summary {
+  cursor: pointer; list-style: none;
+  font-size: 14px; font-weight: 600; color: var(--muted);
+  padding: 10px 16px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--border);
+  display: inline-block;
+  transition: color var(--t) var(--ease), border-color var(--t) var(--ease);
+}
+.pledge-more > summary::-webkit-details-marker { display: none; }
+.pledge-more > summary:hover { color: var(--ink); border-color: var(--border-strong); }
+.pledge-more[open] > summary { color: var(--ink); }
