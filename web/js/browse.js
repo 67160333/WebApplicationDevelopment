@@ -30,6 +30,10 @@ const BrowsePage = (() => {
 
   let onlyFav = false;
   let availMode = "";
+  // วันที่ที่ผู้ใช้เลือกมาจากช่องค้นหาหน้าแรก (?date=YYYY-MM-DD)
+  // แยกจาก availMode เพราะ availMode รับได้แค่ "วันนี้/พรุ่งนี้" จากปุ่มชิป
+  // ส่วนอันนี้เป็นวันไหนก็ได้ ถ้ามีค่าจะมีศักดิ์เหนือกว่าปุ่มชิป
+  let pickedDate = "";
   let catFilter = "";
   let myPos = null;
   let nearRadius = 20;
@@ -171,8 +175,9 @@ const BrowsePage = (() => {
     if ($("fRating") && $("fRating").value) q.set("min_rating", $("fRating").value);
     if ($("fCert") && $("fCert").checked) q.set("certified", "true");
 
-    if (availMode === "today") q.set("available_on", localDate());
-    if (availMode === "tomorrow") q.set("available_on", localDate(dateAfter(1)));
+    if (pickedDate) q.set("available_on", pickedDate);
+    else if (availMode === "today") q.set("available_on", localDate());
+    else if (availMode === "tomorrow") q.set("available_on", localDate(dateAfter(1)));
 
     if (myPos) {
       q.set("near_lat", myPos.lat.toFixed(6));
@@ -356,6 +361,9 @@ const BrowsePage = (() => {
 
     document.querySelectorAll("[data-avail]").forEach((b) =>
       b.addEventListener("click", () => {
+        // กดชิปแล้วต้องทิ้งวันที่ที่ติดมาจากหน้าแรก ไม่งั้นกด "ว่างวันนี้"
+        // แล้วผลลัพธ์ยังเป็นของวันเดิมที่เลือกมา ซึ่งดูเหมือนปุ่มเสีย
+        pickedDate = "";
         availMode = b.dataset.avail;
         paintQuick();
         load(1);
@@ -419,6 +427,10 @@ const BrowsePage = (() => {
     params = new URLSearchParams(location.search);
     onlyFav = params.get("fav") === "1";
     availMode = params.get("avail") || "";
+    // รับเฉพาะรูปแบบ YYYY-MM-DD เท่านั้น ค่าอื่นทิ้ง
+    // ไม่งั้นค่าที่ใครก็ตามแปะมาใน URL จะถูกส่งต่อไปที่ API ตรง ๆ
+    pickedDate = /^\d{4}-\d{2}-\d{2}$/.test(params.get("date") || "")
+      ? params.get("date") : "";
 
     // หน้ากีฬาและหน้ารถใช้ชิปแทนดรอปดาวน์ จึงไม่มี #fCat ให้ใส่ค่า
     // ถ้าไม่รับ ?category_id= ตรงนี้ ลิงก์ลึกจากหน้าแรก (เช่น "ฟุตบอล")

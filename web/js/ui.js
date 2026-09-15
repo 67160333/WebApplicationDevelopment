@@ -1213,7 +1213,7 @@ function printSlip(data) {
 <style>
   @page { size: A5; margin: 14mm; }
   * { box-sizing: border-box; }
-  body { font-family: 'IBM Plex Sans Thai', 'Tahoma', sans-serif; color: #14202f;
+  body { font-family: 'Noto Sans Thai Looped', 'IBM Plex Sans Thai', 'Tahoma', sans-serif; color: #14202f;
          font-size: 13px; line-height: 1.75; margin: 0; }
   .head { display: flex; justify-content: space-between; align-items: flex-start;
           border-bottom: 2px solid #0f294b; padding-bottom: 10px; }
@@ -1531,7 +1531,7 @@ function printReceipt(r) {
 <style>
   @page { size: A5; margin: 14mm; }
   * { box-sizing: border-box; }
-  body { font-family: 'IBM Plex Sans Thai','Tahoma',sans-serif; color:#14202f;
+  body { font-family: 'Noto Sans Thai Looped','IBM Plex Sans Thai','Tahoma',sans-serif; color:#14202f;
          font-size:13px; line-height:1.75; margin:0; }
   .head { display:flex; justify-content:space-between; align-items:flex-start;
           border-bottom:2px solid #0f294b; padding-bottom:10px; }

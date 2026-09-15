@@ -18,8 +18,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202608250600" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202609141000" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -55,6 +56,13 @@
           <label class="label" for="sDistrict">โซน / เขต</label>
           <select id="sDistrict" class="select"><option value="">ทุกพื้นที่</option></select>
         </div>
+        <!-- ช่องวันที่ — เว็บนี้คือเว็บจอง คำถามแรกของคนเข้ามาคือ "วันเสาร์ว่างไหม"
+             ไม่ใช่ "ร้านชื่ออะไร" ของเดิมมีแค่เขตกับคำค้นหา ซึ่งเป็นช่องค้นหา
+             ของเว็บไดเรกทอรี ไม่ใช่ของเว็บจอง -->
+        <div class="search-field">
+          <label class="label" for="sDate">วันที่ต้องการ</label>
+          <input id="sDate" class="input" type="date" />
+        </div>
         <div class="search-field">
           <label class="label" for="sKeyword">คำค้นหา</label>
           <input id="sKeyword" class="input" placeholder="ชื่อร้าน" />
@@ -80,35 +88,43 @@
          เหลือชั้นเดียว — 12 หมวดจริง กดแล้วไปหน้าค้นหาที่กรองหมวดนั้นให้แล้ว
          ถ้าวันหนึ่งหมวดเยอะขึ้นจนแถวนี้ยาวเกิน ให้แก้ด้วยตัวกรองในหน้าค้นหา
          ไม่ใช่เอากลุ่มใหญ่มาซ้อนอีกชั้น -->
-    <section class="reveal">
+    <!-- คำโปรยใต้หัวข้อถูกลบออกทั้งหน้าแล้ว
+         ของเดิมทุกหัวข้อมีประโยคอธิบายต่อท้าย เช่น "กดหมวดที่ต้องการ
+         แล้วเราจะพาไปหน้าค้นหาที่กรองไว้ให้แล้ว" ซึ่งอธิบายสิ่งที่ผู้ใช้
+         เห็นอยู่ตรงหน้าอยู่แล้ว การอธิบายทุกอย่างแบบนี้คือลายเซ็นของ
+         ข้อความที่เครื่องเขียน คนเขียนจริงจะปล่อยให้ของพูดแทนตัวเอง -->
+    <section class="sect-minor reveal">
       <div class="section-head">
-        <div>
-          <h2>วันนี้มาทำอะไร</h2>
-          <p class="lede">กดหมวดที่ต้องการ แล้วเราจะพาไปหน้าค้นหาที่กรองไว้ให้แล้ว</p>
-        </div>
+        <h2>วันนี้มาทำอะไร</h2>
         <a href="shops.html" class="see-all">ดูทั้งหมด <span id="ic0"></span></a>
       </div>
       <div id="categories" class="cat-tiles"></div>
     </section>
 
-    <!-- ========== ร้านแนะนำ ========== -->
-    <section class="sect reveal">
+    <!-- ========== ร้านแนะนำ — ส่วนที่เป็นพระเอกของหน้านี้ ==========
+         .sect-lead ทำให้หัวข้อใหญ่กว่าและเว้นมากกว่าส่วนอื่น
+         ของเดิมทั้งสามส่วนใช้ h2 ขนาด 24px เท่ากันเป๊ะ และเว้น 72px
+         เท่ากันหมด หน้าที่ทุกอย่างหนักเท่ากันคือหน้าที่ไม่มีใครตัดสินใจ
+         ว่าอะไรสำคัญ ตาจึงไม่รู้จะเกาะตรงไหนก่อน -->
+    <section class="sect sect-lead reveal">
       <div class="section-head">
-        <div>
-          <h2>ร้านที่ได้คะแนนสูงที่สุด</h2>
-          <p class="lede">เรียงตามคะแนนรีวิวจริงของผู้ที่ใช้บริการเสร็จแล้ว</p>
-        </div>
+        <h2>ร้านที่ได้คะแนนสูงที่สุด</h2>
         <a href="shops.html" class="see-all">ดูร้านทั้งหมด <span id="ic1"></span></a>
       </div>
+      <!-- ร้านอันดับหนึ่งเป็นการ์ดใหญ่ ที่เหลือเป็นการ์ดปกติ
+           ของเดิมการ์ด 6 ใบสูง 361px เท่ากันเป๊ะทุกใบ ซึ่งแปลว่า
+           "ทั้งหกร้านนี้สำคัญเท่ากัน" — แต่หัวข้อบอกว่าเรียงตามคะแนน
+           ภาพกับข้อความจึงขัดกันเอง ถ้าอันดับหนึ่งดีจริงก็ต้องเห็นว่าเด่นกว่า -->
+      <div id="shopFeature"></div>
       <div id="shops" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
     </section>
 
     <!-- ========== คำถามที่พบบ่อย ========== -->
-    <section class="sect reveal">
+    <section class="sect sect-minor reveal">
       <div class="section-head">
         <h2>คำถามที่พบบ่อย</h2>
       </div>
-      <div id="faq" class="card" style="padding:4px 26px"></div>
+      <div id="faq" class="card" style="padding:4px 24px"></div>
     </section>
 
     <!-- ========== มาตรฐานของเรา ==========
@@ -125,8 +141,8 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202608250600"></script>
-  <script src="js/ui.js?v=202608250600"></script>
+  <script src="js/api.js?v=202609141000"></script>
+  <script src="js/ui.js?v=202609141000"></script>
   <script>
     renderNavbar("home");
     renderFooter();
@@ -142,8 +158,10 @@
       const q = new URLSearchParams();
       const dis = document.getElementById("sDistrict").value;
       const kw = document.getElementById("sKeyword").value.trim();
+      const dt = document.getElementById("sDate").value;
       if (dis) q.set("district", dis);
       if (kw) q.set("search", kw);
+      if (dt) q.set("date", dt);   // browse.js กรอง "ว่างวันนั้น" จากพารามิเตอร์นี้
       location.href = q.toString() ? `shops.html?${q}` : "shops.html";
     });
 
@@ -249,11 +267,14 @@
     }
 
     // ---------- ร้านคะแนนสูง + ข้อเท็จจริงในส่วนหัว ----------
-    async function loadShops() {
+    async function loadShops(catsReady) {
       const box = document.getElementById("shops");
       box.innerHTML = skeletonCards(3, 160, 341);
       try {
         const res = await apiGet("/api/shops?page=1&limit=12");
+        // รอชื่อหมวดให้พร้อม แต่ถ้าคำขอหมวดล้มเหลวก็วาดต่อโดยไม่มีป้ายหมวด
+        // ดีกว่าปล่อยให้หน้าค้างเพราะคำขอที่ไม่จำเป็นต่อเนื้อหาหลัก
+        await Promise.resolve(catsReady).catch(() => {});
 
         // เติมรายชื่อเขตลงช่องค้นหา
         const sel = document.getElementById("sDistrict");
@@ -266,32 +287,27 @@
           return;
         }
 
-        // ดึงรายละเอียดร้านเพื่อเอาราคาเริ่มต้นมาแสดงบนการ์ด
-        // ลูกค้าตัดสินใจจากราคาเป็นอันดับต้น ๆ การซ่อนไว้ทำให้ต้องกดเข้าไปดูทีละร้าน
-        const top = res.items.slice(0, 6);
-        const detail = await Promise.all(
-          top.map((s) => apiGet(`/api/shops/${s.id}`).catch(() => null))
-        );
-        const priced = top.map((s, i) => {
-          // รายการร้านส่ง price_from มาให้อยู่แล้ว ใช้ค่านั้นเป็นหลัก
-          //
-          // ของเดิมคำนวณจากคำขอรายละเอียดอย่างเดียว พอคำขอไหนล้มเหลว
-          // (.catch คืน null) การ์ดใบนั้นจะขึ้น "เริ่มต้น —" ทั้งที่ร้านมีราคาปกติ
-          // ซึ่งดูเหมือนข้อมูลหาย เห็นจริงบนเว็บจริงที่การ์ด Ink & Line Tattoo
-          const d = detail[i];
-          const active = (d?.services || []).filter((x) => x.is_active);
-          const fromDetail = active.length
-            ? Math.min(...active.map((x) => Number(x.price))) : null;
-          return {
-            ...s,
-            priceFrom: s.price_from != null ? Number(s.price_from) : fromDetail,
-          };
-        });
-
-        box.innerHTML = priced.map(shopCard).join("");
+        // วาดการ์ดทันทีจากข้อมูลที่มีอยู่แล้ว ไม่รอคำขอรอบสอง
+        // ------------------------------------------------------------------
+        // ของเดิมรอ Promise.all ของคำขอรายละเอียดอีก 6 คำขอก่อนถึงจะวาดการ์ด
+        // ทั้งที่ price_from มากับรายชื่อร้านอยู่แล้ว ผู้ใช้จึงเห็นโครงโหลด
+        // ค้างอยู่นานกว่าที่จำเป็นทั้งที่ข้อมูลพร้อมวาดตั้งแต่คำขอแรก
+        // หน้าแรกยิง API 8 ครั้งและ 6 ครั้งในนั้นกั้นไม่ให้เนื้อหาขึ้น
+        //
+        // คำขอรายละเอียดยังต้องใช้อยู่ แต่ใช้แค่นับจำนวนช่างในแถบตัวเลขใต้
+        // ส่วนหัวเท่านั้น จึงปล่อยให้มันตามมาทีหลังได้
+        const top = res.items.slice(0, 4);
+        const priced = top.map((s) => ({
+          ...s,
+          priceFrom: s.price_from != null ? Number(s.price_from) : null,
+        }));
+        document.getElementById("shopFeature").innerHTML = featureCard(priced[0]);
+        box.innerHTML = priced.slice(1).map(shopCard).join("");
         revealOnScroll("#shops .reveal");
 
-        paintFacts(res, detail.filter(Boolean));
+        // แถบตัวเลขเติมทีหลัง — ไม่กั้นการวาดการ์ด
+        Promise.all(top.map((s) => apiGet(`/api/shops/${s.id}`).catch(() => null)))
+          .then((detail) => paintFacts(res, detail.filter(Boolean)));
       } catch (err) {
         // ต้องมีทางไปต่อเสมอ — เน็ตสะดุดครั้งเดียวไม่ควรบังคับให้ผู้ใช้รีเฟรชทั้งหน้า
         box.innerHTML = `
@@ -324,6 +340,39 @@
       document.getElementById("heroFacts").innerHTML =
         bits.map(([ic, t]) => `<span class="f">${ic} <span>${t}</span></span>`)
             .join('<span class="sep"></span>');
+    }
+
+    // การ์ดใหญ่ของร้านอันดับหนึ่ง — รูปครึ่งหนึ่ง เนื้อหาอีกครึ่ง
+    // มีที่ว่างพอจะบอกได้มากกว่าการ์ดปกติ จึงใส่จำนวนผู้ให้บริการกับเขตลงไปด้วย
+    function featureCard(s) {
+      if (!s) return "";
+      const st = shopStatus(s);
+      const cat = CATEGORY_NAME[s.category_slug];
+      return `
+        <a href="shop.html?id=${s.id}" class="card card-link shop-feature">
+          <div class="sf-art">
+            ${shopArt(s, "", { tag: s.is_certified ? "ผ่านการรับรอง" : null })}
+          </div>
+          <div class="sf-body">
+            <div class="sf-rank">อันดับ 1 จากคะแนนรีวิว</div>
+            ${cat ? `<div class="mix-tag">${icon(CATEGORY_ICON[s.category_slug] || "sparkle", 12)} ${esc(cat)}</div>` : ""}
+            <h3 class="sf-name">${esc(s.name)}</h3>
+            <div class="sf-meta">
+              ${starRow(s.rating_avg, 15)}
+              <span class="num">${Number(s.rating_avg).toFixed(1)}</span>
+              <span>· ${s.rating_count} รีวิว</span>
+            </div>
+            <div class="sf-place">
+              ${icon("mapPin", 14)} ${esc(s.district || "—")}
+              <span class="shop-st ${st.cls}">${st.text}</span>
+            </div>
+            <div class="sf-foot">
+              <span class="from">เริ่มต้น</span>
+              <span class="price">${s.priceFrom !== null ? "฿" + baht(s.priceFrom) : "—"}</span>
+              <span class="sf-go">ดูเวลาที่ว่าง ${icon("chevronRight", 14)}</span>
+            </div>
+          </div>
+        </a>`;
     }
 
     function shopCard(s) {
@@ -359,10 +408,11 @@
         </a>`;
     }
 
-    // ---------- ความเห็นจริงจากฐานข้อมูล ----------
-
-    loadCategories();
-    loadShops();
+    // ยิงสองคำขอพร้อมกัน แต่การ์ดร้านต้องรอชื่อหมวดก่อนถึงจะวาด
+    // ไม่งั้นป้ายหมวดบนการ์ดจะหายไปเมื่อคำขอหมวดกลับมาช้ากว่า
+    // (เห็นเป็นการ์ดที่มีแต่ชื่อร้าน ไม่รู้ว่าร้านนั้นคือหมวดอะไร)
+    const catsReady = loadCategories();
+    loadShops(catsReady);
     revealOnScroll();
   </script>
 </body>

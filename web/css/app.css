@@ -150,6 +150,7 @@ img, video { max-width: 100%; height: auto; }
 
 
 :root {
+  /* พาเลตต์เดิม — น้ำเงินกรมท่าเป็นสีหลัก ฟ้าสดสำหรับปุ่มและลิงก์ */
   --navy-900: #0c2242;
   --navy-800: #0f294b;
   --navy-700: #163461;
@@ -158,8 +159,14 @@ img, video { max-width: 100%; height: auto; }
 
   --blue-600: #1a63d8;
   --blue-700: #1552b8;
+  --blue-200: #c7ddf5;
   --blue-100: #cfe0fb;
   --blue-50:  #e8f1ff;
+
+  /* สองตัวนี้เคยถูกใช้โดยไม่ได้ประกาศ อาศัยค่าสำรองในวงเล็บ var()
+     ประกาศให้ชัดจะได้ไม่ต้องพึ่งค่าสำรองที่กระจายอยู่หลายที่ */
+  --surface-2: #f4f6fa;   /* พื้นลายทางในตารางเวลา */
+  --amber-500: #e0a030;
 
   --ink:      #0f1b2d;
   --ink-soft: #384658;
@@ -187,15 +194,20 @@ img, video { max-width: 100%; height: auto; }
   --teal-400:  #33c4b4;
   --teal-500:  #22a898;
 
-  --r-sm: 4px;
-  --r:    8px;
-  --r-lg: 12px;
+  /* มุมโค้งน้อยลงกว่าเดิม — มุมมนจัดคือลายเซ็นอีกอย่างของงานที่เครื่องจัดให้ */
+  --r-sm: 3px;
+  --r:    6px;
+  --r-lg: 10px;
 
-  /* เงาซ้อนสองชั้น — ชั้นบางติดขอบให้รูปทรงคม ชั้นกว้างให้ความลึก
-     เงาชั้นเดียวจะดูฟุ้งเหมือนเรืองแสง ซึ่งเป็นสิ่งที่ทำให้งานดูไม่เนี้ยบ */
-  --shadow-sm: 0 1px 1px rgba(12, 34, 66, .04), 0 1px 3px rgba(12, 34, 66, .05);
-  --shadow:    0 1px 2px rgba(12, 34, 66, .05), 0 8px 24px -6px rgba(12, 34, 66, .12);
-  --shadow-lg: 0 2px 4px rgba(12, 34, 66, .05), 0 24px 56px -12px rgba(12, 34, 66, .20);
+  /* ============================================================
+     เงา — เหลือไว้เฉพาะของที่ "ลอย" จริง
+     ============================================================
+     ของเดิมการ์ดทุกใบมีเงานุ่ม ๆ ซึ่งทำให้ทั้งหน้าดูเป็นแผ่นลอยเท่ากันหมด
+     ไม่มีอะไรเด่นกว่าอะไร งานที่คนจัดจะแยกด้วยเส้นขอบกับที่ว่าง
+     เหลือเงาจริงไว้ให้เฉพาะกล่องซ้อนที่ลอยอยู่เหนือหน้าจริง ๆ */
+  --shadow-sm: 0 1px 0 rgba(12, 34, 66, .04);
+  --shadow:    0 1px 0 rgba(12, 34, 66, .05);
+  --shadow-lg: 0 16px 40px -14px rgba(12, 34, 66, .20);
 
   /* จังหวะการเคลื่อนไหว — ใช้ชุดเดียวกันทั้งเว็บ
      งานที่ดูเป็นมืออาชีพมักไม่ได้มีแอนิเมชันเยอะ แต่ทุกอันใช้จังหวะเดียวกัน
@@ -206,8 +218,38 @@ img, video { max-width: 100%; height: auto; }
   --t:        .22s;
   --t-slow:   .38s;
 
-  /* จังหวะช่องว่างระหว่างส่วน — ไล่ตามลำดับ ไม่ใช่ค่าเดียวซ้ำทุกที่ */
-  --gap-section: 72px;
+  /* ============================================================
+     สเกลระยะห่าง — มีแค่ 8 ค่า ห้ามใช้ค่านอกนี้
+     ============================================================
+     ตอนวัดของเดิมพบว่ามีค่าระยะห่างที่ใช้จริงราว 30 ค่า ครบเกือบทุก
+     จำนวนเต็มตั้งแต่ 1px ถึง 14px เพราะแต่ละชิ้นถูกปรับให้ "ดูดี"
+     ทีละชิ้นโดยไม่มีจังหวะร่วม ผลคือทั้งหน้าไม่มีระเบียบให้สายตาจับ */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 72px;
+
+  /* สเกลตัวอักษร — 6 ขนาด ไล่ด้วยอัตราส่วนคงที่ราว 1.25
+     ของเดิมหน้าแรกหน้าเดียวใช้ 15 ขนาด และชื่อร้าน (15.5px) ต่างจาก
+     เนื้อความ (15px) แค่ครึ่งพิกเซล ชื่อร้านจึงไม่ได้อ่านเป็นหัวข้อเลย */
+  /* ขั้นล่างสุดมีไว้สำหรับของที่อัดแน่นจริง ๆ เท่านั้น — ป้ายบนแกนกราฟ
+     ตัวเลขในตารางเวลา และคำกำกับในการ์ดสถิติ ถ้าใช้ 12px ตรงนั้นช่องจะล้น
+     ห้ามใช้กับข้อความที่ต้องอ่านเป็นประโยค */
+  --fs-2xs:  11px;
+  --fs-xs:   12px;
+  --fs-sm:   13.5px;
+  --fs-base: 15px;
+  --fs-md:   18px;
+  --fs-lg:   23px;
+  --fs-xl:   30px;
+  --fs-hero: clamp(2rem, 4.2vw, 3.1rem);
+
+  /* จังหวะช่องว่างระหว่างส่วน */
+  --gap-section: var(--s-8);
 
   --ring: 0 0 0 3px var(--blue-100);
 }
@@ -217,16 +259,24 @@ html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
 
 body {
   margin: 0;
-  /* IBM Plex Sans Thai ครอบคลุมทั้งไทยและละตินในตระกูลเดียว
-     จึงไม่ต้องจับคู่สองฟอนต์ให้ความสูงตัวอักษรไม่ตรงกัน
-     ออกแบบส่วนอักษรไทยโดย Cadson Demak — สัดส่วนไทยกับอังกฤษเข้ากันจริง */
-  font-family: 'IBM Plex Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* ============================================================
+     ตัวอักษร — Noto Sans Thai Looped (ตัวมีหัว)
+     ============================================================
+     ของเดิมใช้ IBM Plex Sans Thai ซึ่งเป็นตัวไม่มีหัว และเป็นฟอนต์ไทย
+     ที่เครื่องมือสร้างเว็บอัตโนมัติเลือกให้เป็นค่าเริ่มต้นแทบทุกครั้ง
+     ตัวไม่มีหัวยืมโครงมาจากฟอนต์ละติน หน้าเว็บเลยอ่านเหมือนเทมเพลตฝรั่ง
+     ที่ถูกแปลเป็นไทย ไม่เหมือนเว็บที่ทำขึ้นเพื่อคนไทยตั้งแต่แรก
+
+     ตัวมีหัวคือรูปแบบตัวอักษรไทยดั้งเดิม หัวกลมช่วยให้แยกตัวที่รูปร่าง
+     ใกล้กัน (ก/ถ/ภ · ด/ค/ต) ได้เร็วกว่า จึงอ่านยาว ๆ ได้สบายตากว่า */
+  font-family: 'Noto Sans Thai Looped', 'IBM Plex Sans Thai',
+               -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: var(--ink);
   background: var(--bg);
-  font-size: 15px;
-  /* 1.7 เหมาะกับบทความยาว แต่หลวมเกินไปสำหรับหน้าที่เต็มไปด้วยการ์ดและฟอร์ม
-     ทำให้ข้อความในการ์ดใบเดียวกันดูกระจัดกระจายไม่เป็นก้อน */
-  line-height: 1.62;
+  font-size: var(--fs-base);
+  /* ตัวมีหัวต้องการที่หายใจมากกว่าตัวไม่มีหัวเล็กน้อย
+     เพราะหัวกลมกับสระบนล่างจะชนกันถ้าบรรทัดชิดเกินไป */
+  line-height: 1.68;
   font-feature-settings: 'kern' 1, 'liga' 1;
 }
 
@@ -248,35 +298,38 @@ body {
    FC Mittraphap ยังอยู่ ใช้กับโลโก้อย่างเดียว ซึ่งเป็นที่ของฟอนต์แบบนี้จริง ๆ */
 .h1, .h2, .h3, .hero-title, .section-head h2 {
   font-family: inherit;
-  letter-spacing: -.012em;
+  /* ตัวมีหัวบีบระยะตัวอักษรไม่ได้ — หัวกลมของตัวที่อยู่ติดกันจะชนกัน
+     ของเดิมบีบ -.012em ซึ่งเหมาะกับตัวไม่มีหัวเท่านั้น */
+  letter-spacing: 0;
 }
 .h1, .h2, .h3 { margin: 0; color: var(--ink); }
 
-/* ระยะห่างระหว่างขนาดต้องมากพอให้ตาแยกออกทันทีว่าอันไหนสำคัญกว่า
-   และ h3 ต้องห่างจากเนื้อความ (15px) พอสมควร ไม่งั้นหัวการ์ดจะจมหายไปกับตัวเนื้อ */
-.h1 { font-size: clamp(1.75rem, 2.9vw, 2.25rem); line-height: 1.28; font-weight: 700; }
-.h2 { font-size: clamp(1.32rem, 1.9vw, 1.55rem); line-height: 1.34; font-weight: 700; }
-.h3 { font-size: 1.075rem; line-height: 1.45; font-weight: 600; letter-spacing: -.006em; }
+/* ใช้สเกลเดียวกับทั้งเว็บ ไม่ตั้งค่าเฉพาะกิจ
+   h3 คือชื่อร้านบนการ์ด ซึ่งของเดิม 15.5px ต่างจากเนื้อความ 15px แค่ครึ่งพิกเซล
+   ชื่อร้านคือสิ่งสำคัญที่สุดบนการ์ด มันต้องอ่านเป็นหัวข้อ ไม่ใช่เป็นเนื้อความ */
+.h1 { font-size: var(--fs-xl); line-height: 1.3;  font-weight: 600; }
+.h2 { font-size: var(--fs-lg); line-height: 1.35; font-weight: 600; }
+.h3 { font-size: var(--fs-md); line-height: 1.45; font-weight: 600; }
 
 
 .text-muted { color: var(--muted); }
 .text-ink-soft { color: var(--ink-soft); }
 
 /* ตัวเลขเรียงตรงหลัก อ่านราคาง่าย */
-.num { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.num { font-variant-numeric: tabular-nums; }
 
 .section-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--s-4);
   flex-wrap: wrap;
 }
 .see-all {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 13.5px;
+  gap: var(--s-1);
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--blue-600);
   text-decoration: none;
@@ -288,10 +341,12 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 10px 20px;
-  border-radius: 999px;
-  font-size: 14px;
+  gap: var(--s-2);
+  padding: 10px var(--s-5);
+  /* ปุ่มทรงเม็ดยาถูกใช้ 39 จุดทั้งเว็บ ปุ่ม ป้าย ชิป ตัวกรอง ทุกอย่างกลมหมด
+     พอทุกอย่างทรงเดียวกันก็แยกไม่ออกว่าอันไหนกดได้จริง */
+  border-radius: var(--r);
+  font-size: var(--fs-sm);
   font-weight: 600;
   line-height: 1.2;
   border: 1px solid transparent;
@@ -325,13 +380,13 @@ body {
 .btn-danger { background: var(--surface); color: var(--danger); border-color: #edcecb; }
 .btn-danger:hover:not(:disabled) { background: var(--danger-bg); }
 
-.btn-sm { padding: 7px 15px; font-size: 13px; }
+.btn-sm { padding: 7px 15px; font-size: var(--fs-sm); }
 .btn-block { width: 100%; }
 
 /* ---------- ฟอร์ม ---------- */
 .label {
   display: block;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--ink-soft);
   margin-bottom: 6px;
@@ -343,7 +398,7 @@ body {
   border: 1px solid var(--border-strong);
   border-radius: var(--r);
   font-family: inherit;
-  font-size: 14.5px;
+  font-size: var(--fs-base);
   line-height: 1.5;
   color: var(--ink);
   background: var(--surface);
@@ -357,7 +412,7 @@ body {
 }
 .input:disabled, .select:disabled { background: #f5f7fa; color: var(--muted); }
 .textarea { resize: vertical; }
-.hint { font-size: 12.5px; line-height: 1.55; color: var(--muted); margin: 6px 0 0; }
+.hint { font-size: var(--fs-xs); line-height: 1.55; color: var(--muted); margin: 6px 0 0; }
 
 /* ---------- การ์ด ---------- */
 .card {
@@ -365,31 +420,31 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
 }
-.card-pad { padding: 24px; }
+.card-pad { padding: var(--s-5); }
 
 .card-link {
   display: block;
   text-decoration: none;
   color: inherit;
-  transition: box-shadow var(--t) var(--ease),
-              transform var(--t) var(--ease),
-              border-color var(--t) var(--ease);
+  transition: border-color var(--t) var(--ease),
+              background-color var(--t) var(--ease);
 }
-/* ยกขึ้น 3px พร้อมเงาที่ลึกขึ้น — มากกว่านี้จะดูเด้งเหมือนของเล่น
-   น้อยกว่านี้จะไม่รู้สึกว่ากดได้ */
-.card-link:hover { box-shadow: var(--shadow); transform: translateY(-3px); border-color: var(--border-strong); }
-/* กดค้างแล้วยุบลงเล็กน้อย ให้รู้สึกว่าปุ่มรับแรงกดจริง */
-.card-link:active { transform: translateY(-1px); transition-duration: var(--t-fast); }
+/* ตอบสนองด้วยเส้นขอบกับพื้นหลัง ไม่ใช่ด้วยการยกลอย
+   ------------------------------------------------------------------
+   ของเดิมชี้แล้วการ์ดยกขึ้น 3px พร้อมเงาลึกขึ้น ซึ่งเป็นท่าที่
+   เครื่องมือสร้างเว็บใส่มาให้เป็นค่าเริ่มต้นเสมอ พอมีการ์ดเป็นสิบใบ
+   ในหน้าเดียว ทั้งหน้าเลยเด้งดึ๋งเหมือนของเล่น ไม่เหมือนระบบที่จะรับเงิน */
+.card-link:hover { border-color: var(--navy-700); background: var(--navy-50); }
 .card-link:focus-visible { outline: none; box-shadow: var(--ring); }
 
 /* ---------- ป้าย ---------- */
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--s-1);
   padding: 3px 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   line-height: 1.5;
   border: 1px solid transparent;
@@ -406,7 +461,7 @@ body {
 .alert {
   padding: 12px 15px;
   border-radius: var(--r);
-  font-size: 14px;
+  font-size: var(--fs-base);
   line-height: 1.6;
   border: 1px solid transparent;
   white-space: pre-line;
@@ -422,8 +477,8 @@ body {
      พร้อมกันทั้งหมด ทำให้ส่วนหัวเว็บดูพังทันที (เกิดขึ้นจริงบนเว็บจริง 25 ส.ค.) */
   white-space: nowrap;
   padding: 8px 11px;
-  border-radius: var(--r);
-  font-size: 14px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: rgba(255,255,255,.8);
   text-decoration: none;
@@ -466,28 +521,31 @@ body {
 @keyframes shimmer { 0% { background-position: 100% 0 } 100% { background-position: 0 0 } }
 
 /* ---------- ส่วนหัวหน้าแรก ---------- */
+/* ============================================================
+   ส่วนหัว — สีเรียบสีเดียว ไม่ไล่สี ไม่มีแสงฟุ้ง
+   ============================================================
+   ของเดิมซ้อนไล่สีสามชั้น + วงแสงเบลอ + เส้นตารางจาง ๆ
+   ซึ่งรวมกันเป็นส่วนหัวแบบที่เห็นได้ทุกที่จนจำหน้าไม่ได้
+
+   สีเรียบสีเดียวอ่านง่ายกว่า ตัวหนังสือคมกว่า และที่สำคัญกว่านั้น
+   คือมันบังคับให้เนื้อหาต้องดีพอด้วยตัวเอง ไม่มีเอฟเฟกต์มากลบ */
 .hero {
   position: relative;
-  /* แสงไล่สีเคยอยู่ที่ 88% ซึ่งเป็นฝั่งขวาที่ไม่มีเนื้อหาเลย
-     สายตาจึงถูกดึงไปกองที่ที่ว่าง ทำให้ส่วนหัวดูเอียงและโล่ง
-     ย้ายมาไว้หลังตัวหนังสือ แล้วเพิ่มแสงจาง ๆ ทางขวาเพื่อไม่ให้ฝั่งนั้นตายสนิท */
-  background:
-    radial-gradient(880px 380px at 26% 26%, rgba(53,110,196,.50) 0%, rgba(15,41,75,0) 64%),
-    radial-gradient(620px 300px at 92% 76%, rgba(34,168,152,.17) 0%, rgba(15,41,75,0) 70%),
-    linear-gradient(180deg, var(--navy-800) 0%, var(--navy-900) 100%);
+  background: var(--navy-900);
 }
 
 .search-card {
   background: var(--surface);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-lg);
-  padding: 14px;
+  border-radius: var(--r);
+  /* ไม่ใช้เงา — กล่องนี้อยู่บนพื้นเขียวเข้ม ตัวมันขาวอยู่แล้วจึงเด่นพอ
+     เงาบนพื้นเข้มมองไม่เห็นอยู่ดี แค่ทำให้ขอบดูเลอะ */
+  padding: var(--s-3);
 }
-.search-grid { display: grid; gap: 10px; grid-template-columns: 1fr; }
+.search-grid { display: grid; gap: var(--s-3); grid-template-columns: 1fr; }
 @media (min-width: 860px) {
   .search-grid { grid-template-columns: 1.4fr 1fr 1fr auto; align-items: end; }
 }
-.search-field .label { font-size: 12px; margin-bottom: 4px; }
+.search-field .label { font-size: var(--fs-xs); margin-bottom: 4px; }
 .search-field .input,
 .search-field .select { border-color: transparent; background: #f5f8fc; }
 .search-field .input:focus,
@@ -496,10 +554,10 @@ body {
 /* ---------- โปรโมชั่น ---------- */
 
 /* ---------- ตาราง ---------- */
-.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table { width: 100%; border-collapse: collapse; font-size: var(--fs-base); }
 .table th {
   text-align: left;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--muted);
   padding: 10px 14px;
@@ -514,7 +572,7 @@ body {
 .tabbar { display: flex; gap: 2px; border-bottom: 1px solid var(--border); overflow-x: auto; }
 .tab {
   padding: 11px 16px;
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 500;
   color: var(--muted);
   background: none;
@@ -551,7 +609,7 @@ body {
   overflow-y: auto;
 }
 
-.star-pick { display: flex; gap: 4px; }
+.star-pick { display: flex; gap: var(--s-1); }
 .star-pick button {
   background: none; border: 0; padding: 2px; cursor: pointer;
   color: var(--border-strong); transition: color .12s; line-height: 0;
@@ -572,7 +630,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 /* แถบเลือกวัน */
 .date-strip {
   display: flex;
-  gap: 8px;
+  gap: var(--s-2);
   overflow-x: auto;
   padding-bottom: 8px;
   scrollbar-width: thin;
@@ -595,9 +653,9 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   transition: border-color .15s, background-color .15s, color .15s;
 }
 .date-chip:hover { border-color: var(--blue-600); }
-.date-chip .dow { font-size: 11px; color: var(--muted); line-height: 1.4; }
-.date-chip .dnum { font-size: 17px; font-weight: 600; line-height: 1.25; }
-.date-chip .mon { font-size: 10.5px; color: var(--muted); line-height: 1.3; }
+.date-chip .dow { font-size: var(--fs-2xs); color: var(--muted); line-height: 1.4; }
+.date-chip .dnum { font-size: var(--fs-md); font-weight: 600; line-height: 1.25; }
+.date-chip .mon { font-size: var(--fs-2xs); color: var(--muted); line-height: 1.3; }
 .date-chip.is-active {
   background: var(--navy-800);
   border-color: var(--navy-800);
@@ -608,7 +666,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 
 /* จำนวนคิวว่างที่แสดงใต้ตัวเลขวันที่ */
 .date-chip .dfree {
-  font-size: 10.5px;
+  font-size: var(--fs-2xs);
   line-height: 1.5;
   margin-top: 2px;
   color: var(--success);
@@ -639,8 +697,8 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 .bk-head {
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-size: 14.5px;
+  gap: var(--s-2);
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--ink);
   margin-bottom: 12px;
@@ -654,13 +712,13 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   border-radius: 999px;
   background: var(--navy-800);
   color: #fff;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
-.bk-note { margin-left: auto; font-size: 12.5px; font-weight: 400; color: var(--muted); }
+.bk-note { margin-left: auto; font-size: var(--fs-xs); font-weight: 400; color: var(--muted); }
 
 /* เลือกบริการ */
-.svc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.svc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--s-3); }
 .svc {
   position: relative;
   text-align: left;
@@ -688,22 +746,22 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 }
 .svc.is-active { border-color: var(--blue-600); background: var(--blue-50); box-shadow: inset 0 0 0 1px var(--blue-600); }
 .svc.is-active .svc-check { background: var(--blue-600); border-color: var(--blue-600); color: #fff; }
-.svc-name { display: block; font-size: 14.5px; font-weight: 600; line-height: 1.45; }
-.svc-meta { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.svc-name { display: block; font-size: var(--fs-base); font-weight: 600; line-height: 1.45; }
+.svc-meta { display: block; font-size: var(--fs-xs); color: var(--muted); margin-top: 2px; }
 
 /* เลือกช่างแบบย่อ อยู่มุมขวาของหัวข้อขั้นที่ 3 */
 .staff-pick {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 13px;
+  gap: var(--s-2);
+  font-size: var(--fs-sm);
   font-weight: 400;
 }
 .select-inline {
   width: auto;
   padding: 5px 9px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   border-radius: var(--r-sm);
 }
 
@@ -712,7 +770,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 .slot-group-head {
   display: flex;
   justify-content: space-between;
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--ink-soft);
   margin-bottom: 7px;
@@ -720,7 +778,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 .slot-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
-  gap: 8px;
+  gap: var(--s-2);
 }
 .slot {
   display: flex;
@@ -730,7 +788,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   border: 1px solid var(--border-strong);
   border-radius: var(--r);
   background: var(--surface);
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
@@ -738,7 +796,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   font-family: inherit;
   transition: border-color .14s, background-color .14s, color .14s;
 }
-.slot-end { font-size: 10.5px; font-weight: 500; color: var(--muted); line-height: 1.4; }
+.slot-end { font-size: var(--fs-2xs); font-weight: 500; color: var(--muted); line-height: 1.4; }
 .slot-end::before { content: "ถึง "; }
 .slot:hover:not(:disabled) { border-color: var(--blue-600); background: var(--blue-50); }
 .slot:hover:not(:disabled) .slot-end { color: var(--blue-700); }
@@ -770,8 +828,8 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   border-radius: var(--r);
   padding: 14px 16px;
 }
-.confirm-lines { display: grid; gap: 7px; font-size: 14px; font-weight: 500; color: var(--navy-800); }
-.confirm-lines > div { display: flex; align-items: center; gap: 9px; }
+.confirm-lines { display: grid; gap: var(--s-2); font-size: var(--fs-base); font-weight: 500; color: var(--navy-800); }
+.confirm-lines > div { display: flex; align-items: center; gap: var(--s-2); }
 .confirm-total {
   display: flex;
   justify-content: space-between;
@@ -779,14 +837,14 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   margin-top: 12px;
   padding-top: 11px;
   border-top: 1px solid var(--navy-100);
-  font-size: 15px;
+  font-size: var(--fs-base);
 }
 
 /* ช่องกรอกเพิ่มเติมที่พับเก็บไว้ */
 .more-fields { margin-top: 12px; }
 .more-fields > summary {
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--blue-600);
   list-style: none;
@@ -806,7 +864,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   background: var(--navy-50);
   color: var(--navy-800);
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   flex-shrink: 0;
 }
 
@@ -816,32 +874,14 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
    ลูกเล่นภาพและการเคลื่อนไหว
    ============================================================ */
 
-/* ---------- ส่วนหัวแบบมีมิติ ---------- */
+/* ---------- ส่วนหัว ---------- */
 .hero { position: relative; overflow: hidden; }
 
-/* แสงเดียวจากมุมบนขวา — เดิมมีสองวงจากคนละมุมทำให้ทิศทางแสงขัดกันเอง
-   ธรรมชาติมีดวงอาทิตย์ดวงเดียว งานที่ดูแพงจึงมักมีแหล่งแสงเดียว */
-.hero::before {
-  content: "";
-  position: absolute;
-  width: 720px; height: 520px;
-  right: -140px; top: -220px;
-  border-radius: 50%;
-  filter: blur(90px);
-  background: radial-gradient(circle, rgba(58,120,220,.42), transparent 66%);
-  pointer-events: none;
-}
-
-/* เส้นตารางจาง ๆ ให้พื้นหลังไม่ตัน */
-.hero-grid {
-  position: absolute; inset: 0;
-  background-image:
-    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
-  background-size: 54px 54px;
-  mask-image: radial-gradient(ellipse 74% 58% at 62% 30%, #000 20%, transparent 76%);
-  pointer-events: none;
-}
+/* วงแสงเบลอกับเส้นตารางจาง ๆ ถูกถอดออกแล้ว
+   ทั้งสองอย่างเป็นเครื่องประดับที่ไม่ได้ช่วยให้ใครจองได้เร็วขึ้น
+   และเป็นสองในสัญญาณที่ทำให้หน้าเว็บดูเหมือนถูกเครื่องจัดให้
+   .hero-grid ยังอยู่ใน HTML แต่ไม่วาดอะไรแล้ว */
+.hero-grid { display: none; }
 .hero > * { position: relative; z-index: 1; }
 
 /* ---------- ข้อความในส่วนหัว ---------- */
@@ -849,43 +889,44 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 /* สโลแกนแบรนด์ — ใช้เขียวมิ้นต์จากโลโก้ ไม่ใช่สีขาว
    เพื่อให้แยกออกจากหัวข้อหลักโดยไม่ต้องเพิ่มขนาดหรือน้ำหนัก */
 .hero-slogan {
-  margin: 0 0 14px;
+  margin: 0 0 var(--s-3);
+  /* เขียวมิ้นต์จากโลโก้ แยกออกจากหัวข้อหลักได้โดยไม่ต้องเพิ่มขนาดหรือน้ำหนัก */
   color: var(--teal-400);
-  font-size: 15px;
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: .01em;
+  letter-spacing: .02em;
 }
 
 .hero-title {
   color: #fff;
-  font-size: clamp(2rem, 4.4vw, 3.05rem);
-  line-height: 1.2;
+  font-size: var(--fs-hero);
+  line-height: 1.24;
   font-weight: 600;
-  letter-spacing: -.012em;
+  letter-spacing: 0;
   margin: 0;
   max-width: 20ch;
   /* ไม่ให้ตัดคำกลางคำภาษาไทย ซึ่งอ่านสะดุดมาก */
   word-break: keep-all;
 }
 .hero-sub {
-  color: rgba(255,255,255,.68);
-  font-size: 1.02rem;
+  color: rgba(255,255,255,.72);
+  font-size: var(--fs-base);
   line-height: 1.75;
   max-width: 46ch;
-  margin: 18px 0 0;
+  margin: var(--s-4) 0 0;
 }
 
 /* บรรทัดสร้างความมั่นใจใต้ช่องค้นหา — ข้อเท็จจริงล้วน ไม่ใช่คำโฆษณา */
 .hero-facts {
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: var(--s-5);
   flex-wrap: wrap;
-  margin-top: 26px;
-  color: rgba(255,255,255,.58);
-  font-size: 13px;
+  margin-top: var(--s-5);
+  color: rgba(255,255,255,.62);
+  font-size: var(--fs-sm);
 }
-.hero-facts .f { display: inline-flex; align-items: center; gap: 7px; }
+.hero-facts .f { display: inline-flex; align-items: center; gap: var(--s-2); }
 .hero-facts b { color: rgba(255,255,255,.94); font-weight: 600; }
 .hero-facts .sep { width: 1px; height: 13px; background: rgba(255,255,255,.16); }
 @media (max-width: 640px) { .hero-facts .sep { display: none; } }
@@ -926,7 +967,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   position: absolute; left: 10px; top: 10px; z-index: 2;
   background: rgba(255,255,255,.92);
   color: var(--navy-800);
-  font-size: 11px; font-weight: 600;
+  font-size: var(--fs-2xs); font-weight: 600;
   padding: 3px 9px; border-radius: 999px;
   backdrop-filter: blur(4px);
 }
@@ -947,10 +988,10 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 .faq:last-child { border-bottom: 0; }
 .faq-q {
   width: 100%;
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-4);
   padding: 17px 4px;
   background: none; border: 0; cursor: pointer;
-  font-family: inherit; font-size: 15px; font-weight: 500;
+  font-family: inherit; font-size: var(--fs-base); font-weight: 500;
   color: var(--ink); text-align: left;
 }
 .faq-q:hover { color: var(--blue-700); }
@@ -962,19 +1003,19 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 }
 .faq.is-open .faq-a { grid-template-rows: 1fr; }
 .faq-a > div { overflow: hidden; }
-.faq-a p { margin: 0 0 17px; font-size: 14px; color: var(--muted); line-height: 1.75; }
+.faq-a p { margin: 0 0 17px; font-size: var(--fs-base); color: var(--muted); line-height: 1.75; }
 
 /* ---------- รีวิวเด่น ---------- */
 
 /* ---------- แถบชิปบริการยอดนิยม ---------- */
 .chip {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: var(--s-2);
   padding: 6px 13px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,.22);
   background: rgba(255,255,255,.08);
   color: rgba(255,255,255,.88);
-  font-size: 13px; font-weight: 500;
+  font-size: var(--fs-sm); font-weight: 500;
   text-decoration: none;
   transition: background-color .15s, border-color .15s;
 }
@@ -1027,7 +1068,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   transform: scale(.97);
   transition: transform .06s;
 }
-.card-link:active { transform: translateY(-1px) scale(.995); }
+.card-link:active { background: var(--navy-100); }
 
 /* เนื้อหาที่เพิ่งโหลดเสร็จ ค่อย ๆ ลอยขึ้นมาแทนการกระโดดโผล่ */
 @keyframes riseIn { from { opacity: 0; transform: translateY(8px) } }
@@ -1064,13 +1105,13 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 .rate-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--s-1);
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--warn-bg);
   border: 1px solid #ecdcb8;
   color: var(--warn);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -1078,21 +1119,21 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 
 
 /* ---------- แถบสรุปคะแนนรีวิว ---------- */
-.rv-top { display: grid; grid-template-columns: 128px 1fr; gap: 22px; align-items: center; }
-@media (max-width: 520px) { .rv-top { grid-template-columns: 1fr; gap: 14px; } }
+.rv-top { display: grid; grid-template-columns: 128px 1fr; gap: var(--s-5); align-items: center; }
+@media (max-width: 520px) { .rv-top { grid-template-columns: 1fr; gap: var(--s-4); } }
 
 .rv-score { text-align: center; }
 .rv-big {
-  font-size: 2.6rem;
+  font-size: var(--fs-xl);
   font-weight: 600;
-  line-height: 1.05;
-  letter-spacing: -.03em;
+  line-height: 1.1;
+  letter-spacing: 0;
   color: var(--navy-800);
 }
 
-.rv-dist { display: grid; gap: 5px; }
-.dist-row { display: flex; align-items: center; gap: 7px; color: var(--gold); }
-.dist-label { font-size: 12px; color: var(--ink-soft); width: 8px; text-align: right; }
+.rv-dist { display: grid; gap: var(--s-1); }
+.dist-row { display: flex; align-items: center; gap: var(--s-2); color: var(--gold); }
+.dist-label { font-size: var(--fs-xs); color: var(--ink-soft); width: 8px; text-align: right; }
 .dist-track {
   flex: 1;
   height: 7px;
@@ -1107,33 +1148,33 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   background: var(--gold);
   transition: width .5s cubic-bezier(.2,.7,.3,1);
 }
-.dist-num { font-size: 12px; color: var(--muted); width: 24px; text-align: right; }
+.dist-num { font-size: var(--fs-xs); color: var(--muted); width: 24px; text-align: right; }
 
 /* คะแนนย่อยแยกหัวข้อ */
 .aspect-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
-  gap: 10px;
+  gap: var(--s-3);
   margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid var(--border);
 }
 .aspect { text-align: center; }
-.aspect-val { font-size: 1.15rem; font-weight: 600; color: var(--navy-800); line-height: 1.3; }
-.aspect-label { font-size: 11.5px; color: var(--muted); }
+.aspect-val { font-size: var(--fs-md); font-weight: 600; color: var(--navy-800); line-height: 1.3; }
+.aspect-label { font-size: var(--fs-xs); color: var(--muted); }
 
 /* ตัวกรองรีวิว */
-.rv-filters { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
-.rv-pick { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.rv-filters { display: flex; gap: var(--s-4); flex-wrap: wrap; margin-top: 18px; }
+.rv-pick { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-sm); }
 
 /* ป้ายคะแนนย่อยในแต่ละรีวิว */
-.chip-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.chip-row { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-top: 12px; }
 .mini-chip {
   padding: 3px 9px;
   border-radius: 999px;
   background: var(--navy-50);
   border: 1px solid var(--navy-100);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--ink-soft);
 }
 .mini-chip b { color: var(--navy-800); }
@@ -1149,13 +1190,13 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 .rv-reply-head {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 12px;
+  gap: var(--s-1);
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--blue-700);
   margin-bottom: 3px;
 }
-.rv-reply p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--ink-soft); }
+.rv-reply p { margin: 0; font-size: var(--fs-sm); line-height: 1.6; color: var(--ink-soft); }
 
 /* รีวิวย่อในโปรไฟล์ช่าง */
 .mini-review { padding: 11px 0; border-top: 1px solid var(--border); }
@@ -1166,25 +1207,25 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: var(--s-4);
   padding: 11px 0;
   border-bottom: 1px solid var(--border);
 }
-.rate-title { font-size: 14px; font-weight: 600; color: var(--ink); }
-.rate-sub { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.rate-title { font-size: var(--fs-base); font-weight: 600; color: var(--ink); }
+.rate-sub { font-size: var(--fs-xs); color: var(--muted); line-height: 1.5; }
 .star-clear {
   border: 0;
   background: transparent;
   color: var(--muted);
   font-family: inherit;
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   cursor: pointer;
   padding: 0 0 0 6px;
 }
 .star-clear:hover { color: var(--danger); }
 
 /* ปุ่มเลือกวันทำงานของช่าง (หน้าจัดการร้าน) */
-.day-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+.day-picker { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 .day-btn {
   width: 42px;
   padding: 8px 0;
@@ -1192,7 +1233,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   border-radius: var(--r);
   background: var(--surface);
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--ink-soft);
   cursor: pointer;
@@ -1212,7 +1253,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 .staff-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
-  gap: 14px;
+  gap: var(--s-4);
   margin-top: 20px;
 }
 
@@ -1232,7 +1273,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 .staff-card.is-picked {
   border-color: var(--blue-600);
   background: var(--blue-50);
-  box-shadow: inset 0 0 0 1px var(--blue-600), 0 6px 20px rgba(26,99,216,.12);
+  box-shadow: inset 0 0 0 1px var(--blue-600);
 }
 .picked-tag {
   position: absolute;
@@ -1240,15 +1281,15 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   left: 16px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--s-1);
   padding: 3px 11px;
   border-radius: 999px;
   background: var(--blue-600);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   letter-spacing: .01em;
-  box-shadow: 0 2px 8px rgba(26,99,216,.35);
+  box-shadow: none;
   animation: tagPop .26s cubic-bezier(.3,1.4,.5,1);
 }
 @keyframes tagPop { from { opacity: 0; transform: translateY(4px) scale(.9) } }
@@ -1264,8 +1305,8 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   font-weight: 600;
   line-height: 1;
 }
-.av-lg { width: 46px; height: 46px; font-size: 18px; }
-.av-sm { width: 24px; height: 24px; font-size: 11px; }
+.av-lg { width: 46px; height: 46px; font-size: var(--fs-md); }
+.av-sm { width: 24px; height: 24px; font-size: var(--fs-2xs); }
 
 .av-check {
   position: absolute;
@@ -1283,7 +1324,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 .staff-card.is-picked .av-check { border-color: var(--blue-50); }
 
 /* แถบวันทำงาน 7 ช่อง */
-.week-dots { display: flex; gap: 3px; }
+.week-dots { display: flex; gap: var(--s-1); }
 .wd {
   width: 21px;
   height: 21px;
@@ -1292,7 +1333,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   border-radius: var(--r-sm);
   background: #f1f4f8;
   color: var(--faint);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 500;
 }
 .wd.is-on { background: var(--navy-100); color: var(--navy-800); font-weight: 600; }
@@ -1313,7 +1354,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  gap: var(--s-2);
   /* auto = ดันบล็อกเวลาทำงานกับปุ่มไปชิดขอบล่างของการ์ด
      ทำให้เส้นคั่นและปุ่มของทุกการ์ดในแถวอยู่ระดับเดียวกัน
      แม้ประวัติผู้ให้บริการจะยาว 1 บรรทัดหรือ 2 บรรทัดก็ตาม */
@@ -1325,21 +1366,21 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
    ระยะห่างขั้นต่ำจึงมาจาก padding-top 13px ด้านบน ซึ่งพอดีกับเส้นคั่นอยู่แล้ว */
 .staff-card.is-picked .staff-sched { border-top-color: var(--blue-100); }
 
-.staff-actions { display: flex; gap: 8px; margin-top: 14px; }
+.staff-actions { display: flex; gap: var(--s-2); margin-top: 14px; }
 .staff-actions .btn:first-child { flex: 1; }
 
 /* แถบบอกว่ากำลังดูคิวของใคร (อยู่ในขั้นที่ 3) */
 .picked-bar {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--s-2);
   flex-wrap: wrap;
   padding: 8px 8px 8px 12px;
   margin-bottom: 12px;
   border-radius: 999px;
   background: var(--blue-50);
   border: 1px solid var(--blue-100);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--ink-soft);
   animation: tagPop .24s cubic-bezier(.3,1.4,.5,1);
 }
@@ -1381,10 +1422,10 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 .shop-st {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--s-1);
   padding: 2px 9px;
   border-radius: 999px;
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   line-height: 1.6;
   border: 1px solid transparent;
@@ -1414,18 +1455,18 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   z-index: 90;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--s-2);
   align-items: center;
   pointer-events: none;
 }
 .toast {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--s-2);
   max-width: 90vw;
   padding: 11px 18px;
   border-radius: 999px;
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 500;
   color: #fff;
   background: var(--navy-800);
@@ -1445,7 +1486,7 @@ body.no-scroll { overflow: hidden; }
 .sk-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 20px;
+  gap: var(--s-5);
 }
 
 /* หน้าเว็บทั้งหน้าเลื่อนแบบนุ่ม ๆ เวลากดลิงก์ในหน้าเดียวกัน */
@@ -1461,7 +1502,7 @@ html { scroll-behavior: smooth; }
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  gap: 10px;
+  gap: var(--s-3);
   align-items: end;
   height: 190px;
   margin-top: 20px;
@@ -1483,19 +1524,19 @@ html { scroll-behavior: smooth; }
   background: linear-gradient(180deg, var(--blue-600), var(--navy-800));
   transition: height .5s cubic-bezier(.2,.7,.3,1);
 }
-.bar-val { font-size: 11px; color: var(--ink-soft); margin-bottom: 5px; white-space: nowrap; }
-.bar-label { font-size: 11.5px; color: var(--muted); margin-top: 7px; }
+.bar-val { font-size: var(--fs-2xs); color: var(--ink-soft); margin-bottom: 5px; white-space: nowrap; }
+.bar-label { font-size: var(--fs-xs); color: var(--muted); margin-top: 7px; }
 
 /* อันดับบริการ/ช่าง */
 .rank-list { margin-top: 14px; }
 .rank-row {
   display: grid;
   grid-template-columns: 22px 1fr auto auto;
-  gap: 10px;
+  gap: var(--s-3);
   align-items: center;
   padding: 9px 0;
   border-top: 1px solid var(--border);
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
 }
 .rank-row:first-child { border-top: 0; }
 .rank-no {
@@ -1504,17 +1545,17 @@ html { scroll-behavior: smooth; }
   border-radius: 999px;
   background: var(--navy-50);
   color: var(--navy-800);
-  font-size: 11.5px; font-weight: 600;
+  font-size: var(--fs-xs); font-weight: 600;
 }
 .rank-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rank-n { font-size: 12px; }
+.rank-n { font-size: var(--fs-xs); }
 .rank-sum { font-weight: 600; color: var(--navy-800); }
 
 /* การ์ดดีลในหน้าโปรโมชั่น */
 .deal-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
-  gap: 18px;
+  gap: var(--s-4);
   margin-top: 20px;
 }
 .deal-card { overflow: hidden; }
@@ -1522,15 +1563,15 @@ html { scroll-behavior: smooth; }
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--s-3);
   padding: 18px 20px 14px;
   background: linear-gradient(135deg, var(--navy-800), var(--blue-600));
   color: #fff;
   margin-bottom: 16px;
 }
-.deal-price { font-size: 1.6rem; font-weight: 600; letter-spacing: -.014em; line-height: 1; }
+.deal-price { font-size: var(--fs-lg); font-weight: 600; letter-spacing: 0; line-height: 1.1; }
 .deal-per {
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   padding: 3px 9px;
   border-radius: 999px;
@@ -1566,7 +1607,7 @@ html { scroll-behavior: smooth; }
   border-radius: 999px;
   background: #e0453f;
   color: #fff;
-  font-size: 10.5px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   line-height: 1;
   border: 2px solid var(--navy-800);
@@ -1591,15 +1632,15 @@ html { scroll-behavior: smooth; }
   justify-content: space-between;
   padding: 12px 10px 12px 16px;
   border-bottom: 1px solid var(--border);
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 600;
 }
 .notif-list { max-height: 62vh; overflow-y: auto; }
-.notif-empty { padding: 30px 16px; text-align: center; font-size: 13px; color: var(--muted); margin: 0; }
+.notif-empty { padding: 30px 16px; text-align: center; font-size: var(--fs-sm); color: var(--muted); margin: 0; }
 
 .notif-item {
   display: flex;
-  gap: 11px;
+  gap: var(--s-3);
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
   text-decoration: none;
@@ -1620,19 +1661,19 @@ html { scroll-behavior: smooth; }
   color: var(--navy-800);
 }
 .notif-item.is-new .notif-ic { background: var(--blue-600); color: #fff; }
-.notif-title { display: block; font-size: 13.5px; font-weight: 600; line-height: 1.5; }
-.notif-body  { display: block; font-size: 12.5px; color: var(--muted); line-height: 1.55; margin-top: 1px; }
-.notif-time  { display: block; font-size: 11px; color: var(--faint); margin-top: 3px; }
+.notif-title { display: block; font-size: var(--fs-sm); font-weight: 600; line-height: 1.5; }
+.notif-body  { display: block; font-size: var(--fs-xs); color: var(--muted); line-height: 1.55; margin-top: 1px; }
+.notif-time  { display: block; font-size: var(--fs-2xs); color: var(--faint); margin-top: 3px; }
 
 /* ปุ่มลัดคิวว่างในหน้าค้นหา */
-.quick-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.quick-row { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 .quick {
   padding: 7px 15px;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   background: var(--surface);
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--ink-soft);
   cursor: pointer;
@@ -1669,7 +1710,7 @@ html { scroll-behavior: smooth; }
   padding-left: 44px;
   padding-top: 13px;
   padding-bottom: 13px;
-  font-size: 15.5px;
+  font-size: var(--fs-base);
 }
 
 /* ---------- แถบเมนูล่าง (เห็นเฉพาะจอเล็ก) ---------- */
@@ -1693,11 +1734,11 @@ html { scroll-behavior: smooth; }
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: var(--s-1);
     padding: 9px 2px 8px;
     text-decoration: none;
     color: var(--muted);
-    font-size: 10.5px;
+    font-size: var(--fs-2xs);
     font-weight: 500;
     transition: color .15s;
   }
@@ -1765,7 +1806,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
   border-radius: var(--r);
   background: var(--navy-800);
   color: #fff;
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 600;
   text-decoration: none;
   transition: top .18s;
@@ -1789,7 +1830,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
   place-items: center;
   border-radius: 999px;
   color: #fff;
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 600;
   line-height: 1;
 }
@@ -1816,8 +1857,8 @@ details:not([open]) > *:not(summary) { display: none !important; }
   .day-btn { min-height: 42px; }
   .star-pick button { padding: 4px; }
   /* ช่องเวลาและชิปวันที่กดง่ายอยู่แล้ว แต่เพิ่มระยะห่างกันกดพลาดข้ามช่อง */
-  .slot-grid { gap: 10px; }
-  .date-strip { gap: 10px; }
+  .slot-grid { gap: var(--s-3); }
+  .date-strip { gap: var(--s-3); }
 }
 
 /* ============================================================
@@ -1826,7 +1867,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .gallery {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 8px;
+  gap: var(--s-2);
   border-radius: var(--r-lg);
   overflow: hidden;
 }
@@ -1855,7 +1896,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
   display: grid;
   grid-template-rows: repeat(2, 1fr);
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  gap: var(--s-2);
   height: 340px;
 }
 /* ตารางรูปย่อยเป็น 2x2 ซึ่งพอดีเฉพาะตอนมีรูปย่อยครบ 4 รูป
@@ -1881,9 +1922,9 @@ details:not([open]) > *:not(summary) { display: none !important; }
 
 .gal-count {
   position: absolute; right: 12px; bottom: 12px;
-  display: inline-flex; align-items: center; gap: 5px;
+  display: inline-flex; align-items: center; gap: var(--s-1);
   background: rgba(12,34,66,.78); color: #fff;
-  font-size: 12px; font-weight: 600;
+  font-size: var(--fs-xs); font-weight: 600;
   padding: 5px 10px; border-radius: 999px;
   backdrop-filter: blur(4px);
 }
@@ -1891,7 +1932,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   background: rgba(12,34,66,.62);
-  color: #fff; font-size: 19px; font-weight: 700;
+  color: #fff; font-size: var(--fs-md); font-weight: 700;
 }
 
 @media (max-width: 767px) {
@@ -1910,7 +1951,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
   position: fixed; inset: 0; z-index: 120;
   display: none;
   align-items: center; justify-content: center;
-  gap: 8px;
+  gap: var(--s-2);
   background: rgba(8,16,30,.94);
   padding: 20px;
 }
@@ -1920,7 +1961,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
   margin: 0;
   max-width: min(1100px, 100%);
   max-height: 100%;
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  display: flex; flex-direction: column; align-items: center; gap: var(--s-3);
 }
 .lb-stage img {
   max-width: 100%;
@@ -1931,7 +1972,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
 }
 @keyframes lbIn { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
 
-.lb-cap { color: #cfd9e6; font-size: 13px; text-align: center; }
+.lb-cap { color: #cfd9e6; font-size: var(--fs-sm); text-align: center; }
 
 .lb-close, .lb-nav {
   display: grid; place-items: center;
@@ -1965,13 +2006,13 @@ details:not([open]) > *:not(summary) { display: none !important; }
   z-index: 0;   /* กันแผนที่ลอยทับกล่องซ้อนและแถบเมนู */
 }
 .leaflet-container { font-family: inherit; }
-.leaflet-control-attribution { font-size: 10px; }
+.leaflet-control-attribution { font-size: var(--fs-2xs); }
 
 /* ป้ายระยะทางบนการ์ดร้าน */
 .dist-chip {
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: var(--s-1);
   background: var(--blue-50); color: var(--blue-700);
-  font-size: 11.5px; font-weight: 600;
+  font-size: var(--fs-xs); font-weight: 600;
   padding: 3px 8px; border-radius: 999px;
 }
 
@@ -1996,7 +2037,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .img-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
+  gap: var(--s-3);
 }
 .img-item {
   position: relative;
@@ -2011,7 +2052,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
 
 .img-actions {
   position: absolute; inset: auto 0 0 0;
-  display: flex; gap: 6px; justify-content: flex-end;
+  display: flex; gap: var(--s-2); justify-content: flex-end;
   padding: 8px;
   background: linear-gradient(180deg, rgba(9,20,38,0), rgba(9,20,38,.72));
   opacity: 0;
@@ -2036,7 +2077,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .cover-flag {
   position: absolute; left: 8px; top: 8px;
   background: var(--blue-600); color: #fff;
-  font-size: 10.5px; font-weight: 600;
+  font-size: var(--fs-2xs); font-weight: 600;
   padding: 3px 8px; border-radius: 999px;
 }
 
@@ -2051,9 +2092,9 @@ details:not([open]) > *:not(summary) { display: none !important; }
 /* ============================================================
    ชำระเงิน
    ============================================================ */
-.pay-methods { display: grid; gap: 10px; }
+.pay-methods { display: grid; gap: var(--s-3); }
 .pay-opt {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: var(--s-3);
   padding: 13px 14px;
   border: 1.5px solid var(--border);
   border-radius: var(--r);
@@ -2063,8 +2104,8 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .pay-opt:hover { border-color: var(--border-strong); background: var(--navy-50); }
 .pay-opt.is-on { border-color: var(--blue-600); background: var(--blue-50); }
 .pay-opt input { accent-color: var(--blue-600); width: 17px; height: 17px; }
-.pay-opt .t { font-weight: 600; font-size: 14px; }
-.pay-opt .s { font-size: 12px; color: var(--muted); }
+.pay-opt .t { font-weight: 600; font-size: var(--fs-base); }
+.pay-opt .s { font-size: var(--fs-xs); color: var(--muted); }
 
 /* คิวอาร์จำลอง — วาดด้วย CSS ล้วน ไม่ต้องโหลดไลบรารีเพิ่ม */
 .qr-mock {
@@ -2085,13 +2126,13 @@ details:not([open]) > *:not(summary) { display: none !important; }
   display: grid; place-items: center;
   background: rgba(255,255,255,.88);
   color: var(--muted);
-  font-size: 12px; font-weight: 600;
+  font-size: var(--fs-xs); font-weight: 600;
   letter-spacing: .04em;
 }
 
 .pay-state {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 11.5px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: var(--s-1);
+  font-size: var(--fs-xs); font-weight: 600;
   padding: 3px 9px; border-radius: 999px;
 }
 .pay-unpaid { background: #fff4e5; color: #8a5300; }
@@ -2105,21 +2146,39 @@ details:not([open]) > *:not(summary) { display: none !important; }
 /* ระยะห่างระหว่างส่วนหลัก ใช้ค่าเดียวกันทั้งเว็บ
    ของเดิมใช้ mt-16 ของ Tailwind ปนกับค่าอื่น ทำให้จังหวะไม่สม่ำเสมอ */
 .sect { margin-top: var(--gap-section); }
-@media (max-width: 767px) { :root { --gap-section: 52px; } }
+@media (max-width: 767px) { :root { --gap-section: var(--s-7); } }
 
-/* หัวข้อส่วน — เพิ่มน้ำหนักให้ตาจับได้ว่าเริ่มเรื่องใหม่ */
-.section-head { margin-bottom: 22px; }
+/* ============================================================
+   หัวข้อส่วน — แต่ละส่วนต้องไม่หนักเท่ากัน
+   ============================================================
+   ของเดิม h2 ทั้งสามส่วนในหน้าแรกวัดได้ 24px/600 เท่ากันเป๊ะทุกอัน
+   ระยะห่างระหว่างส่วนก็ 72/72/72 เท่ากันหมด หน้าที่ทุกอย่างหนักเท่ากัน
+   คือหน้าที่ไม่มีใครตัดสินใจว่าอะไรสำคัญ — ตาจึงไม่รู้จะเกาะตรงไหนก่อน
+
+   ทางแก้: ส่วนที่เป็นพระเอกใส่ .sect-lead ให้หัวข้อใหญ่ขึ้นและเว้นมากขึ้น
+   ส่วนรองใช้ขนาดปกติ ส่วนประกอบใส่ .sect-minor ให้เล็กลง */
+.section-head { margin-bottom: var(--s-5); }
 .section-head h2 {
   margin: 0;
-  font-size: clamp(1.3rem, 1.8vw, 1.5rem);
+  font-size: var(--fs-lg);
   font-weight: 600;
-  letter-spacing: -.010em;
+  letter-spacing: 0;
   line-height: 1.36;
   color: var(--ink);
 }
-.section-head .lede {
-  margin: 7px 0 0;
-  font-size: 14px;
+.sect-lead .section-head h2 { font-size: var(--fs-xl); }
+.sect-lead .section-head   { margin-bottom: var(--s-6); }
+.sect-minor .section-head h2 { font-size: var(--fs-md); color: var(--ink-soft); }
+.sect-minor .section-head    { margin-bottom: var(--s-4); }
+
+/* .lede คือคำโปรยใต้หัวข้อ — ถอดออกจากหน้าแรกแล้ว
+   เหตุผล: การอธิบายสิ่งที่ผู้ใช้เห็นอยู่ตรงหน้าแล้ว ("กดหมวดที่ต้องการ
+   แล้วเราจะพาไปหน้าค้นหา") เป็นลายเซ็นของข้อความที่เครื่องเขียน
+   คนเขียนจริงจะปล่อยให้ของพูดแทนตัวเอง
+   คลาสนี้ยังอยู่เพราะหน้าในลึก ๆ บางหน้ายังต้องอธิบายบริบทจริง ๆ */
+.lede {
+  margin: var(--s-2) 0 0;
+  font-size: var(--fs-sm);
   color: var(--muted);
   max-width: 58ch;
   line-height: 1.65;
@@ -2128,7 +2187,70 @@ details:not([open]) > *:not(summary) { display: none !important; }
   transition: color var(--t-fast) var(--ease), gap var(--t-fast) var(--ease);
 }
 /* ลูกศรขยับออกตอนชี้ — บอกทิศทางว่ากดแล้วไปข้างหน้า */
-.see-all:hover { gap: 7px; }
+.see-all:hover { gap: var(--s-2); }
+
+/* ============================================================
+   การ์ดใหญ่ของร้านอันดับหนึ่ง — จุดโฟกัสของหน้าแรก
+   ============================================================
+   หน้าที่ทุกการ์ดขนาดเท่ากันหมดคือหน้าที่ไม่มีใครตัดสินใจว่าอะไรสำคัญ
+   วัดของเดิมได้ว่าการ์ดทั้ง 6 ใบสูง 361px เท่ากันเป๊ะ ทั้งที่หัวข้อ
+   บอกว่า "เรียงตามคะแนน" — ภาพกับข้อความขัดกันเอง
+
+   ใบนี้กว้างเต็มแถว แบ่งครึ่งเป็นรูปกับเนื้อหา และใช้ตัวอักษรขั้นถัดไป
+   ของสเกล (--fs-lg) เพื่อให้ต่างจากการ์ดปกติ (--fs-md) อย่างชัดเจน */
+.shop-feature {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  overflow: hidden;
+  margin-bottom: var(--s-5);
+}
+.shop-feature .sf-art { position: relative; min-height: 260px; }
+.shop-feature .sf-art .shop-art { position: absolute; inset: 0; }
+.shop-feature .sf-body {
+  padding: var(--s-5) var(--s-5) var(--s-4);
+  display: flex;
+  flex-direction: column;
+}
+/* บอกเหตุผลที่ร้านนี้ได้อยู่ตรงนี้ ไม่ใช่แค่วางให้ใหญ่เฉย ๆ */
+.sf-rank {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: var(--blue-700);
+  margin-bottom: var(--s-2);
+}
+.sf-name {
+  margin: var(--s-1) 0 0;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  line-height: 1.35;
+}
+.sf-meta  { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-3);
+            font-size: var(--fs-sm); color: var(--muted); }
+.sf-place { display: flex; align-items: center; gap: var(--s-1); margin-top: var(--s-2);
+            font-size: var(--fs-sm); color: var(--muted); }
+.sf-foot {
+  margin-top: auto;
+  padding-top: var(--s-4);
+  display: flex; align-items: baseline; gap: var(--s-2);
+}
+.sf-foot .from  { font-size: var(--fs-xs); color: var(--faint); }
+.sf-foot .price { font-size: var(--fs-lg); font-weight: 600; color: var(--navy-800);
+                  font-variant-numeric: tabular-nums; }
+.sf-go {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: var(--s-1);
+  font-size: var(--fs-sm); font-weight: 600; color: var(--blue-600);
+}
+.card-link:hover .sf-go { color: var(--blue-700); }
+
+/* จอแคบวางรูปไว้บน เนื้อหาไว้ล่าง — แบ่งครึ่งซ้ายขวาจะเหลือคอลัมน์ละ 150px
+   ซึ่งชื่อร้านจะตัดเป็นสี่บรรทัด */
+@media (max-width: 767px) {
+  .shop-feature { grid-template-columns: 1fr; }
+  .shop-feature .sf-art { min-height: 180px; }
+  .shop-feature .sf-body { padding: var(--s-4); }
+}
 
 /* ============================================================
    การ์ดร้าน — จัดลำดับข้อมูลใหม่ให้อ่านได้ใน 1 วินาที
@@ -2136,56 +2258,58 @@ details:not([open]) > *:not(summary) { display: none !important; }
    ============================================================ */
 .shop-card { display: flex; flex-direction: column; height: 100%; }
 .shop-card .body {
-  padding: 16px 18px 18px;
+  padding: var(--s-4) var(--s-4) var(--s-4);
   display: flex;
   flex-direction: column;
   flex: 1;
 }
+/* ชื่อร้าน — ของเดิม 15.5px ห่างจากเนื้อความ 15px แค่ครึ่งพิกเซล
+   จึงไม่ได้อ่านเป็นหัวข้อ ขยับขึ้นมาที่ --fs-md (18px) ให้เป็นหัวข้อจริง */
 .shop-card h3 {
   margin: 0;
-  font-size: 15.5px;
+  font-size: var(--fs-md);
   font-weight: 600;
-  line-height: 1.42;
-  letter-spacing: -.009em;
+  line-height: 1.4;
+  letter-spacing: 0;
   /* ชื่อร้านยาวไม่เท่ากัน บังคับ 2 บรรทัดเพื่อให้แถวข้อมูลข้างล่างตรงกันทุกใบ */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: calc(15.5px * 1.42 * 2);
+  min-height: calc(var(--fs-md) * 1.4 * 2);
 }
 .shop-card .meta {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-top: 9px;
-  font-size: 12.5px;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 .shop-card .place {
   display: flex;
   align-items: center;
-  gap: 5px;
-  margin-top: 7px;
-  font-size: 12.5px;
+  gap: var(--s-1);
+  margin-top: var(--s-1);
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 /* แถวราคาดันไปติดขอบล่างเสมอ การ์ดจึงจบเท่ากันแม้เนื้อหาสั้นยาวต่างกัน */
 .shop-card .foot {
   margin-top: auto;
-  padding-top: 13px;
+  padding-top: var(--s-3);
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--s-2);
 }
-.shop-card .from { font-size: 11.5px; color: var(--faint); }
+.shop-card .from { font-size: var(--fs-xs); color: var(--faint); }
 .shop-card .price {
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--navy-800);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -.010em;
+  letter-spacing: 0;
 }
 
 /* ============================================================
@@ -2194,12 +2318,12 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .cat-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
+  gap: var(--s-3);
 }
 .cat-item {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: var(--s-3);
   padding: 14px 16px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -2226,7 +2350,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
   transition: background var(--t) var(--ease), color var(--t) var(--ease);
 }
 .cat-item:hover .ic { background: var(--blue-600); color: #fff; }
-.cat-item .nm { font-size: 14px; font-weight: 500; }
+.cat-item .nm { font-size: var(--fs-base); font-weight: 500; }
 
 /* ============================================================
    คำมั่นสัญญา — เรียงเป็นแถวมีเส้นคั่น ไม่ใช่การ์ดสามใบ
@@ -2243,12 +2367,11 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .pledge > div { padding: 26px 28px; }
 .pledge > div + div { border-left: 1px solid var(--border); }
 .pledge h3 {
-  margin: 14px 0 0;
-  font-size: 15px;
+  margin: var(--s-3) 0 0;
+  font-size: var(--fs-base);
   font-weight: 600;
-  letter-spacing: -.008em;
 }
-.pledge p { margin: 7px 0 0; font-size: 13.5px; color: var(--muted); line-height: 1.7; }
+.pledge p { margin: 7px 0 0; font-size: var(--fs-sm); color: var(--muted); line-height: 1.7; }
 .pledge .ic { color: var(--blue-600); }
 
 @media (max-width: 767px) {
@@ -2267,7 +2390,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
   height: 100%;
 }
 .voice .said {
-  font-size: 14.5px;
+  font-size: var(--fs-base);
   line-height: 1.8;
   color: var(--ink-soft);
   margin: 14px 0 0;
@@ -2277,11 +2400,11 @@ details:not([open]) > *:not(summary) { display: none !important; }
   margin-top: 18px;
   padding-top: 15px;
   border-top: 1px solid var(--border);
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--s-2);
 }
 .voice .who .av {
   width: 28px; height: 28px;
@@ -2289,7 +2412,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
   background: var(--navy-50);
   color: var(--navy-800);
   display: grid; place-items: center;
-  font-size: 12px; font-weight: 600;
+  font-size: var(--fs-xs); font-weight: 600;
   flex-shrink: 0;
 }
 
@@ -2354,7 +2477,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .dlg-modal { max-width: 420px; }
 .dlg-body { padding: 24px 26px 22px; }
 .dlg-title {
-  font-size: 17px;
+  font-size: var(--fs-md);
   font-weight: 700;
   line-height: 1.5;
   color: var(--ink);
@@ -2362,7 +2485,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
 }
 .dlg-msg {
   margin: 9px 0 0;
-  font-size: 14px;
+  font-size: var(--fs-base);
   line-height: 1.75;
   color: var(--ink-soft);
   /* ข้อความยืนยันมักมีสองย่อหน้า — บรรทัดที่ทำ กับผลที่ตามมา */
@@ -2371,7 +2494,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .dlg-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--s-2);
   margin-top: 20px;
 }
 /* บนมือถือวางซ้อนกันและให้เต็มความกว้าง นิ้วโป้งจะได้ไม่ต้องเล็ง
@@ -2451,7 +2574,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
   align-self: center;
   padding: 0 2px;
   color: var(--faint);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   user-select: none;
 }
 
@@ -2513,7 +2636,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 14px;
+  gap: var(--s-4);
 }
 
 /* โครงร่างของหน้าร้านระหว่างโหลด */
@@ -2521,18 +2644,18 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .sk-cols {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
+  gap: var(--s-3);
   margin-top: 22px;
 }
 .sk-strip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
-  gap: 8px;
+  gap: var(--s-2);
   margin-top: 14px;
 }
 
 /* โครงร่างแบบรายการเรียงลง — ใช้กับหน้าการจองของฉัน และตารางผู้ใช้ในหน้าผู้ดูแล */
-.sk-rows { display: grid; gap: 16px; }
+.sk-rows { display: grid; gap: var(--s-4); }
 
 
 
@@ -2553,7 +2676,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .grid-row {
   display: grid;
   grid-template-columns: 112px repeat(var(--cols), 40px);
-  gap: 4px;
+  gap: var(--s-1);
   align-items: stretch;
   margin-bottom: 4px;
 }
@@ -2564,11 +2687,11 @@ details:not([open]) > *:not(summary) { display: none !important; }
   background: var(--surface); padding: 6px 8px 6px 0;
   display: flex; flex-direction: column; justify-content: center;
 }
-.grid-res-name { font-size: 13.5px; font-weight: 600; line-height: 1.25; }
-.grid-res-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.grid-res-name { font-size: var(--fs-sm); font-weight: 600; line-height: 1.25; }
+.grid-res-sub  { font-size: var(--fs-2xs); color: var(--muted); margin-top: 1px; }
 
 .grid-head .grid-time {
-  font-size: 11px; color: var(--muted); text-align: center;
+  font-size: var(--fs-2xs); color: var(--muted); text-align: center;
   padding-bottom: 2px; white-space: nowrap;
 }
 
@@ -2590,8 +2713,8 @@ details:not([open]) > *:not(summary) { display: none !important; }
                         var(--surface-2, #f4f6fa) 0 4px, transparent 4px 8px); }
 
 .grid-legend {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  font-size: 12.5px; color: var(--muted); margin-bottom: 10px;
+  display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap;
+  font-size: var(--fs-xs); color: var(--muted); margin-bottom: 10px;
 }
 .grid-legend .lg { display: inline-block; width: 12px; height: 12px; border-radius: 3px;
                    vertical-align: -2px; margin-right: 5px; }
@@ -2601,12 +2724,12 @@ details:not([open]) > *:not(summary) { display: none !important; }
               var(--surface-2, #f4f6fa) 0 3px, transparent 3px 6px); border: 1px solid var(--border); }
 .grid-count { margin-left: auto; }
 
-.grid-skeleton { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+.grid-skeleton { display: grid; grid-template-columns: repeat(8, 1fr); gap: var(--s-1); }
 .sk-cell { height: 34px; border-radius: 6px; display: block; }
 
 @media (max-width: 640px) {
   .grid-row { grid-template-columns: 92px repeat(var(--cols), 36px); }
-  .grid-res-name { font-size: 12.5px; }
+  .grid-res-name { font-size: var(--fs-xs); }
 }
 
 /* ============================================================
@@ -2716,12 +2839,12 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .shrink-0 { flex-shrink:0; }
 .sticky { position:sticky; }
 .text-center { text-align:center; }
-.text-lg { font-size:1.125rem;line-height:1.75rem; }
+.text-lg { font-size:var(--fs-md);line-height:1.75rem; }
 .text-right { text-align:right; }
-.text-sm { font-size:0.875rem;line-height:1.25rem; }
+.text-sm { font-size:var(--fs-sm);line-height:1.25rem; }
 .text-white { color:#fff; }
-.text-xl { font-size:1.25rem;line-height:1.75rem; }
-.text-xs { font-size:0.75rem;line-height:1rem; }
+.text-xl { font-size:var(--fs-lg);line-height:1.75rem; }
+.text-xs { font-size:var(--fs-xs);line-height:1rem; }
 .top-0 { top:0px; }
 .w-12 { width:3rem; }
 .w-7 { width:1.75rem; }
@@ -2911,7 +3034,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .shop-card .place {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--s-2);
   flex-wrap: wrap;
 }
 
@@ -2929,7 +3052,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .slot-left {
   display: block;
   margin-top: 3px;
-  font-size: 10.5px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   line-height: 1;
   color: var(--warn);
@@ -2945,13 +3068,13 @@ details:not([open]) > *:not(summary) { display: none !important; }
   border-radius: var(--r);
   padding: 12px 14px;
   display: grid;
-  gap: 8px;
+  gap: var(--s-2);
 }
 .policy-line {
   display: flex;
-  gap: 9px;
+  gap: var(--s-2);
   align-items: flex-start;
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   line-height: 1.55;
   color: var(--muted);
 }
@@ -2967,9 +3090,9 @@ details:not([open]) > *:not(summary) { display: none !important; }
 
 /* รายการ "สิ่งที่ทำได้ระหว่างรอ" ในหน้าการจอง */
 .gap-item {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
   padding: 9px 12px; border-radius: 8px; background: var(--surface);
-  font-size: 13.5px; text-decoration: none; color: inherit;
+  font-size: var(--fs-sm); text-decoration: none; color: inherit;
   transition: background var(--t-fast) var(--ease);
 }
 .gap-item:hover { background: var(--blue-50); }
@@ -2988,14 +3111,14 @@ details:not([open]) > *:not(summary) { display: none !important; }
 /* หมวดย่อย — ยังมีอยู่แต่จัดกลุ่มให้เห็นว่าอันไหนอยู่กลุ่มไหน */
 .cat-group { margin-bottom: 18px; }
 .cat-group-head {
-  font-size: 12.5px; font-weight: 700; color: var(--muted);
+  font-size: var(--fs-xs); font-weight: 700; color: var(--muted);
   letter-spacing: .02em; margin-bottom: 8px;
 }
-.cat-group-items { display: flex; flex-wrap: wrap; gap: 8px; }
+.cat-group-items { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 
 /* แถบบอกว่ากำลังดูกลุ่มไหนอยู่ ในหน้าค้นหา */
 .group-banner {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap;
   padding: 14px 18px; border-radius: 12px;
   background: var(--navy-50); margin-bottom: 18px;
 }
@@ -3004,9 +3127,9 @@ details:not([open]) > *:not(summary) { display: none !important; }
   display: flex; align-items: center; justify-content: center;
   background: #fff; color: var(--navy-800);
 }
-.gb-name { font-size: 15.5px; font-weight: 700; }
-.gb-sub  { font-size: 12.5px; color: var(--muted); margin-top: 1px; }
-.gb-switch { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+.gb-name { font-size: var(--fs-base); font-weight: 700; }
+.gb-sub  { font-size: var(--fs-xs); color: var(--muted); margin-top: 1px; }
+.gb-switch { margin-left: auto; display: flex; gap: var(--s-2); flex-wrap: wrap; }
 
 /* ช่องเวลาที่จองแล้วทำให้ตารางร้านแตก — บอกด้วยเส้นประ ไม่ปิดกั้นการกด
    เวลาของลูกค้าสำคัญกว่าประสิทธิภาพตารางร้าน แค่ให้รู้ว่ามีช่องที่ดีกว่า */
@@ -3035,7 +3158,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
   background: var(--navy-50);
   border-left: 4px solid var(--navy-800);
 }
-.grp-hero-in { display: flex; align-items: flex-start; gap: 16px; }
+.grp-hero-in { display: flex; align-items: flex-start; gap: var(--s-4); }
 .grp-ic {
   width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
@@ -3044,7 +3167,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
 }
 .grp-h1 { margin: 0; }
 .grp-lead {
-  font-size: 14px; color: var(--muted); margin: 5px 0 0;
+  font-size: var(--fs-base); color: var(--muted); margin: 5px 0 0;
   max-width: 62ch; line-height: 1.65;
 }
 
@@ -3060,21 +3183,21 @@ details:not([open]) > *:not(summary) { display: none !important; }
 /* กล่องชวนทำสิ่งต่อไปในกลุ่มนั้น ๆ (หาก๊วน / เตือนเรื่องฝากรถ) */
 .grp-cta {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 14px; flex-wrap: wrap;
+  gap: var(--s-4); flex-wrap: wrap;
   margin-top: 16px; padding: 13px 16px;
   background: #fff; border-radius: 10px; border: 1px solid var(--border);
 }
-.grp-cta-t { font-size: 14px; font-weight: 600; }
-.grp-cta-s { font-size: 12.5px; color: var(--muted); margin-top: 2px; max-width: 60ch; }
+.grp-cta-t { font-size: var(--fs-base); font-weight: 600; }
+.grp-cta-s { font-size: var(--fs-xs); color: var(--muted); margin-top: 2px; max-width: 60ch; }
 
 .grp-switch {
-  display: flex; gap: 6px; flex-wrap: wrap;
+  display: flex; gap: var(--s-2); flex-wrap: wrap;
   margin-top: 16px; padding-top: 14px;
   border-top: 1px solid rgba(0, 0, 0, .07);
 }
 .grp-switch a {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 12.5px; color: var(--muted); text-decoration: none;
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  font-size: var(--fs-xs); color: var(--muted); text-decoration: none;
   padding: 5px 11px; border-radius: 999px; background: rgba(255, 255, 255, .75);
   transition: color var(--t) var(--ease), background var(--t) var(--ease);
 }
@@ -3084,14 +3207,14 @@ details:not([open]) > *:not(summary) { display: none !important; }
    "จะเล่นอะไร" เป็นคำถามแรกของคนกลุ่มนี้เสมอ มาก่อน "ที่ไหน"
    จึงวางไว้เหนือแถบตัวกรอง ไม่ใช่ซ่อนในดรอปดาวน์ */
 .sport-bar {
-  display: grid; gap: 10px; margin-top: 20px;
+  display: grid; gap: var(--s-3); margin-top: 20px;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 .sport-chip {
-  display: flex; align-items: center; justify-content: center; gap: 9px;
+  display: flex; align-items: center; justify-content: center; gap: var(--s-2);
   padding: 14px 12px; border-radius: var(--r);
   border: 1px solid var(--border); background: var(--surface);
-  font-size: 14.5px; font-weight: 500; color: var(--ink); cursor: pointer;
+  font-size: var(--fs-base); font-weight: 500; color: var(--ink); cursor: pointer;
   transition: border-color var(--t) var(--ease), background var(--t) var(--ease),
               color var(--t) var(--ease);
 }
@@ -3105,55 +3228,56 @@ details:not([open]) > *:not(summary) { display: none !important; }
    ทั้งที่ความจริงคือยังไม่มีใครรีวิว จึงเอาตัวเลขที่มีจริงขึ้นแทน */
 .venue-figs {
   display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 8px; text-align: center;
+  gap: var(--s-2); text-align: center;
 }
 .venue-figs > div {
   padding: 9px 4px; border-radius: 9px; background: var(--navy-50);
 }
-.vf-n { font-size: 16px; font-weight: 700; line-height: 1.2; }
-.vf-l { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.vf-n { font-size: var(--fs-md); font-weight: 700; line-height: 1.2; }
+.vf-l { font-size: var(--fs-2xs); color: var(--muted); margin-top: 2px; }
 
 /* ---------- ความยาวงาน (เฉพาะหน้า auto) ----------
    เคลือบแก้ว 480 นาที = ต้องว่างทั้งวัน ถ้าไม่บอกตั้งแต่หน้ารายการ
    ลูกค้าจะรู้ตอนจองเสร็จแล้วซึ่งสายเกินไป */
 .job-len {
-  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap;
   margin-top: 11px; padding: 8px 11px; border-radius: 9px;
-  font-size: 12.5px; color: var(--ink-soft); background: var(--navy-50);
+  font-size: var(--fs-xs); color: var(--ink-soft); background: var(--navy-50);
 }
 .job-len.is-long { background: var(--warn-bg); color: var(--warn); }
 .job-tag {
-  font-size: 11px; font-weight: 600; padding: 1px 7px;
+  font-size: var(--fs-2xs); font-weight: 600; padding: 1px 7px;
   border-radius: 999px; background: rgba(0, 0, 0, .07);
 }
 
 /* ---------- ป้ายเรียกทันที (เฉพาะหน้า come) ----------
    กลุ่มนี้ไม่มีปฏิทิน ต้องบอกให้ชัดตั้งแต่การ์ด ไม่งั้นผู้ใช้จะมองหาปุ่มเลือกวัน */
 .instant-note {
-  display: flex; align-items: center; gap: 7px;
+  display: flex; align-items: center; gap: var(--s-2);
   margin-top: 11px; padding: 8px 11px; border-radius: 9px;
-  font-size: 12.5px; color: var(--teal-500); background: #eef7f5;
+  font-size: var(--fs-xs); color: var(--teal-500); background: #eef7f5;
 }
 
 @media (max-width: 640px) {
   .grp-hero { padding: 18px 16px; }
-  .grp-hero-in { gap: 12px; }
+  .grp-hero-in { gap: var(--s-3); }
   .grp-ic { width: 40px; height: 40px; }
 }
 
 /* ป้ายบอกกลุ่มบนการ์ดของหน้ารวม — จำเป็นเฉพาะหน้าที่ทุกหมวดปนกัน
    หน้ากลุ่มไม่ต้องใช้ เพราะผู้ใช้รู้อยู่แล้วว่าอยู่กลุ่มไหน */
+/* ป้ายหมวดเป็นแค่ข้อความกำกับ ไม่ใช่ชิปที่กดได้ จึงไม่ควรมีทรงเหมือนปุ่ม */
 .mix-tag {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 11px; font-weight: 600; color: var(--muted);
-  padding: 2px 8px; border-radius: 999px; background: var(--navy-50);
+  display: inline-flex; align-items: center; gap: var(--s-1);
+  font-size: var(--fs-xs); font-weight: 500; color: var(--muted);
+  letter-spacing: .01em;
 }
 
 /* หมวดย่อย 12 หมวดบนหน้าแรก — พับเก็บไว้เป็นทางเลือกรอง
    ทางเข้าหลักคือการ์ด 4 กลุ่ม การวางหมวดย่อยกางไว้ตลอดทำให้มีทางเลือก
    16 อันพร้อมกัน ซึ่งเป็นสาเหตุที่ผู้ใช้บอกว่า "งง ไม่รู้จะกดอะไร" */
 .cat-more > summary {
-  cursor: pointer; font-size: 13.5px; color: var(--muted);
+  cursor: pointer; font-size: var(--fs-sm); color: var(--muted);
   padding: 9px 14px; border-radius: 999px; display: inline-block;
   background: var(--navy-50); list-style: none;
   transition: color var(--t) var(--ease);
@@ -3176,7 +3300,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
    ============================================================ */
 .group-row {
   display: grid;
-  gap: 14px;
+  gap: var(--s-4);
   grid-template-columns: repeat(auto-fit, minmax(236px, 1fr));
 }
 
@@ -3218,7 +3342,7 @@ details:not([open]) > *:not(summary) { display: none !important; }
 
 .gt-text {
   position: absolute; left: 16px; right: 16px; bottom: 14px;
-  display: flex; flex-direction: column; gap: 3px;
+  display: flex; flex-direction: column; gap: var(--s-1);
   color: #fff;
 }
 .gt-ic {
@@ -3228,19 +3352,19 @@ details:not([open]) > *:not(summary) { display: none !important; }
   background: rgba(255, 255, 255, .18);
   backdrop-filter: blur(3px);
 }
-.gt-name { font-size: 17px; font-weight: 700; line-height: 1.25; }
-.gt-tag  { font-size: 12.5px; color: rgba(255, 255, 255, .82); line-height: 1.45; }
+.gt-name { font-size: var(--fs-md); font-weight: 700; line-height: 1.25; }
+.gt-tag  { font-size: var(--fs-xs); color: rgba(255, 255, 255, .82); line-height: 1.45; }
 
 .gt-count {
   position: absolute; right: 12px; top: 12px;
-  font-size: 11.5px; font-weight: 600;
+  font-size: var(--fs-xs); font-weight: 600;
   color: var(--navy-800); background: rgba(255, 255, 255, .92);
   padding: 3px 9px; border-radius: 999px;
 }
 
 @media (max-width: 640px) {
   .group-tile { height: 168px; }
-  .gt-name { font-size: 16px; }
+  .gt-name { font-size: var(--fs-md); }
 }
 
 
@@ -3254,16 +3378,19 @@ details:not([open]) > *:not(summary) { display: none !important; }
    ย้ายทุกอย่างมาเรียงในสายเดียวกัน ระยะห่างจึงเป็นบวกทั้งหมด
    ไม่มีทางทับกันได้อีกไม่ว่าข้อความจะยาวแค่ไหน
    ============================================================ */
+/* ส่วนหัวเตี้ยลงจากเดิมราว 120px
+   ของเดิมสูง 543px จากจอ 900px คือกินไปเกินครึ่งจอ ผู้ใช้ต้องเลื่อน
+   ก่อนถึงจะเห็นร้านสักร้าน ทั้งที่ร้านคือสิ่งที่เขามาหา */
 .hero-inner {
-  padding-top: 56px;
-  padding-bottom: 52px;
+  padding-top: var(--s-6);
+  padding-bottom: var(--s-6);
 }
-.hero-inner .search-card { margin-top: 30px; }
-.hero-inner .hero-facts  { margin-top: 22px; }
+.hero-inner .search-card { margin-top: var(--s-5); }
+.hero-inner .hero-facts  { margin-top: var(--s-4); }
 
 @media (min-width: 640px) {
-  .hero-inner { padding-top: 72px; padding-bottom: 64px; }
-  .hero-inner .search-card { margin-top: 34px; }
+  .hero-inner { padding-top: var(--s-7); padding-bottom: var(--s-7); }
+  .hero-inner .search-card { margin-top: var(--s-5); }
 }
 
 /* ============================================================
@@ -3279,10 +3406,17 @@ details:not([open]) > *:not(summary) { display: none !important; }
    ถ้าวันหนึ่งหมวดเยอะขึ้นจนแถวนี้ยาวเกินไป ให้แก้ด้วยตัวกรองในหน้าค้นหา
    ไม่ใช่เอากลุ่มใหญ่มาซ้อนอีกชั้น
    ============================================================ */
+/* แถวหมวดเป็นส่วน "รอง" ของหน้าแรก ไม่ใช่พระเอก
+   จึงทำให้แบนและเงียบ — ไม่มีการ์ด ไม่มีกรอบมนรอบไอคอน มีแค่เส้นคั่น
+   พระเอกคือร้านจริงที่อยู่ถัดลงไป */
 .cat-tiles {
   display: grid;
-  gap: 10px;
+  gap: 1px;
   grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
 }
 
 .cat-tile {
@@ -3290,39 +3424,32 @@ details:not([open]) > *:not(summary) { display: none !important; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  padding: 18px 10px;
-  border-radius: var(--r);
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-2);
   background: var(--surface);
-  border: 1px solid var(--border);
   text-decoration: none;
   color: var(--ink);
   text-align: center;
-  transition: border-color var(--t) var(--ease), transform var(--t) var(--ease),
-              box-shadow var(--t) var(--ease);
+  transition: background-color var(--t) var(--ease), color var(--t) var(--ease);
 }
-.cat-tile:hover {
-  border-color: var(--blue-600);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
-}
-.cat-tile:focus-visible { outline: 2px solid var(--blue-600); outline-offset: 2px; }
+.cat-tile:hover { background: var(--navy-50); color: var(--navy-900); }
+.cat-tile:focus-visible { outline: 2px solid var(--blue-600); outline-offset: -2px; }
 
+/* ไอคอนลอยเปล่า ๆ ไม่ต้องมีกรอบสี่เหลี่ยมมนรองข้างหลัง
+   กรอบมนหลังไอคอนคือลายเซ็นที่เจอในทุกเทมเพลตที่เครื่องสร้าง */
 .ct-ic {
   display: flex; align-items: center; justify-content: center;
-  width: 46px; height: 46px; border-radius: 13px;
-  background: var(--blue-50); color: var(--navy-800);
-  transition: background var(--t) var(--ease), color var(--t) var(--ease);
+  color: var(--navy-700);
+  transition: color var(--t) var(--ease);
 }
-.cat-tile:hover .ct-ic { background: var(--navy-800); color: #fff; }
-.ct-name { font-size: 13.5px; font-weight: 600; line-height: 1.35; }
+.ct-name { font-size: var(--fs-sm); font-weight: 500; line-height: 1.4; }
 
 /* "สิ่งที่เรารับประกัน" พับเก็บไว้ท้ายหน้า — เป็นคำสัญญาของเรา
    ไม่ใช่สิ่งที่ผู้ใช้เข้าเว็บมาหา จึงไม่ควรกินพื้นที่กลางหน้า */
 .pledge-more > summary {
   cursor: pointer; list-style: none;
-  font-size: 14px; font-weight: 600; color: var(--muted);
-  padding: 10px 16px; border-radius: 999px;
+  font-size: var(--fs-sm); font-weight: 600; color: var(--muted);
+  padding: 10px var(--s-4); border-radius: var(--r);
   background: var(--surface); border: 1px solid var(--border);
   display: inline-block;
   transition: color var(--t) var(--ease), border-color var(--t) var(--ease);
