@@ -518,7 +518,12 @@ function renderNavbar(active = "") {
   document.getElementById("navbar").innerHTML = `
     <header style="background:var(--navy-800)" class="sticky top-0 z-40">
       <div class="max-w-6xl mx-auto px-5 h-16 flex items-center gap-6">
-        <a href="index.html" class="flex items-center gap-2.5 shrink-0 no-underline">
+        ${/* ลิงก์กลับหน้าแรกใช้ "./" ไม่ใช่ "index.html"
+              เซิร์ฟเวอร์เสิร์ฟ index.html ที่รากอยู่แล้ว (nginx: index index.html ·
+              FastAPI: StaticFiles(html=True)) ลิงก์สั้นจึงใช้ได้ทุกที่
+              ถ้าเขียน index.html ไว้ พอผู้ใช้เข้ามาด้วย bookvice.onrender.com
+              แล้วกดโลโก้ URL จะยาวขึ้นมาเองโดยไม่จำเป็น */""}
+        <a href="./" class="flex items-center gap-2.5 shrink-0 no-underline">
           ${brandMark(28, "#fff")}
           <span class="text-xl text-white brand-name">Bookvice</span>
         </a>
@@ -532,7 +537,7 @@ function renderNavbar(active = "") {
               ที่ของมันคือหน้าแรกซึ่งมีพื้นที่พอให้เห็นภาพและคำอธิบาย
               ส่วนการสลับกลุ่มระหว่างหน้ามีแถบ .grp-switch อยู่ในทุกหน้ากลุ่มแล้ว */""}
         <nav class="hidden md:flex items-center gap-1">
-          ${link("index.html", "หน้าแรก", "home")}
+          ${link("./", "หน้าแรก", "home")}
           ${link("shops.html", "ค้นหาร้าน", "shops")}
           ${link("community.html", "หาคนไปเล่น", "community")}
         </nav>
@@ -563,7 +568,7 @@ function renderMobileNav(active = "") {
 
   const user = Auth.user;
   const items = [
-    ["index.html", "หน้าแรก", "home", "sparkle"],
+    ["./", "หน้าแรก", "home", "sparkle"],
     ["shops.html", "ค้นหา", "shops", "search"],
     ["promotions.html", "ราคาและดีล", "promo", "creditCard"],
     user
@@ -711,7 +716,7 @@ function renderFooter() {
             ["หาคนไปเล่นด้วยกัน", "community.html"],
             ["ราคาและดีล", "promotions.html"],
             ["การจองของฉัน", "bookings.html"],
-            ["คำถามที่พบบ่อย", "index.html#main"],
+            ["คำถามที่พบบ่อย", "./#main"],
           ])}
           ${/* ยุบสองคอลัมน์เดิมเข้าด้วยกัน เพราะเพิ่มคอลัมน์ "บริการทั้ง 4 กลุ่ม" เข้ามา
                 แล้วตารางท้ายเว็บ (4 ช่อง) จะตกบรรทัดเป็นแถวเดี่ยวที่ดูเหมือนพลาด */""}
