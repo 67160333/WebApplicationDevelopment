@@ -500,6 +500,15 @@
           </div>`}
         </section>`}
 
+        <!-- ---------- ระหว่างรอ ไปนั่งที่ไหนดี ----------
+             โผล่เฉพาะตอนที่เลือกบริการที่ใช้เวลา 30 นาทีขึ้นไป และร้านมีพิกัด
+             ถ้าเงื่อนไขไม่ครบจะซ่อนทั้งก้อน ไม่ทิ้งหัวข้อว่างไว้ให้ดูเหมือนพัง -->
+        ${/* ตั้งใจไม่ใส่คลาส reveal
+              revealOnScroll ใช้ IntersectionObserver ซึ่งไม่ยิงให้ของที่ hidden อยู่
+              พอเราเอา hidden ออกทีหลัง ตัวสังเกตอาจไม่ทำงานแล้ว ส่วนนี้จะค้างที่
+              opacity: 0 คือมีเนื้อหาครบใน DOM แต่มองไม่เห็นอะไรเลย */""}
+        ${hasPin ? `<section class="mt-12" id="waitSection" hidden></section>` : ""}
+
         <!-- ---------- ทรัพยากรที่จองได้ (ช่าง / คอร์ท / สนาม) ---------- -->
         ${staff.length && !INSTANT ? `
           <section class="mt-12 reveal" id="staffSection">
@@ -551,6 +560,7 @@
       loadSummary();
       loadReviews(1);
       revealOnScroll();   // ส่วนถัดไปค่อย ๆ ปรากฏตอนเลื่อนลงมา
+      renderWaitSpots();  // ไม่ await — ยิงไปที่ Overpass ช้ากว่า API เรา ไม่ควรกั้นหน้าไว้
 
       if (INSTANT) bindDelivery(active);
       if (IS_TEAM) loadMatches();
@@ -659,6 +669,161 @@
           <span class="svc-name">${esc(sv.name)}</span>
           <span class="svc-meta num">฿${baht(sv.price)} · ${sv.duration_minutes} นาที</span>
         </button>`;
+    }
+
+    // ================= ระหว่างรอ ไปนั่งที่ไหนดี =================
+    //
+    // งานบางอย่างลูกค้าต้องอยู่กับที่ไม่ได้จริง ๆ — ล้างรถ เปลี่ยนน้ำมัน
+    // ทำสี สักลาย นั่งรอในร้านเป็นชั่วโมงไม่ไหว จึงบอกไปเลยว่ารอบร้านมีที่ไหนนั่งได้
+    //
+    // ข้อมูลมาจาก OpenStreetMap ผ่าน Overpass API — เป็นร้านจริงที่เดินไปได้จริง
+    // ถ้าใส่ร้านสมมติตรงนี้จะกลายเป็นข้อมูลที่ใช้ไม่ได้และหลอกผู้ใช้
+    //
+    // ยิงจากเบราว์เซอร์ผู้ใช้โดยตรง ไม่ผ่านเซิร์ฟเวอร์เรา ด้วยสองเหตุผล:
+    //   1) Render แพ็กเกจฟรีตื่นช้าอยู่แล้ว ไม่ควรเพิ่มงานให้มันอีก
+    //   2) Overpass ส่ง CORS มาให้ เรียกตรงได้เลย ไม่ต้องมี proxy
+    const WAIT_MIN_MINUTES = 30;   // ต่ำกว่านี้ออกไปกินกาแฟแล้วกลับมาไม่ทัน
+    // 800 เมตร ≈ เดิน 10 นาที — ทดสอบที่พิกัดร้านคาร์แคร์พระราม 3 แล้วพบว่า
+    // 600 เมตรเจอร้านที่มีชื่อแค่ 2 แห่ง ส่วน 800 เมตรเจอ 3 แห่งโดยคำขอยังเร็วเท่าเดิม
+    const WAIT_RADIUS_M = 800;
+    const waitCache = new Map();   // รัศมีคงที่ ดึงครั้งเดียวพอสำหรับทั้งหน้า
+    let waitSeq = 0;               // กันผลลัพธ์เก่ามาทับใหม่ แบบเดียวกับ loadRange
+
+    // เซิร์ฟเวอร์ Overpass สาธารณะล้มบ่อย — ทดสอบจริงแล้วเจอ 504 หลังยิงติด ๆ กัน
+    // จึงต้องมีตัวสำรอง ไล่ทีละตัวจนกว่าจะได้ผล ไม่ใช่พึ่งตัวเดียวแล้วจบ
+    const OVERPASS_HOSTS = [
+      "https://overpass-api.de/api/interpreter",
+      "https://overpass.kumi.systems/api/interpreter",
+    ];
+    // ตัวสำรองที่ทดสอบได้ใช้เวลา ~9 วินาที จึงตั้งเพดานไว้ 15
+    // ถ้าไม่ตั้ง คำขอที่ค้างจะทำให้ขึ้น "กำลังหาที่ใกล้ร้าน…" ค้างตลอดกาล
+    const OVERPASS_TIMEOUT_MS = 15000;
+
+    // เดินเร็ว 4.5 กม./ชม. ซึ่งช้ากว่าค่ามาตรฐาน 5 เพราะทางเท้าไทยมีสะดุด
+    const walkMinutes = (km) => Math.max(1, Math.round((km / 4.5) * 60));
+
+    const WAIT_KIND = {
+      cafe:       ["คาเฟ่", "coffee"],
+      restaurant: ["ร้านอาหาร", "utensils"],
+      fast_food:  ["อาหารจานด่วน", "utensils"],
+    };
+
+    async function fetchWaitSpots(lat, lng) {
+      const key = `${lat},${lng}`;
+      if (waitCache.has(key)) return waitCache.get(key);
+
+      // nwr = node/way/relation · out center ทำให้ way กับ relation มีพิกัดกลางติดมาด้วย
+      // ถ้าใช้ out แบบธรรมดา ร้านที่ถูกวาดเป็นรูปอาคารจะไม่มี lat/lon ให้คำนวณระยะ
+      const q = `[out:json][timeout:20];
+        nwr["amenity"~"^(cafe|restaurant|fast_food)$"](around:${WAIT_RADIUS_M},${lat},${lng});
+        out center 60;`;
+
+      // ไล่เซิร์ฟเวอร์ทีละตัว ตัวไหนตอบก่อนใช้ตัวนั้น
+      let data = null, lastErr = null;
+      for (const host of OVERPASS_HOSTS) {
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), OVERPASS_TIMEOUT_MS);
+        try {
+          const res = await fetch(host, {
+            method: "POST",
+            body: "data=" + encodeURIComponent(q),
+            // form-urlencoded อยู่ในรายการที่ไม่ต้อง preflight
+            // ถ้าใช้ application/json เบราว์เซอร์จะยิง OPTIONS ก่อน ซึ่ง Overpass ไม่รับ
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            signal: ctl.signal,
+          });
+          if (!res.ok) throw new Error(`${host} ตอบ ${res.status}`);
+          data = await res.json();
+          break;
+        } catch (e) {
+          lastErr = e;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      if (!data) throw lastErr || new Error("โหลดข้อมูลสถานที่ไม่สำเร็จ");
+
+      const here = { lat: Number(lat), lng: Number(lng) };
+      const spots = (data.elements || [])
+        .map((el) => {
+          const p = el.center || el;
+          const name = (el.tags || {}).name;
+          // ไม่มีชื่อก็แนะนำไม่ได้ — บอกว่า "มีร้านอาหารอยู่ตรงนั้น" แล้วหาไม่เจอ
+          if (!name || p.lat == null || p.lon == null) return null;
+          return {
+            name,
+            kind: (el.tags || {}).amenity,
+            lat: p.lat,
+            lng: p.lon,
+            km: haversineKm(here, { lat: p.lat, lng: p.lon }),
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.km - b.km)
+        .slice(0, 6);
+
+      waitCache.set(key, spots);
+      return spots;
+    }
+
+    async function renderWaitSpots() {
+      const box = document.getElementById("waitSection");
+      if (!box || !shopData) return;
+
+      const sv = service();
+      const lat = shopData.latitude, lng = shopData.longitude;
+      const longEnough = sv && Number(sv.duration_minutes) >= WAIT_MIN_MINUTES;
+
+      if (!longEnough || lat == null || lng == null) { box.hidden = true; return; }
+
+      const my = ++waitSeq;
+      const mins = Number(sv.duration_minutes);
+      box.hidden = false;
+      box.innerHTML = `
+        <div class="section-head">
+          <h2 class="h2">ระหว่างรอ ${mins} นาที แถวนี้มีที่ไหนบ้าง</h2>
+        </div>
+        <p class="hint" style="margin:0">กำลังหาที่ใกล้ร้าน…</p>`;
+
+      try {
+        const spots = await fetchWaitSpots(lat, lng);
+        if (my !== waitSeq) return;   // ผู้ใช้เปลี่ยนบริการระหว่างรอผล
+
+        if (!spots.length) { box.hidden = true; return; }
+
+        box.innerHTML = `
+          <div class="section-head">
+            <h2 class="h2">ระหว่างรอ ${mins} นาที แถวนี้มีที่ไหนบ้าง</h2>
+          </div>
+          <div class="wait-list">
+            ${spots.map((sp) => {
+              const [label, ic] = WAIT_KIND[sp.kind] || ["ร้านอาหาร", "utensils"];
+              const walk = walkMinutes(sp.km);
+              return `
+                <a class="wait-item" target="_blank" rel="noopener noreferrer"
+                   href="https://www.google.com/maps/dir/?api=1&destination=${sp.lat},${sp.lng}">
+                  <span class="wi-ic">${icon(ic, 16)}</span>
+                  <span class="wi-text">
+                    <span class="wi-name">${esc(sp.name)}</span>
+                    <span class="wi-kind">${label}</span>
+                  </span>
+                  <span class="wi-walk num">เดิน ${walk} นาที</span>
+                </a>`;
+            }).join("")}
+          </div>
+          <p class="hint mt-3">
+            ข้อมูลสถานที่จาก
+            <a href="https://www.openstreetmap.org/copyright" target="_blank"
+               rel="noopener noreferrer" style="text-decoration:underline">OpenStreetMap</a>
+            · เวลาเดินเป็นค่าประมาณจากระยะเส้นตรง ทางจริงอาจอ้อมกว่านี้
+          </p>`;
+      } catch (err) {
+        if (my !== waitSeq) return;
+        // ล้มเหลวแล้วซ่อนไปเลย — ส่วนนี้เป็นของแถม ไม่ใช่สิ่งที่คนเข้ามาหา
+        // ขึ้นข้อความแดงตรงนี้จะดูเหมือนหน้าร้านพัง ทั้งที่การจองยังใช้ได้ปกติ
+        console.warn("หาที่นั่งรอรอบร้านไม่สำเร็จ:", err.message);
+        box.hidden = true;
+      }
     }
 
     // ================= ขั้นที่ 2 — แถบเลือกวัน =================
@@ -1220,6 +1385,7 @@
             x.setAttribute("aria-pressed", String(on));
           });
           loadRange();
+          renderWaitSpots();   // บริการใหม่อาจสั้นเกินกว่าจะออกไปนั่งรอที่อื่น
         })
       );
 

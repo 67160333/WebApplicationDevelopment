@@ -2190,6 +2190,40 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .see-all:hover { gap: var(--s-2); }
 
 /* ============================================================
+   ระหว่างรอ ไปนั่งที่ไหนดี — รายการร้านรอบ ๆ จาก OpenStreetMap
+   ============================================================
+   เป็นรายการอ้างอิง ไม่ใช่ของที่จองได้ในระบบเรา จึงตั้งใจทำให้ "เบา"
+   กว่าการ์ดร้าน — เป็นแถวมีเส้นคั่น ไม่ใช่การ์ดแยกใบ ผู้ใช้จะได้ไม่สับสน
+   ว่ากดแล้วจะจองโต๊ะได้ (กดแล้วไปเปิดแผนที่นำทาง) */
+.wait-list {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--surface);
+  overflow: hidden;
+}
+.wait-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  text-decoration: none;
+  color: inherit;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.wait-item + .wait-item { border-top: 1px solid var(--border); }
+.wait-item:hover { background: var(--navy-50); }
+.wait-item:focus-visible { outline: 2px solid var(--blue-600); outline-offset: -2px; }
+.wi-ic { color: var(--navy-700); flex-shrink: 0; line-height: 0; }
+.wi-text { display: flex; flex-direction: column; min-width: 0; }
+.wi-name {
+  font-size: var(--fs-base); font-weight: 500; line-height: 1.4;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.wi-kind { font-size: var(--fs-xs); color: var(--muted); }
+/* เวลาเดินชิดขวาเสมอ ทุกแถวจึงอ่านเทียบกันได้ในแนวตั้ง */
+.wi-walk { margin-left: auto; flex-shrink: 0; font-size: var(--fs-sm); color: var(--muted); }
+
+/* ============================================================
    การ์ดใหญ่ของร้านอันดับหนึ่ง — จุดโฟกัสของหน้าแรก
    ============================================================
    หน้าที่ทุกการ์ดขนาดเท่ากันหมดคือหน้าที่ไม่มีใครตัดสินใจว่าอะไรสำคัญ
