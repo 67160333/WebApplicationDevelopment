@@ -35,6 +35,59 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
+# ---------- จำกัดจำนวนครั้งที่ล็อกอินผิด ----------
+#
+# ทดสอบจริงแล้วพบว่ายิงรหัสผิดติดกัน 15 ครั้งใช้เวลา 0.75 วินาที และไม่มีอะไรมาขวาง
+# = เดารหัสได้ราว 20 ครั้งต่อวินาที ซึ่งพอสำหรับไล่เดารหัสที่คนส่วนใหญ่ตั้ง
+#
+# **เก็บในหน่วยความจำของ process** จึงมีข้อจำกัดสองข้อที่ต้องรู้:
+#   1) รีสตาร์ตแล้วตัวนับหายหมด
+#   2) ถ้าวันหนึ่งรันหลาย instance แต่ละตัวจะนับแยกกัน
+# ของจริงควรใช้ Redis แต่แพ็กเกจฟรีของ Render รันแค่ instance เดียว
+# และการมีด่านที่หยาบ ๆ ยังดีกว่าไม่มีอะไรเลย
+_login_fails: dict[str, list[float]] = {}
+
+LOGIN_MAX_FAILS = 8          # ผิดได้ 8 ครั้ง
+LOGIN_WINDOW_SEC = 300       # ภายใน 5 นาที
+LOGIN_LOCK_SEC = 300         # แล้วล็อกอีก 5 นาที
+
+
+def _prune(key: str, now: float) -> list[float]:
+    """ทิ้งความพยายามที่เก่าเกินกรอบเวลาออกจากรายการ"""
+    keep = [t for t in _login_fails.get(key, []) if now - t < LOGIN_WINDOW_SEC]
+    if keep:
+        _login_fails[key] = keep
+    else:
+        _login_fails.pop(key, None)
+    return keep
+
+
+def check_login_allowed(key: str) -> None:
+    """เรียกก่อนตรวจรหัสผ่าน — ถ้าผิดมาเกินโควตาให้ตอบ 429 ทันที"""
+    import time
+
+    now = time.time()
+    fails = _prune(key, now)
+    if len(fails) >= LOGIN_MAX_FAILS:
+        wait = int(LOGIN_LOCK_SEC - (now - fails[-1]))
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"ลองผิดหลายครั้งเกินไป กรุณารออีก {max(wait, 1)} วินาที",
+            headers={"Retry-After": str(max(wait, 1))},
+        )
+
+
+def record_login_fail(key: str) -> None:
+    import time
+
+    _login_fails.setdefault(key, []).append(time.time())
+
+
+def clear_login_fails(key: str) -> None:
+    """ล็อกอินสำเร็จแล้วล้างประวัติ ไม่ให้คนที่พิมพ์ผิดไปสองครั้งโดนล็อกทีหลัง"""
+    _login_fails.pop(key, None)
+
+
 # ---------- JWT ----------
 def create_access_token(user: User) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_EXPIRE_MINUTES)

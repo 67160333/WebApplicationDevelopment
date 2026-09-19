@@ -1,6 +1,7 @@
 """ค่าตั้งค่าของระบบ อ่านจาก environment variable ที่ docker-compose ส่งเข้ามา"""
 
 import os
+import secrets
 
 
 class Settings:
@@ -14,7 +15,17 @@ class Settings:
     )
 
     # ค่าสำหรับสร้าง/ตรวจสอบ JWT token
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "dev_secret_key_please_change")
+    #
+    # **ห้ามมีค่าสำรองที่เดาได้** — นี่คือกุญแจที่ใช้เซ็น token ทุกใบ
+    # ของเดิมใช้ค่าคงที่ "dev_secret_key_please_change" ซึ่งอยู่ในโค้ดบน GitHub
+    # ถ้าเครื่องที่ deploy ลืมตั้ง JWT_SECRET ใครก็ตามที่เปิดซอร์สดูจะเซ็น token
+    # ของตัวเองเป็น role: admin แล้วเข้าหลังบ้านได้ทันที โดยไม่ต้องรู้รหัสผ่านใคร
+    #
+    # เปลี่ยนเป็นสุ่มใหม่ทุกครั้งที่เริ่มระบบแทน ผลที่ตามมาคือถ้าลืมตั้งจริง ๆ
+    # ทุกคนจะถูกเด้งออกตอนรีสตาร์ต ซึ่งน่ารำคาญแต่ไม่อันตราย
+    # — เลือกทางที่ "พังแบบปลอดภัย" ดีกว่า "ทำงานต่อได้แต่ใครก็เข้ามาได้"
+    JWT_SECRET: str = os.getenv("JWT_SECRET") or secrets.token_urlsafe(48)
+    JWT_SECRET_IS_RANDOM: bool = not os.getenv("JWT_SECRET")
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "1440"))
 

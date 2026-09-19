@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -16,10 +16,13 @@ from app.schemas import (
     TokenResponse,
 )
 from app.security import (
+    check_login_allowed,
+    clear_login_fails,
     create_access_token,
     decode_token,
     get_current_user,
     hash_password,
+    record_login_fail,
     verify_password,
 )
 
@@ -57,12 +60,22 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse, summary="เข้าสู่ระบบ")
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
+def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
     """เข้าสู่ระบบด้วย username หรือ email ก็ได้"""
+    # นับทั้ง "ชื่อผู้ใช้ที่พยายามเข้า" และ "ไอพีต้นทาง" รวมกันเป็นกุญแจเดียว
+    # ถ้านับแค่ชื่อผู้ใช้ คนร้ายจะยิงชื่อคนอื่นจนบัญชีนั้นถูกล็อกได้ (กลั่นแกล้ง)
+    # ถ้านับแค่ไอพี คนที่ออกเน็ตทางเดียวกัน เช่น ไวไฟมหาวิทยาลัย จะโดนหางเลข
+    ip = request.client.host if request.client else "unknown"
+    fail_key = f"{payload.username}|{ip}"
+    check_login_allowed(fail_key)
+
     user = db.scalar(
         select(User).where(or_(User.username == payload.username, User.email == payload.username))
     )
     if user is None or not verify_password(payload.password, user.password_hash):
+        record_login_fail(fail_key)
+        # ข้อความเดียวกันทั้งกรณี "ไม่มีบัญชีนี้" และ "รหัสผิด"
+        # ถ้าแยกกัน คนร้ายจะไล่เดาได้ว่าบัญชีไหนมีอยู่จริงในระบบ
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
@@ -70,6 +83,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="บัญชีนี้ถูกระงับการใช้งาน")
 
+    clear_login_fails(fail_key)
     return TokenResponse(access_token=create_access_token(user), user=user)
 
 

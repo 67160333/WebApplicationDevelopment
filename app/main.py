@@ -39,6 +39,16 @@ from app.storage import UPLOAD_ROOT, ensure_dirs
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """ทำงานตอนเริ่มระบบ: รอฐานข้อมูล → สร้างตาราง → ปรับโครงสร้าง → ใส่ข้อมูลตัวอย่าง"""
+    # เตือนให้ดังที่สุดเท่าที่ log จะทำได้ — ถ้าไม่ได้ตั้ง JWT_SECRET
+    # ทุกคนจะถูกเด้งออกจากระบบทุกครั้งที่เซิร์ฟเวอร์รีสตาร์ต
+    # (ซึ่งบน Render แพ็กเกจฟรีเกิดขึ้นทุกครั้งที่เว็บหลับแล้วตื่น)
+    if settings.JWT_SECRET_IS_RANDOM:
+        print("=" * 70)
+        print("คำเตือน: ไม่ได้ตั้ง JWT_SECRET จึงสุ่มกุญแจใหม่ให้ชั่วคราว")
+        print("ผู้ใช้ทุกคนจะถูกเด้งออกจากระบบทุกครั้งที่เซิร์ฟเวอร์เริ่มใหม่")
+        print("แก้โดยตั้ง JWT_SECRET ใน Render → Environment")
+        print("=" * 70)
+
     wait_for_db()
     Base.metadata.create_all(bind=engine)
     # create_all สร้างได้แค่ตารางใหม่ ถ้าเพิ่มคอลัมน์ในตารางเดิมต้องเติมเอง
@@ -82,10 +92,18 @@ app = FastAPI(
 )
 
 # อนุญาตให้เว็บฝั่ง frontend เรียก API ได้
+#
+# allow_credentials ต้องเป็น False คู่กับ allow_origins=["*"]
+# ------------------------------------------------------------------
+# เว็บนี้ส่ง token ผ่านหัวข้อ Authorization ไม่ได้ใช้คุกกี้เลย จึงไม่ต้องการ
+# credentials อยู่แล้ว การเปิดไว้ทั้งที่ไม่ได้ใช้มีแต่เสีย เพราะถ้าวันหนึ่ง
+# มีใครเพิ่มคุกกี้เข้ามา ทุกเว็บบนอินเทอร์เน็ตจะยิง API นี้แทนผู้ใช้ที่ล็อกอินอยู่ได้
+# (มาตรฐาน CORS ห้ามคู่ "*" + credentials อยู่แล้ว เบราว์เซอร์จะบล็อกเอง
+#  ค่านี้จึงไม่เคยทำงานจริง แต่เป็นกับดักที่รอคนมาเหยียบ)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

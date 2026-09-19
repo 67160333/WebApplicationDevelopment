@@ -8,7 +8,7 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Annotated, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field
+from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, computed_field
 
 # ชื่อสำรองของ datetime.time — ใช้ในคลาสที่มีฟิลด์ชื่อ `time`
 # เพราะการประกาศฟิลด์ `time: time` จะบังชื่อเดิมในขอบเขตของคลาสนั้น
@@ -18,7 +18,33 @@ TimeStr = time
 # ชนิดข้อมูลที่ใช้ซ้ำ พร้อมกฎการตรวจสอบ
 # ============================================================
 Username = Annotated[str, Field(min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_]+$")]
-Password = Annotated[str, Field(min_length=8, max_length=100)]
+
+
+def _password_fits_bcrypt(v: str) -> str:
+    """กันรหัสผ่านยาวเกินที่ bcrypt รับไหว
+
+    bcrypt อ่านรหัสผ่านได้แค่ **72 ไบต์แรก** ส่วนที่เกินถูกตัดทิ้งเงียบ ๆ
+    ไม่มี error ไม่มีคำเตือน — ซึ่งอันตรายมากกับภาษาไทย เพราะตัวอักษรไทย
+    ตัวละ 3 ไบต์ใน UTF-8 รหัสผ่านไทย 32 ตัวจึงเท่ากับ 96 ไบต์
+
+    ทดสอบจริงแล้วยืนยันว่าเป็นอย่างนั้น: สมัครด้วยรหัสไทย 32 ตัว
+    แล้วล็อกอินด้วย 24 ตัวแรกก็เข้าได้ = อีก 8 ตัวที่เหลือไม่มีผลอะไรเลย
+    ผู้ใช้คิดว่าตั้งรหัสยาว 32 ตัว แต่จริง ๆ ระบบจำแค่ 24
+
+    จึงบอกไปตรง ๆ ดีกว่าปล่อยให้เข้าใจผิด
+    (อีกทางคือ SHA-256 ก่อนส่งให้ bcrypt แต่จะทำให้รหัสผ่านเดิมทุกบัญชี
+     ใช้ไม่ได้ทันที ซึ่งแลกไม่คุ้มกับระบบที่เปิดใช้จริงอยู่แล้ว)
+    """
+    if len(v.encode("utf-8")) > 72:
+        raise ValueError(
+            "รหัสผ่านยาวเกินไป (ภาษาไทยได้ไม่เกิน 24 ตัว ภาษาอังกฤษไม่เกิน 72 ตัว)"
+        )
+    return v
+
+
+Password = Annotated[
+    str, Field(min_length=8, max_length=100), AfterValidator(_password_fits_bcrypt)
+]
 FullName = Annotated[str, Field(min_length=2, max_length=150)]
 Phone = Annotated[str, Field(pattern=r"^[0-9]{9,15}$")]
 Rating = Annotated[int, Field(ge=1, le=5, description="คะแนน 1-5")]
