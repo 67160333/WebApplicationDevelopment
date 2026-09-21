@@ -30,8 +30,9 @@ from app.routers import (
     users,
     watches,
 )
+from app.runtime_secret import resolve_jwt_secret
 from app.seed import seed_database
-from app.seed_extra import backfill_coordinates, enrich_demo_data
+from app.seed_extra import backfill_coordinates, enrich_demo_data, seed_closed_weekdays
 from app.seed_men import seed_category_groups, seed_men_services
 from app.seed_photos import seed_stock_photos
 from app.seed_venues import seed_venues
@@ -41,20 +42,19 @@ from app.storage import UPLOAD_ROOT, ensure_dirs
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """ทำงานตอนเริ่มระบบ: รอฐานข้อมูล → สร้างตาราง → ปรับโครงสร้าง → ใส่ข้อมูลตัวอย่าง"""
-    # เตือนให้ดังที่สุดเท่าที่ log จะทำได้ — ถ้าไม่ได้ตั้ง JWT_SECRET
-    # ทุกคนจะถูกเด้งออกจากระบบทุกครั้งที่เซิร์ฟเวอร์รีสตาร์ต
-    # (ซึ่งบน Render แพ็กเกจฟรีเกิดขึ้นทุกครั้งที่เว็บหลับแล้วตื่น)
-    if settings.JWT_SECRET_IS_RANDOM:
-        print("=" * 70)
-        print("คำเตือน: ไม่ได้ตั้ง JWT_SECRET จึงสุ่มกุญแจใหม่ให้ชั่วคราว")
-        print("ผู้ใช้ทุกคนจะถูกเด้งออกจากระบบทุกครั้งที่เซิร์ฟเวอร์เริ่มใหม่")
-        print("แก้โดยตั้ง JWT_SECRET ใน Render → Environment")
-        print("=" * 70)
-
     wait_for_db()
     Base.metadata.create_all(bind=engine)
     # create_all สร้างได้แค่ตารางใหม่ ถ้าเพิ่มคอลัมน์ในตารางเดิมต้องเติมเอง
     run_migrations(engine)
+
+    # หากุญแจ JWT ที่คงเดิมข้ามการรีสตาร์ต (รายละเอียดใน runtime_secret.py)
+    # ต้องทำหลัง create_all เพราะต้องมีตาราง app_secrets ก่อน
+    db = SessionLocal()
+    try:
+        resolve_jwt_secret(db)
+    finally:
+        db.close()
+
     # โฟลเดอร์เก็บรูปที่ผู้ใช้อัปโหลด ต้องมีก่อนถึงจะ mount ให้เสิร์ฟไฟล์ได้
     ensure_dirs()
 
@@ -72,6 +72,9 @@ async def lifespan(app: FastAPI):
             seed_category_groups(db)
             # ร้านเก่าถูกสร้างก่อนที่ระบบจะมีแผนที่ จึงต้องย้อนไปเติมพิกัดให้
             backfill_coordinates(db)
+            # วันหยุดประจำสัปดาห์ — ใส่ให้เฉพาะหมวดที่ร้านจริงมักหยุด
+            # ต้องทำหลัง seed ร้านครบทุกชุด ไม่งั้นร้านที่มาทีหลังจะไม่ได้ค่า
+            seed_closed_weekdays(db)
             # รูปตัวอย่างที่มากับโค้ด — ต้องทำหลัง seed ร้านครบทุกชุดแล้ว
             seed_stock_photos(db)
         finally:

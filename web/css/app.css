@@ -194,10 +194,12 @@ img, video { max-width: 100%; height: auto; }
   --teal-400:  #33c4b4;
   --teal-500:  #22a898;
 
-  /* มุมโค้งน้อยลงกว่าเดิม — มุมมนจัดคือลายเซ็นอีกอย่างของงานที่เครื่องจัดให้ */
-  --r-sm: 3px;
-  --r:    6px;
-  --r-lg: 10px;
+  /* มุมโค้ง — ค่าเดิมของโปรเจกต์
+     เคยลดเหลือ 3/6/10px ในรอบที่พยายามทำให้หน้าเว็บดูไม่เหมือนงานสำเร็จรูป
+     แต่เจ้าของโปรเจกต์กับผู้ทดลองใช้เห็นตรงกันว่ามันแข็งเกินไป จึงคืนค่าเดิม */
+  --r-sm: 4px;
+  --r:    8px;
+  --r-lg: 12px;
 
   /* ============================================================
      เงา — เหลือไว้เฉพาะของที่ "ลอย" จริง
@@ -543,7 +545,14 @@ body {
 }
 .search-grid { display: grid; gap: var(--s-3); grid-template-columns: 1fr; }
 @media (min-width: 860px) {
-  .search-grid { grid-template-columns: 1.4fr 1fr 1fr auto; align-items: end; }
+  /* จังหวัด · ช่วงราคา · วันที่ · คำค้นหา · ปุ่ม
+     คำค้นหากว้างสุดเพราะเป็นช่องเดียวที่ต้องพิมพ์ ที่เหลือเป็นดรอปดาวน์ */
+  .search-grid { grid-template-columns: 1fr 1fr 1fr 1.3fr auto; align-items: end; }
+}
+@media (min-width: 640px) and (max-width: 859px) {
+  /* จอกลาง — สองคอลัมน์ ปุ่มกินเต็มแถวล่าง ดีกว่าบีบห้าช่องให้แคบจนอ่านไม่ออก */
+  .search-grid { grid-template-columns: 1fr 1fr; align-items: end; }
+  .search-grid > button { grid-column: 1 / -1; }
 }
 .search-field .label { font-size: var(--fs-xs); margin-bottom: 4px; }
 .search-field .input,
@@ -747,7 +756,23 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 .svc.is-active { border-color: var(--blue-600); background: var(--blue-50); box-shadow: inset 0 0 0 1px var(--blue-600); }
 .svc.is-active .svc-check { background: var(--blue-600); border-color: var(--blue-600); color: #fff; }
 .svc-name { display: block; font-size: var(--fs-base); font-weight: 600; line-height: 1.45; }
-.svc-meta { display: block; font-size: var(--fs-xs); color: var(--muted); margin-top: 2px; }
+/* ราคากับเวลาที่ใช้ — ผู้ทดลองใช้บอกว่า "เวลาไม่ค่อยเด่น"
+   ของเดิมรวมสองอย่างไว้ในบรรทัดสีจางบรรทัดเดียว ขนาด 12px
+
+   เวลาที่ใช้เป็นข้อมูลที่ตัดสินใจยากกว่าราคาด้วยซ้ำ — คนต้องรู้ว่าต้องกันเวลา
+   ไว้กี่ชั่วโมงก่อนจะเลือกได้ว่าจองช่วงไหน จึงแยกออกมาเป็นป้ายของตัวเอง */
+.svc-meta { display: flex; align-items: center; gap: var(--s-2); margin-top: 5px; }
+.svc-price { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); }
+.svc-dur {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: var(--blue-50);
+  border-radius: var(--r-sm);
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+.svc.is-active .svc-dur { background: #fff; }
 
 /* .staff-pick ถูกถอดออกแล้ว — ดรอปดาวน์เลือกช่างมุมขวาของหัวข้อขั้นตอน
    ถูกแทนด้วยการ์ดเลือกช่างในขั้นที่ 2 การมีสองที่ให้เลือกเรื่องเดียวกัน
@@ -920,11 +945,25 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   margin-top: var(--s-5);
   color: rgba(255,255,255,.62);
   font-size: var(--fs-sm);
+
+  /* จองที่ว่างไว้ 1 บรรทัดตั้งแต่ยังไม่มีข้อความ
+     กล่องนี้ว่างตอนเปิดหน้า แล้วเติมตัวเลขหลัง API ตอบกลับ (ราว 2 วินาที)
+     ถ้าไม่จองที่ไว้ พอข้อความโผล่ ทุกอย่างใต้มันจะถูกดันลงพร้อมกัน
+     ผู้ใช้ที่กำลังจะกดอะไรอยู่จะกดพลาด เพราะปุ่มเลื่อนหนีตอนนิ้วลง */
+  min-height: 1.7em;
 }
 .hero-facts .f { display: inline-flex; align-items: center; gap: var(--s-2); }
 .hero-facts b { color: rgba(255,255,255,.94); font-weight: 600; }
 .hero-facts .sep { width: 1px; height: 13px; background: rgba(255,255,255,.16); }
-@media (max-width: 640px) { .hero-facts .sep { display: none; } }
+
+@media (max-width: 640px) {
+  .hero-facts .sep { display: none; }
+
+  /* บนมือถือ ข้อความสามข้อเรียงกันกินถึง 5 บรรทัด (วัดได้ 116px)
+     ดันหมวดบริการหลุดจอไปเลย จึงเหลือข้อแรกข้อเดียวคือคะแนนเฉลี่ย
+     ซึ่งเป็นข้อที่ช่วยตัดสินใจมากที่สุดในสามข้อ */
+  .hero-facts .f:not(:first-child) { display: none; }
+}
 
 /* ---------- ภาพประกอบร้าน ---------- */
 .shop-art { position: relative; overflow: hidden; }

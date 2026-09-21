@@ -915,6 +915,18 @@ function placeText(shop) {
 }
 
 /** แปลง "1,3" เป็น [1,3] — ต้องตรงกับ closed_weekday_set() ฝั่งเซิร์ฟเวอร์ */
+/** แปลงนาทีเป็นข้อความที่คนอ่านเข้าใจ — 480 นาทีไม่มีใครนึกออกว่านานแค่ไหน
+ *
+ *  ใช้ทั้งในหน้าค้นหา (js/browse.js) และหน้าร้าน (shop.html)
+ *  จึงต้องอยู่ที่นี่ เพราะ ui.js เป็นไฟล์เดียวที่ทุกหน้าโหลดเหมือนกันหมด
+ */
+function durationText(min) {
+  if (min == null) return "";
+  if (min < 60) return `${min} นาที`;
+  const h = Math.floor(min / 60), m = min % 60;
+  return m ? `${h} ชม. ${m} นาที` : `${h} ชั่วโมง`;
+}
+
 function closedDays(shop) {
   return String(shop.closed_weekdays || "")
     .split(",")

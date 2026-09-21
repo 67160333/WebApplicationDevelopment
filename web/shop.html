@@ -18,8 +18,8 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609211200" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202609212000" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -166,8 +166,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202609211200"></script>
-  <script src="js/ui.js?v=202609211200"></script>
+  <script src="js/api.js?v=202609212000"></script>
+  <script src="js/ui.js?v=202609212000"></script>
   <script>
     renderNavbar("shops");
     renderFooter();
@@ -553,6 +553,19 @@
                 <span class="bk-num">${staff.length && !IS_VENUE ? 4 : 3}</span>
                 ${IS_VENUE ? `เลือก${RES}และเวลา` : "เลือกเวลา"}
               </div>
+              <!-- ติ๊ก "ให้ร้านจัดให้" ของร้านที่จองเป็นสถานที่
+                   ร้านที่ทรัพยากรเป็นคนมีติ๊กนี้ตั้งแต่ขั้นที่ 2 แล้ว แต่สนาม
+                   คอร์ท และช่องบริการยังไม่มี ผู้ทดลองใช้จึงรายงานว่า
+                   "บางร้านแก้ บางร้านไม่แก้"
+
+                   คนส่วนใหญ่สนใจว่าจะได้เวลาไหน ไม่ได้สนใจว่าคอร์ทหมายเลขอะไร
+                   ติ๊กแล้วผังจะยุบเหลือแถวเวลาแถวเดียว กดเวลาที่ต้องการแล้ว
+                   ให้ร้านเลือกคอร์ทให้ -->
+              ${IS_VENUE && staff.length ? `
+              <label class="any-res">
+                <input type="checkbox" id="anyRes" />
+                <span>ให้ร้านจัด${RES}ให้ — ${esc(ANY_RES)}</span>
+              </label>` : ""}
               <div id="pickedBar"></div>
               <div id="slotBox"></div>
             </div>
@@ -740,10 +753,13 @@
       return `
         <button type="button" class="svc ${on ? "is-active" : ""}" data-svc="${sv.id}"
                 aria-pressed="${on}"
-                aria-label="${esc(`${sv.name} ราคา ${baht(sv.price)} บาท ใช้เวลา ${sv.duration_minutes} นาที`)}">
+                aria-label="${esc(`${sv.name} ราคา ${baht(sv.price)} บาท ใช้เวลา ${durationText(sv.duration_minutes)}`)}">
           <span class="svc-check">${icon("check", 12)}</span>
           <span class="svc-name">${esc(sv.name)}</span>
-          <span class="svc-meta num">฿${baht(sv.price)} · ${sv.duration_minutes} นาที</span>
+          <span class="svc-meta">
+            <span class="svc-price num">฿${baht(sv.price)}</span>
+            <span class="svc-dur num">${durationText(sv.duration_minutes)}</span>
+          </span>
         </button>`;
     }
 
@@ -1080,7 +1096,7 @@
 
       // จัดช่องเวลาเป็นช่วงเช้า/บ่าย/เย็น แล้วแสดงทั้งหมด ไม่มีปุ่ม "ดูเพิ่ม"
       let html = `<p class="hint" style="margin:0 0 10px">
-        ใช้เวลา ${sv.duration_minutes} นาที · ช่องสีจางคือมีคิวแล้ว${
+        ใช้เวลา ${durationText(sv.duration_minutes)} · ช่องสีจางคือมีคิวแล้ว${
           passed ? ` · ซ่อนเวลาที่ผ่านไปแล้ววันนี้ ${passed} ช่อง` : ""
         }
       </p>`;
@@ -1294,6 +1310,10 @@
         return;
       }
 
+      // ติ๊ก "ให้ร้านจัดให้" — ยุบผังเหลือแถวเวลาอย่างเดียว
+      const anyRes = document.getElementById("anyRes");
+      if (anyRes && anyRes.checked) return renderGridAsTimes(rows, times);
+
       // หาช่องเวลาของแต่ละแถวแบบเร็ว ๆ ด้วย map เวลา -> ช่อง
       const cellOf = (row) => {
         const m = new Map();
@@ -1346,6 +1366,65 @@
         b.addEventListener("click", () => {
           // เลือกคอร์ทกับเวลาพร้อมกันในคลิกเดียว — นี่คือข้อได้เปรียบของผัง
           state.staffId = Number(b.dataset.staff) || null;
+          openConfirm(b.dataset.time);
+        })
+      );
+    }
+
+    /** ผังแบบยุบ — ใช้เมื่อติ๊ก "ให้ร้านจัดให้"
+     *
+     *  นับจากผังเดิมที่โหลดมาแล้ว ไม่ยิง API ใหม่ ติ๊กแล้วจึงเปลี่ยนทันที
+     *  เวลาไหน "ว่าง" = มีอย่างน้อยหนึ่งแถวที่ว่างในเวลานั้น
+     *  ตัวเลขที่บอกคือเหลือกี่ที่ ซึ่งเป็นข้อมูลเดียวกับที่ผังเต็มบอก
+     *  แค่ไม่ต้องอ่านทีละช่องเอง
+     */
+    function renderGridAsTimes(rows, times) {
+      const box = document.getElementById("slotBox");
+      const open = rows.filter((r) => !r.closed_reason);
+
+      const list = times.map((t) => {
+        let count = 0;
+        let end = "";
+        open.forEach((r) => {
+          const sl = (r.slots || []).find((x) => x.time === t);
+          if (sl && sl.available) { count += 1; end = sl.end_time; }
+        });
+        return { time: t, count, end };
+      });
+
+      const free = list.filter((x) => x.count > 0);
+      if (!free.length) {
+        box.innerHTML = `<div class="slot-empty">วันนี้ไม่มีช่วงเวลาว่างแล้ว ลองเลือกวันอื่น</div>`;
+        return;
+      }
+
+      // ใช้เกณฑ์เดียวกับหน้าจองแบบปกติ — ขึ้นตัวเลข "เหลือ" เฉพาะตอนใกล้เต็ม
+      // ถ้าขึ้นทุกช่องจะกลายเป็นตัวเลขเต็มหน้าจนอ่านไม่ออก
+      const badge = (x) =>
+        x.count <= LOW_LEFT ? `<span class="slot-left num">เหลือ ${x.count}</span>` : "";
+
+      box.innerHTML = `
+        <div class="slot-group">
+          <div class="slot-group-head">
+            <span>ให้ร้านจัด${RES}ให้</span>
+            <span class="text-muted">ว่าง ${free.length} ช่วงเวลา</span>
+          </div>
+          <div class="slot-grid">
+            ${free.map((x) => `
+              <button type="button" class="slot" data-time="${x.time}"
+                      aria-label="จอง ${shortTime(x.time)} ถึง ${shortTime(x.end)} น."
+                      title="${shortTime(x.time)}–${shortTime(x.end)} น. · เหลือ ${x.count} ${esc(RES_RAW)}">
+                <span class="num">${shortTime(x.time)}</span>
+                <span class="slot-end num">${shortTime(x.end)}</span>
+                ${badge(x)}
+              </button>`).join("")}
+          </div>
+        </div>`;
+
+      box.querySelectorAll(".slot").forEach((b) =>
+        b.addEventListener("click", () => {
+          // ไม่เจาะจงคอร์ท — ส่ง staffId เป็น null ให้ฝั่งเซิร์ฟเวอร์จัดให้
+          state.staffId = null;
           openConfirm(b.dataset.time);
         })
       );
@@ -1471,6 +1550,14 @@
       const any = document.getElementById("anyStaff");
       if (any) any.addEventListener("change", () => {
         if (any.checked) setStaff(null, false);
+      });
+
+      // ติ๊กของร้านที่จองเป็นสถานที่ — วาดผังใหม่จากข้อมูลชุดเดิมที่โหลดไว้แล้ว
+      // (loadGrid อ่านจาก gridCache ก่อนเสมอ จึงไม่ยิง API ซ้ำ)
+      const anyRes = document.getElementById("anyRes");
+      if (anyRes) anyRes.addEventListener("change", () => {
+        state.staffId = null;
+        loadGrid();
       });
     }
 

@@ -600,10 +600,5 @@ function priceFrom(s) {
   return `<span class="num">เริ่ม ฿${baht(s.price_from)}</span>`;
 }
 
-/** แปลงนาทีเป็นข้อความที่คนอ่านเข้าใจ — 480 นาทีไม่มีใครนึกออกว่านานแค่ไหน */
-function durationText(min) {
-  if (min == null) return "";
-  if (min < 60) return `${min} นาที`;
-  const h = Math.floor(min / 60), m = min % 60;
-  return m ? `${h} ชม. ${m} นาที` : `${h} ชั่วโมง`;
-}
+// durationText() ย้ายไปอยู่ใน js/ui.js แล้ว เพราะหน้าร้าน (shop.html) ต้องใช้ด้วย
+// แต่ไม่ได้โหลดไฟล์นี้ — ทุกหน้าโหลด ui.js ฟังก์ชันร่วมจึงควรอยู่ที่นั่น

@@ -18,8 +18,8 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609211200" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202609212000" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -128,7 +128,7 @@
               <input id="stfEnd" type="time" class="input" />
             </div>
           </div>
-          <p class="hint" style="margin-top:-6px">เว้นว่างไว้ = ใช้เวลาเปิด-ปิดของร้าน</p>
+          <p class="hint">เว้นว่างไว้ = ใช้เวลาเปิด-ปิดของร้าน</p>
 
           <button id="stfSave" type="submit" class="btn btn-primary btn-block">บันทึก</button>
         </form>
@@ -190,8 +190,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202609211200"></script>
-  <script src="js/ui.js?v=202609211200"></script>
+  <script src="js/api.js?v=202609212000"></script>
+  <script src="js/ui.js?v=202609212000"></script>
   <script>
     renderNavbar("manage");
     renderFooter();
@@ -324,7 +324,7 @@
                 <input id="nsClose" type="time" class="input" required value="20:00" />
               </div>
             </div>
-            <p class="hint" style="margin-top:-8px">
+            <p class="hint">
               ตั้งเวลาเปิดกับปิดให้ตรงกันหมายถึงเปิดตลอด 24 ชั่วโมง
             </p>
             <div>
@@ -1593,6 +1593,9 @@
 
     // ================= ข้อมูลร้าน =================
     function renderInfo() {
+      // closedDays() อยู่ใน js/ui.js — แปลง "1,2" เป็น [1, 2] และกรองค่าที่ใช้ไม่ได้ทิ้ง
+      const closedDaySet = new Set(closedDays(shop));
+
       panel.innerHTML = `
         <div class="card card-pad">
           <form id="infoForm" class="space-y-4">
@@ -1608,6 +1611,13 @@
               <div>
                 <label class="label" for="iAddr">ที่อยู่</label>
                 <input id="iAddr" class="input" value="${esc(shop.address || "")}" />
+              </div>
+              <!-- จังหวัดต้องมาก่อนเขต ทั้งในฟอร์มและในทุกที่ที่แสดงผล
+                   คนอ่านที่อยู่ไทยจากหน่วยใหญ่ไปเล็ก เห็น "พญาไท" ลอยมาก่อน
+                   แล้วต้องรอดูว่าจังหวัดอะไร คือการให้อ่านย้อนทาง -->
+              <div>
+                <label class="label" for="iProv">จังหวัด</label>
+                <input id="iProv" class="input" value="${esc(shop.province || "")}" maxlength="100" />
               </div>
               <div>
                 <label class="label" for="iDist">เขต / อำเภอ</label>
@@ -1629,6 +1639,26 @@
               </div>
             </div>
 
+            <!-- ---------- วันหยุดประจำสัปดาห์ ----------
+                 ของเดิมตั้งได้แค่ตอนเปิดร้านครั้งแรกเท่านั้น ร้านที่เปิดไว้ก่อน
+                 หน้านี้จะมีจึงแก้ไม่ได้เลย ต้องมีที่นี่ด้วยฟีเจอร์ถึงจะใช้ได้จริง
+
+                 วันที่เลือกไม่ได้แค่แสดงผล — ระบบปิดรับจองวันนั้นจริง
+                 (ดู _closure_reason ใน app/routers/bookings.py) -->
+            <div>
+              <label class="label">วันหยุดประจำสัปดาห์
+                <span class="text-muted" style="font-weight:400">(ไม่บังคับ)</span></label>
+              <div class="dow-pick">
+                ${DOW_TH_SHORT.map((d, i) => `
+                  <label class="dow-box">
+                    <input type="checkbox" class="i-dow" value="${i}"
+                           ${closedDaySet.has(i) ? "checked" : ""} />
+                    <span>${d}</span>
+                  </label>`).join("")}
+              </div>
+              <p class="hint">วันที่เลือกไว้จะปิดรับจองอัตโนมัติทุกสัปดาห์ และขึ้นในตารางเวลาทำการหน้าร้าน</p>
+            </div>
+
             <!-- ---------- ตำแหน่งบนแผนที่ ---------- -->
             <div class="pt-2" style="border-top:1px solid var(--border)">
               <div class="flex items-center justify-between gap-3 flex-wrap mt-4">
@@ -1641,6 +1671,25 @@
                 <button type="button" id="iHere" class="btn btn-ghost btn-sm">
                   ${icon("crosshair", 14)} ใช้ตำแหน่งปัจจุบัน
                 </button>
+              </div>
+
+              <!-- วางลิงก์ Google Maps แทนการลากหมุดเอง
+                   เจ้าของร้านเกือบทุกคนมีหมุดร้านตัวเองใน Google Maps อยู่แล้ว
+                   การให้มาลากหมุดใหม่บนแผนที่ที่ไม่คุ้นคือการให้ทำงานซ้ำ
+                   และมีโอกาสปักผิดตำแหน่งจริงด้วย -->
+              <div class="mt-3">
+                <label class="label" for="iGmap">หรือวางลิงก์ Google Maps ของร้าน</label>
+                <div class="flex gap-2">
+                  <input id="iGmap" class="input" placeholder="https://www.google.com/maps/place/..." />
+                  <button type="button" id="iGmapGo" class="btn btn-ghost btn-sm" style="flex-shrink:0">
+                    ปักหมุดให้
+                  </button>
+                </div>
+                <p class="hint">
+                  เปิด Google Maps หาร้านของคุณ กดแชร์แล้วคัดลอกลิงก์มาวาง
+                  ถ้าเป็นลิงก์ย่อ <span class="num">maps.app.goo.gl</span>
+                  ให้เปิดลิงก์นั้นก่อนแล้วคัดลอกลิงก์ยาวจากแถบที่อยู่มาแทน
+                </p>
               </div>
 
               <div id="pinMap" class="map-box mt-3" style="height:230px"></div>
@@ -1688,10 +1737,15 @@
           name: document.getElementById("iName").value.trim(),
           description: document.getElementById("iDesc").value.trim(),
           address: document.getElementById("iAddr").value.trim(),
+          province: document.getElementById("iProv").value.trim(),
           district: document.getElementById("iDist").value.trim(),
           open_time: document.getElementById("iOpen").value + ":00",
           close_time: document.getElementById("iClose").value + ":00",
           is_active: document.getElementById("iActive").checked,
+          // ไม่ติ๊กเลย = ส่งค่าว่าง ไม่ใช่ไม่ส่ง
+          // ถ้าไม่ส่ง ร้านที่เคยตั้งวันหยุดไว้แล้วอยากยกเลิกจะยกเลิกไม่ได้
+          closed_weekdays: [...document.querySelectorAll(".i-dow:checked")]
+            .map((c) => c.value).join(","),
         };
         const phone = document.getElementById("iPhone").value.trim();
         if (phone) body.phone = phone;
@@ -1729,6 +1783,42 @@
     // Leaflet ผูก listener ของตัวเองไว้ที่ window และถอดออกเฉพาะตอนเรียก map.remove()
     // ถ้าไม่ทำลายของเก่า สลับแท็บกลับไปกลับมาจะสะสม instance ค้างจนหน้าหน่วง
     let pinMap = null;
+
+    /** ดึงละติจูด-ลองจิจูดออกจากลิงก์ Google Maps
+     *
+     *  Google ใส่พิกัดไว้ได้หลายที่ในลิงก์เดียว ไล่หาตามลำดับนี้
+     *
+     *    1. !3d13.75!4d100.50   พิกัดของ "สถานที่" ที่ค้นเจอ — ตรงที่สุด
+     *    2. @13.75,100.50,17z   จุดกึ่งกลางของภาพแผนที่ — ใกล้เคียงแต่ไม่เป๊ะ
+     *    3. ?q= หรือ &query=    ลิงก์แบบเก่าและลิงก์จากปุ่มแชร์บางแบบ
+     *    4. ตัวเลขล้วน          เผื่อคนคัดลอกแค่ "13.75, 100.50" มาวาง
+     *
+     *  ลิงก์ย่อ maps.app.goo.gl ไม่มีพิกัดอยู่ในตัว ต้องให้เซิร์ฟเวอร์ของ Google
+     *  บอกว่าย่อมาจากอะไร ซึ่งเบราว์เซอร์อ่านไม่ได้เพราะติด CORS
+     *  จึงคืน null แล้วให้ข้อความบอกผู้ใช้ว่าต้องเปิดลิงก์ก่อน
+     */
+    function parseGoogleMapsLink(text) {
+      const s = String(text || "").trim();
+      if (!s) return null;
+
+      const num = "(-?\\d{1,3}\\.\\d+)";
+      const patterns = [
+        new RegExp(`!3d${num}!4d${num}`),
+        new RegExp(`@${num},${num}`),
+        new RegExp(`[?&](?:q|query|ll|daddr)=${num},\\s*${num}`),
+        new RegExp(`^${num},\\s*${num}$`),
+      ];
+
+      for (const re of patterns) {
+        const m = s.match(re);
+        if (!m) continue;
+        const lat = parseFloat(m[1]);
+        const lng = parseFloat(m[2]);
+        // กันค่าที่แกะมาได้แต่เป็นไปไม่ได้จริง เช่นจับเลขอื่นในลิงก์มาผิด
+        if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng };
+      }
+      return null;
+    }
 
     async function setupPinMap() {
       const el = document.getElementById("pinMap");
@@ -1782,6 +1872,36 @@
           map.setView([la, ln], 16);
         })
       );
+
+      // ---------- วางลิงก์ Google Maps แล้วปักหมุดให้ ----------
+      const gmapGo = () => {
+        const box = document.getElementById("iGmap");
+        const found = parseGoogleMapsLink(box.value);
+
+        if (!found) {
+          // แยกสองกรณีให้ชัด ลิงก์ย่อคือปัญหาที่แก้ได้ ผู้ใช้จึงควรรู้ว่าต้องทำอะไรต่อ
+          const isShort = /goo\.gl|maps\.app/.test(box.value);
+          toast(
+            isShort
+              ? "ลิงก์ย่อยังอ่านพิกัดไม่ได้ — เปิดลิงก์นั้นในเบราว์เซอร์ก่อน แล้วคัดลอกลิงก์ยาวจากแถบที่อยู่มาวางแทน"
+              : "อ่านพิกัดจากลิงก์นี้ไม่ได้ — ลองคัดลอกลิงก์จากปุ่มแชร์ใน Google Maps อีกครั้ง",
+            "error",
+            5500
+          );
+          return;
+        }
+
+        marker.setLatLng([found.lat, found.lng]);
+        map.setView([found.lat, found.lng], 17);
+        sync({ lat: found.lat, lng: found.lng });
+        toast("ปักหมุดตามลิงก์แล้ว — ตรวจตำแหน่งบนแผนที่แล้วกดบันทึก");
+      };
+
+      document.getElementById("iGmapGo").addEventListener("click", gmapGo);
+      // วางลิงก์แล้วกด Enter ควรทำงานเลย ไม่ใช่ส่งฟอร์มทั้งหน้า
+      document.getElementById("iGmap").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); gmapGo(); }
+      });
 
       document.getElementById("iHere").addEventListener("click", async (e) => {
         const btn = e.currentTarget;

@@ -54,6 +54,19 @@ class User(Base):
     )
 
 
+class AppSecret(Base):
+    """ค่าลับของระบบที่ต้องคงเดิมทุกครั้งที่เริ่มระบบ
+
+    ตอนนี้มีค่าเดียวคือกุญแจ JWT — ดูคำอธิบายเต็มใน app/runtime_secret.py
+    """
+
+    __tablename__ = "app_secrets"
+
+    name: Mapped[str] = mapped_column(String(50), primary_key=True)
+    value: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+
 class TokenBlacklist(Base):
     """เก็บ token ที่ logout แล้ว เพื่อไม่ให้นำกลับมาใช้ได้อีก"""
 

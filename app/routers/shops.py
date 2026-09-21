@@ -394,6 +394,27 @@ def list_shops(
     )
 
 
+@router.get("/shops/provinces", response_model=list[str], summary="รายชื่อจังหวัดที่มีร้านอยู่จริง")
+def list_provinces(db: Session = Depends(get_db)):
+    """คืนชื่อจังหวัดของร้านที่เปิดอยู่ เรียงตามตัวอักษรไทย
+
+    มีไว้ให้ดรอปดาวน์ "จังหวัด" ในหน้าแรกและหน้าค้นหา
+    ก่อนหน้านี้หน้าแรกสร้างรายชื่อจากร้าน 12 ร้านที่โหลดมาแสดงเท่านั้น
+    จังหวัดที่ร้านไปอยู่หน้าถัดไปจึงหายจากดรอปดาวน์ทั้งที่มีร้านจริง
+
+    **ต้องประกาศก่อน /shops/{shop_id}** ไม่งั้น FastAPI จะจับคู่เส้นทางนี้
+    เป็น shop_id = "provinces" แล้วตอบ 422 เพราะแปลงเป็นตัวเลขไม่ได้
+    """
+    rows = db.execute(
+        select(Shop.province)
+        .where(Shop.is_active.is_(True), Shop.province.isnot(None))
+        .distinct()
+    ).scalars().all()
+    # เรียงด้วย Python ไม่ใช่ SQL เพราะ PostgreSQL เรียงภาษาไทยตามรหัสตัวอักษร
+    # ซึ่งไม่ตรงกับลำดับ ก-ฮ ที่คนไทยคาด
+    return sorted(rows, key=lambda p: p or "")
+
+
 @router.get("/shops/{shop_id}", response_model=ShopDetail, summary="รายละเอียดร้าน พร้อมบริการและช่าง")
 def get_shop(shop_id: int = Path(..., ge=1), db: Session = Depends(get_db)):
     shop = _get_shop_or_404(db, shop_id)

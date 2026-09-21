@@ -19,8 +19,8 @@
   <!-- ฟอนต์หลักคือ FC Mittraphap โหลดจาก web/fonts/ (ดู @font-face ใน app.css)
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609211200" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202609212000" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -52,9 +52,27 @@
       <div class="search-grid">
         <!-- ไม่มีดรอปดาวน์ "บริการที่ต้องการ" ตรงนี้แล้ว — ซ้ำกับแถวหมวดด้านล่าง
              ซึ่งกดได้ทีเดียวจบและเห็นตัวเลือกทั้งหมดพร้อมกันโดยไม่ต้องกางเมนู -->
+        <!-- เลือกเป็นจังหวัด ไม่ใช่เขต
+             ของเดิมเป็น "โซน / เขต" ซึ่งใช้ได้เฉพาะคนที่รู้จักเขตในกรุงเทพ
+             คนต่างจังหวัดเปิดมาแล้วหาจังหวัดตัวเองไม่เจอ เลยไม่รู้ว่าเว็บนี้
+             มีร้านแถวบ้านหรือเปล่า — หน้าค้นหาเปลี่ยนเป็นจังหวัดไปแล้ว
+             หน้าแรกเพิ่งตามมาทีหลัง จึงเคยไม่ตรงกันอยู่ช่วงหนึ่ง -->
         <div class="search-field">
-          <label class="label" for="sDistrict">โซน / เขต</label>
-          <select id="sDistrict" class="select"><option value="">ทุกพื้นที่</option></select>
+          <label class="label" for="sProvince">จังหวัด</label>
+          <select id="sProvince" class="select"><option value="">ทุกจังหวัด</option></select>
+        </div>
+        <!-- ช่วงราคาใช้ค่าชุดเดียวกับหน้าค้นหา (js/browse.js)
+             ถ้าจะแก้ตัวเลข ต้องแก้ทั้งสองที่ให้ตรงกัน ไม่งั้นคนเลือกจากหน้าแรก
+             แล้วไปเห็นอีกชุดในหน้าค้นหา จะนึกว่าระบบกรองเพี้ยน -->
+        <div class="search-field">
+          <label class="label" for="sPrice">ช่วงราคา</label>
+          <select id="sPrice" class="select">
+            <option value="">ทุกช่วงราคา</option>
+            <option value="0-300">ไม่เกิน 300 บาท</option>
+            <option value="300-800">300 – 800 บาท</option>
+            <option value="800-1500">800 – 1,500 บาท</option>
+            <option value="1500-">1,500 บาทขึ้นไป</option>
+          </select>
         </div>
         <!-- ช่องวันที่ — เว็บนี้คือเว็บจอง คำถามแรกของคนเข้ามาคือ "วันเสาร์ว่างไหม"
              ไม่ใช่ "ร้านชื่ออะไร" ของเดิมมีแค่เขตกับคำค้นหา ซึ่งเป็นช่องค้นหา
@@ -141,8 +159,8 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202609211200"></script>
-  <script src="js/ui.js?v=202609211200"></script>
+  <script src="js/api.js?v=202609212000"></script>
+  <script src="js/ui.js?v=202609212000"></script>
   <script>
     renderNavbar("home");
     renderFooter();
@@ -156,10 +174,18 @@
     document.getElementById("searchForm").addEventListener("submit", (e) => {
       e.preventDefault();
       const q = new URLSearchParams();
-      const dis = document.getElementById("sDistrict").value;
+      const prov = document.getElementById("sProvince").value;
+      const price = document.getElementById("sPrice").value;
       const kw = document.getElementById("sKeyword").value.trim();
       const dt = document.getElementById("sDate").value;
-      if (dis) q.set("district", dis);
+      if (prov) q.set("province", prov);
+      // ดรอปดาวน์เก็บค่าเป็น "ต่ำ-สูง" แต่ API รับเป็นสองพารามิเตอร์แยกกัน
+      // ช่องสุดท้ายเป็น "1500-" คือไม่มีเพดาน จึงต้องเช็คก่อนใส่ทีละตัว
+      if (price) {
+        const [lo, hi] = price.split("-");
+        if (lo) q.set("min_price", lo);
+        if (hi) q.set("max_price", hi);
+      }
       if (kw) q.set("search", kw);
       if (dt) q.set("date", dt);   // browse.js กรอง "ว่างวันนั้น" จากพารามิเตอร์นี้
       location.href = q.toString() ? `shops.html?${q}` : "shops.html";
@@ -276,11 +302,19 @@
         // ดีกว่าปล่อยให้หน้าค้างเพราะคำขอที่ไม่จำเป็นต่อเนื้อหาหลัก
         await Promise.resolve(catsReady).catch(() => {});
 
-        // เติมรายชื่อเขตลงช่องค้นหา
-        const sel = document.getElementById("sDistrict");
-        [...new Set(res.items.map((s) => s.district).filter(Boolean))]
-          .sort()
-          .forEach((d) => sel.add(new Option(d, d)));
+        // เติมรายชื่อจังหวัดลงช่องค้นหา
+        // ถามจาก API ที่ตอบเฉพาะจังหวัดที่มีร้านจริง ไม่ใช่รายชื่อ 77 จังหวัด
+        // สำเร็จรูป เพราะเลือกจังหวัดที่ไม่มีร้านแล้วได้หน้าว่างเปล่า
+        // คือการให้คนเลือกทางที่รู้อยู่แล้วว่าตัน
+        //
+        // ไม่ดึงจาก res.items เพราะหน้านี้โหลดมาแค่ 12 ร้าน
+        // จังหวัดของร้านที่อยู่หน้าถัดไปจะหายจากดรอปดาวน์
+        apiGet("/api/shops/provinces")
+          .then((list) => {
+            const sel = document.getElementById("sProvince");
+            list.forEach((p) => sel.add(new Option(p, p)));
+          })
+          .catch(() => {});   // ดรอปดาวน์ว่าง = ค้นทุกจังหวัด ยังใช้เว็บต่อได้
 
         if (!res.items.length) {
           box.innerHTML = emptyHTML("search", "ยังไม่มีร้านในระบบ");
