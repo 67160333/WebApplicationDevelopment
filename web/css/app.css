@@ -2219,6 +2219,32 @@ details:not([open]) > *:not(summary) { display: none !important; }
 }
 .doc-date { color: var(--muted); font-size: var(--fs-sm); margin-top: var(--s-2); }
 
+/* เลือกวันหยุดประจำสัปดาห์ — ปุ่มเจ็ดอันเรียงกันแทนดรอปดาวน์หลายชั้น
+   เลือกได้หลายวันพร้อมกันและเห็นทั้งสัปดาห์ในแวบเดียว */
+.dow-pick { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.dow-box { cursor: pointer; }
+.dow-box input { position: absolute; opacity: 0; width: 0; height: 0; }
+.dow-box span {
+  display: grid; place-items: center;
+  min-width: 46px; padding: var(--s-2) var(--s-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  font-size: var(--fs-sm);
+  transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease);
+}
+.dow-box:hover span { border-color: var(--navy-700); }
+/* วันหยุดใช้สีแดง ไม่ใช่สีน้ำเงินของการเลือกทั่วไป
+   เพราะความหมายคือ "ปิด" ไม่ใช่ "เลือกไว้" */
+.dow-box input:checked + span {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-weight: 600;
+}
+.dow-box input:focus-visible + span { outline: none; box-shadow: var(--ring); }
+
 /* ช่องติ๊ก "ให้ร้านจัดผู้ให้บริการให้" ในขั้นตอนจอง
    วางไว้เหนือการ์ด เพราะคนที่ไม่เจาะจงจะได้จบตั้งแต่บรรทัดแรก
    ไม่ต้องกวาดสายตาผ่านการ์ดทุกใบก่อนถึงจะรู้ว่าข้ามได้ */

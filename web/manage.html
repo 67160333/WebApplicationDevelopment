@@ -234,9 +234,11 @@
           : res.items.filter((s) => s.owner_id === Auth.user.id);
 
         if (!myShops.length) {
+          // ของเดิมบอกให้ "สร้างร้านผ่าน POST /api/shops" ซึ่งเป็นภาษาโปรแกรมเมอร์
+          // ที่หลุดมาอยู่บนหน้าจอผู้ใช้ทั่วไป และเป็นทางตันจริง ๆ
+          // เพราะเว็บไม่เคยมีฟอร์มเปิดร้านเลย ทั้งที่รับสมัครบทบาทเจ้าของร้านไว้
           document.querySelector(".tabbar").style.display = "none";
-          panel.innerHTML = emptyHTML("info", "คุณยังไม่มีร้านในระบบ",
-            "ติดต่อผู้ดูแลระบบเพื่อเปิดร้าน หรือสร้างร้านผ่าน POST /api/shops");
+          renderCreateShop();
           return;
         }
 
@@ -249,16 +251,160 @@
       }
     }
 
+    function bindAddShop() {
+      const b = document.getElementById("addShopBtn");
+      if (!b) return;
+      b.addEventListener("click", () => {
+        document.querySelector(".tabbar").style.display = "none";
+        renderCreateShop();
+        panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+
+    // ================= เปิดร้านใหม่ =================
+    //
+    // เจ้าของร้านที่เพิ่งสมัครต้องเปิดร้านได้เองจากหน้านี้
+    // ขอเฉพาะข้อมูลที่จำเป็นต่อการเปิดรับจองจริง ๆ ส่วนที่เหลือ
+    // (คำอธิบาย รูป พิกัด ช่าง บริการ) ไปเติมในแท็บ "ข้อมูลร้าน" ทีหลังได้
+    // ถ้าขอครบทุกช่องตั้งแต่แรก คนจะถอดใจกลางฟอร์ม
+    async function renderCreateShop() {
+      let cats = [];
+      try { cats = await apiGet("/api/categories"); } catch {}
+
+      panel.innerHTML = `
+        <div class="card card-pad" style="max-width:560px">
+          <h2 class="h2">เปิดร้านของคุณ</h2>
+          <p class="text-sm text-muted" style="margin-top:var(--s-2);line-height:1.75">
+            กรอกข้อมูลพื้นฐานเพื่อเริ่มต้น เปิดแล้วค่อยเพิ่มบริการ ${RES()} และรูปภาพทีหลังได้
+          </p>
+
+          <div id="newShopAlert" class="alert" style="display:none;margin-top:var(--s-4)"></div>
+
+          <form id="newShopForm" class="space-y-4" style="margin-top:var(--s-4)">
+            <div>
+              <label class="label" for="nsName">ชื่อร้าน</label>
+              <input id="nsName" class="input" required minlength="2" maxlength="150"
+                     placeholder="เช่น Serene Spa อารีย์" />
+            </div>
+            <div>
+              <label class="label" for="nsCat">ประเภทบริการ</label>
+              <select id="nsCat" class="select" required>
+                <option value="">เลือกประเภท</option>
+                ${cats.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}
+              </select>
+              <p class="hint">เลือกแล้วเปลี่ยนภายหลังไม่ได้ เพราะกระทบวิธีจองของทั้งร้าน</p>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label class="label" for="nsProvince">จังหวัด</label>
+                <input id="nsProvince" class="input" required value="กรุงเทพมหานคร" maxlength="100" />
+              </div>
+              <div>
+                <label class="label" for="nsDistrict">เขต / อำเภอ</label>
+                <input id="nsDistrict" class="input" maxlength="100" placeholder="เช่น พญาไท" />
+              </div>
+            </div>
+            <div>
+              <label class="label" for="nsAddress">ที่อยู่
+                <span class="text-muted" style="font-weight:400">(ไม่บังคับ)</span></label>
+              <input id="nsAddress" class="input" maxlength="255" />
+            </div>
+            <div>
+              <label class="label" for="nsPhone">เบอร์โทรร้าน
+                <span class="text-muted" style="font-weight:400">(ไม่บังคับ)</span></label>
+              <input id="nsPhone" class="input" pattern="[0-9]{9,15}" placeholder="021234567" />
+            </div>
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label class="label" for="nsOpen">เวลาเปิด</label>
+                <input id="nsOpen" type="time" class="input" required value="10:00" />
+              </div>
+              <div>
+                <label class="label" for="nsClose">เวลาปิด</label>
+                <input id="nsClose" type="time" class="input" required value="20:00" />
+              </div>
+            </div>
+            <p class="hint" style="margin-top:-8px">
+              ตั้งเวลาเปิดกับปิดให้ตรงกันหมายถึงเปิดตลอด 24 ชั่วโมง
+            </p>
+            <div>
+              <label class="label">วันหยุดประจำสัปดาห์
+                <span class="text-muted" style="font-weight:400">(ไม่บังคับ)</span></label>
+              <div class="dow-pick">
+                ${DOW_TH_SHORT.map((d, i) => `
+                  <label class="dow-box">
+                    <input type="checkbox" class="ns-dow" value="${i}" />
+                    <span>${d}</span>
+                  </label>`).join("")}
+              </div>
+              <p class="hint">วันที่เลือกไว้จะปิดรับจองอัตโนมัติทุกสัปดาห์</p>
+            </div>
+
+            <button id="nsBtn" type="submit" class="btn btn-primary btn-block">เปิดร้าน</button>
+          </form>
+        </div>`;
+
+      const nsAlert = document.getElementById("newShopAlert");
+      document.getElementById("newShopForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        hideAlert(nsAlert);
+        const btn = document.getElementById("nsBtn");
+        btnBusy(btn, true, "กำลังเปิดร้าน");
+
+        const body = {
+          category_id: Number(document.getElementById("nsCat").value),
+          name: document.getElementById("nsName").value.trim(),
+          province: document.getElementById("nsProvince").value.trim(),
+          // เวลาจาก <input type="time"> เป็น "HH:MM" แต่ API รับ "HH:MM:SS"
+          open_time: document.getElementById("nsOpen").value + ":00",
+          close_time: document.getElementById("nsClose").value + ":00",
+        };
+        // ช่องไม่บังคับส่งเฉพาะตอนกรอก — สตริงว่างจะไม่ผ่าน validation
+        for (const [id, key] of [["nsDistrict", "district"], ["nsAddress", "address"], ["nsPhone", "phone"]]) {
+          const v = document.getElementById(id).value.trim();
+          if (v) body[key] = v;
+        }
+        const dow = [...document.querySelectorAll(".ns-dow:checked")].map((x) => x.value);
+        if (dow.length) body.closed_weekdays = dow.join(",");
+
+        try {
+          const created = await apiPost("/api/shops", body);
+          toast(`เปิดร้าน «${created.name}» เรียบร้อย`, "success", 5000);
+          // โหลดหน้าใหม่ทั้งหมดแทนการต่อเติม DOM เอง
+          // ร้านใหม่ทำให้แท็บ ป้ายชื่อ และคำเรียกทรัพยากรเปลี่ยนไปหมด
+          // เริ่มใหม่จึงชัดเจนกว่าการไล่อัปเดตทีละจุดแล้วลืมจุดใดจุดหนึ่ง
+          setTimeout(() => location.reload(), 700);
+        } catch (err) {
+          btnBusy(btn, false);
+          showAlert(nsAlert, err.message);
+        }
+      });
+    }
+
     function renderShopPicker() {
+      const box = document.getElementById("shopPicker");
+      // เจ้าของร้านเปิดได้หลายร้าน จึงต้องมีทางเปิดร้านที่สองเสมอ
+      // ไม่ใช่มีเฉพาะตอนที่ยังไม่มีร้านสักร้าน (admin ไม่ต้องมี เพราะดูแลของคนอื่น)
+      const addBtn = Auth.user.role === "owner"
+        ? `<button type="button" id="addShopBtn" class="btn btn-outline btn-sm">เปิดร้านเพิ่ม</button>`
+        : "";
+
       if (myShops.length < 2) {
-        document.getElementById("shopPicker").innerHTML = "";
+        box.innerHTML = addBtn;
+        if (addBtn) bindAddShop();
         return;
       }
-      document.getElementById("shopPicker").innerHTML = `
-        <label class="label" for="shopSel">เลือกร้านที่ต้องการจัดการ</label>
-        <select id="shopSel" class="select" style="max-width:420px">
-          ${myShops.map((s, i) => `<option value="${i}">${esc(s.name)}</option>`).join("")}
-        </select>`;
+      box.innerHTML = `
+        <div class="flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <label class="label" for="shopSel">เลือกร้านที่ต้องการจัดการ</label>
+            <select id="shopSel" class="select" style="max-width:420px">
+              ${myShops.map((s, i) => `<option value="${i}">${esc(s.name)}</option>`).join("")}
+            </select>
+          </div>
+          ${addBtn}
+        </div>`;
+      if (addBtn) bindAddShop();
       document.getElementById("shopSel").addEventListener("change", (e) => {
         shop = myShops[Number(e.target.value)];
         syncLabels();   // สลับร้านข้ามประเภทได้ คำเรียกต้องเปลี่ยนตาม
