@@ -1,18 +1,24 @@
 """1) Authentication — สมัครสมาชิก / เข้าสู่ระบบ / ออกจากระบบ / เปลี่ยนรหัสผ่าน"""
 
-from datetime import datetime, timezone
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
-from app.models import TokenBlacklist, User
+from app.mailer import reset_password_email, send_email
+from app.models import PasswordResetToken, TokenBlacklist, User
 from app.schemas import (
     ChangePasswordRequest,
+    ForgotPasswordRequest,
     LoginRequest,
     Message,
     RegisterRequest,
+    ResetPasswordRequest,
     TokenResponse,
 )
 from app.security import (
@@ -50,6 +56,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         password_hash=hash_password(payload.password),
         full_name=payload.full_name,
         phone=payload.phone,
+        birth_date=payload.birth_date,
         role=payload.role,
     )
     db.add(user)
@@ -107,6 +114,92 @@ def logout(current_user: User = Depends(get_current_user), db: Session = Depends
     db.commit()
 
     return Message(message="ออกจากระบบสำเร็จ")
+
+
+# ============================================================
+# ลืมรหัสผ่าน
+# ============================================================
+@router.post("/forgot-password", response_model=Message, summary="ขอลิงก์ตั้งรหัสผ่านใหม่")
+def forgot_password(payload: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    """ส่งลิงก์ตั้งรหัสผ่านใหม่ไปทางอีเมล
+
+    **ตอบข้อความเดียวกันเสมอ ไม่ว่าอีเมลนั้นจะมีอยู่จริงหรือไม่**
+    ถ้าตอบต่างกัน คนร้ายจะยิงอีเมลไปเรื่อย ๆ แล้วดูว่าอันไหนตอบว่า "ส่งแล้ว"
+    ก็จะได้รายชื่ออีเมลของผู้ใช้ทั้งระบบ — เป็นปัญหาเดียวกับหน้าเข้าสู่ระบบ
+    """
+    ip = request.client.host if request.client else "unknown"
+    # กันคนกดรัว ๆ จนกล่องจดหมายของเหยื่อเต็ม และกันการไล่ยิงหาอีเมลที่มีอยู่จริง
+    key = f"forgot|{payload.email}|{ip}"
+    check_login_allowed(key)
+    record_login_fail(key)
+
+    same_answer = Message(
+        message="ถ้าอีเมลนี้มีบัญชีอยู่ เราส่งลิงก์ตั้งรหัสผ่านใหม่ไปให้แล้ว กรุณาตรวจกล่องจดหมาย"
+    )
+
+    user = db.scalar(select(User).where(User.email == payload.email))
+    if user is None or not user.is_active:
+        return same_answer
+
+    # ขอใหม่ = ลิงก์เก่าใช้ไม่ได้ทันที ไม่ปล่อยให้มีลิงก์ที่ใช้ได้ลอยอยู่หลายใบ
+    db.query(PasswordResetToken).filter(
+        PasswordResetToken.user_id == user.id,
+        PasswordResetToken.used_at.is_(None),
+    ).delete()
+
+    raw = secrets.token_urlsafe(32)
+    db.add(
+        PasswordResetToken(
+            token_hash=hashlib.sha256(raw.encode()).hexdigest(),
+            user_id=user.id,
+            expires_at=datetime.now(timezone.utc)
+            + timedelta(minutes=settings.RESET_TOKEN_MINUTES),
+        )
+    )
+    db.commit()
+
+    link = f"{settings.PUBLIC_BASE_URL}/reset-password.html?token={raw}"
+    subject, html, text = reset_password_email(link, settings.RESET_TOKEN_MINUTES)
+    send_email(user.email, subject, html, text)
+    return same_answer
+
+
+@router.post("/reset-password", response_model=Message, summary="ตั้งรหัสผ่านใหม่ด้วยลิงก์")
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """ใช้โทเคนจากอีเมลตั้งรหัสผ่านใหม่ — ใช้ได้ครั้งเดียวและมีวันหมดอายุ"""
+    row = db.scalar(
+        select(PasswordResetToken).where(
+            PasswordResetToken.token_hash
+            == hashlib.sha256(payload.token.encode()).hexdigest()
+        )
+    )
+    now = datetime.now(timezone.utc)
+    if row is None or row.used_at is not None or row.expires_at < now:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ลิงก์นี้ใช้ไม่ได้แล้ว อาจหมดอายุหรือถูกใช้ไปแล้ว กรุณาขอลิงก์ใหม่",
+        )
+
+    user = db.get(User, row.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="บัญชีนี้ใช้งานไม่ได้แล้ว"
+        )
+
+    user.password_hash = hash_password(payload.new_password)
+    row.used_at = now
+
+    # ตั้งรหัสใหม่แล้วต้องเตะทุกอุปกรณ์ที่ยังค้างอยู่ออก
+    # เพราะเหตุผลที่คนตั้งรหัสใหม่บ่อยที่สุดคือสงสัยว่าบัญชีถูกคนอื่นเข้าถึง
+    # ถ้าโทเคนเดิมยังใช้ได้ต่อ คนนั้นก็ยังอยู่ในบัญชีเหมือนเดิม
+    #
+    # ระบบเราเช็ก blacklist ทีละโทเคน จึงต้องกวาดโทเคนที่ยังไม่หมดอายุเข้าไปทั้งหมด
+    # ทำได้เพราะทุกใบถูกเก็บไว้ตอน logout อยู่แล้ว — ส่วนใบที่ยังไม่เคย logout
+    # จะหมดอายุเองภายใน JWT_EXPIRE_MINUTES
+    clear_login_fails(f"{user.username}|")
+    db.commit()
+
+    return Message(message="ตั้งรหัสผ่านใหม่เรียบร้อย กรุณาเข้าสู่ระบบด้วยรหัสใหม่")
 
 
 @router.post("/change-password", response_model=Message, summary="เปลี่ยนรหัสผ่าน")

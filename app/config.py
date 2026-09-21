@@ -40,6 +40,28 @@ class Settings:
     #            จึงต้องให้ FastAPI เสิร์ฟทั้งสองอย่างจากที่เดียวกัน
     SERVE_WEB: bool = os.getenv("SERVE_WEB", "false").lower() == "true"
 
+    # ---------- อีเมล ----------
+    #
+    # ไม่ตั้ง RESEND_API_KEY = ระบบยังทำงานได้ครบ แต่จะพิมพ์อีเมลลง log แทนการส่งจริง
+    # ทำให้ทดสอบระบบลืมรหัสผ่านได้ตั้งแต่วันแรกโดยไม่ต้องสมัครบริการภายนอกก่อน
+    #
+    # MAIL_FROM ต้องเป็นโดเมนที่ยืนยันแล้วใน Resend
+    # ถ้ายังไม่มีโดเมนของตัวเอง Resend ให้ใช้ onboarding@resend.dev ได้
+    # แต่ส่งได้เฉพาะไปยังอีเมลที่สมัคร Resend ไว้เท่านั้น
+    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
+    MAIL_FROM: str = os.getenv("MAIL_FROM", "Bookvice <onboarding@resend.dev>")
+
+    # ลิงก์ตั้งรหัสผ่านใหม่มีอายุสั้น — นานไปคือเพิ่มเวลาให้คนที่แอบเห็นอีเมล
+    RESET_TOKEN_MINUTES: int = int(os.getenv("RESET_TOKEN_MINUTES", "30"))
+
+    # ที่อยู่เต็มของเว็บจริง — ใช้ประกอบ URL รูปในแท็กแชร์ลิงก์
+    #
+    # og:image ต้องเป็น URL เต็มเสมอ บอตของ LINE/Facebook ไม่เติม domain ให้
+    # ถ้าส่ง "/photos/spa/01.webp" ไป บอตจะหารูปไม่เจอและไม่ขึ้นรูปพรีวิว
+    PUBLIC_BASE_URL: str = os.getenv(
+        "PUBLIC_BASE_URL", "https://bookvice.onrender.com"
+    ).rstrip("/")
+
     # โฟลเดอร์เก็บรูปที่ผู้ใช้อัปโหลด
     # Hugging Face ให้พื้นที่ถาวรที่ /data (ถ้าซื้อ) แต่ดิสก์หลักหายทุกครั้งที่รีสตาร์ต
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "/app/uploads")

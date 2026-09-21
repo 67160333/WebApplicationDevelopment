@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609141000" />
+  <link rel="stylesheet" href="css/app.css?v=202609211200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -36,8 +36,8 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202609141000"></script>
-  <script src="js/ui.js?v=202609141000"></script>
+  <script src="js/api.js?v=202609211200"></script>
+  <script src="js/ui.js?v=202609211200"></script>
   <script>
     renderNavbar("promo");
     renderFooter();
@@ -182,7 +182,7 @@
             </div>
             <div class="flex items-center gap-3 mt-3 pt-3 text-xs text-muted flex-wrap"
                  style="border-top:1px solid var(--border)">
-              <span class="flex items-center gap-1.5">${icon("mapPin", 13)} ${esc(s.district || "—")}</span>
+              <span class="flex items-center gap-1.5">${icon("mapPin", 13)} ${esc(placeText(s))}</span>
               <span class="shop-st ${st.cls}">${st.text}</span>
             </div>
           </div>

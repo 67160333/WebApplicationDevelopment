@@ -36,6 +36,12 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     full_name: Mapped[str] = mapped_column(String(150))
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # วันเกิด — เก็บเพื่อกันอายุต่ำกว่าเกณฑ์ของบริการบางหมวด (สักลาย คลินิก)
+    #
+    # เก็บ "วันเกิด" ไม่ใช่ "อายุ" เพราะอายุเปลี่ยนเองทุกปี
+    # ถ้าเก็บเป็นตัวเลข เด็กที่กรอกตอน 17 จะค้างเป็น 17 ตลอดไป
+    # และพอถึงวันเกิดจริงก็ต้องมีคนมาไล่แก้ให้ ซึ่งไม่มีทางทำได้
+    birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     role: Mapped[str] = mapped_column(String(20), default="customer", index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
@@ -57,6 +63,47 @@ class TokenBlacklist(Base):
     token: Mapped[str] = mapped_column(String(512), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class Favorite(Base):
+    """ร้านที่ผู้ใช้กดถูกใจ
+
+    ย้ายมาเก็บที่เซิร์ฟเวอร์เพราะของเดิมอยู่ใน localStorage คีย์เดียวของเบราว์เซอร์
+    ไม่ผูกกับบัญชี ผลคือใครล็อกอินในเครื่องเดียวกันต่อจากคนอื่น
+    จะเห็นร้านโปรดของคนก่อนหน้าติดมาด้วย (ผู้ใช้จริงรายงานเข้ามา)
+    """
+
+    __tablename__ = "favorites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    shop_id: Mapped[int] = mapped_column(ForeignKey("shops.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+    __table_args__ = (
+        # กดซ้ำไม่ควรได้แถวใหม่ ให้ฐานข้อมูลเป็นคนกันไว้อีกชั้น
+        Index("uq_favorite_user_shop", "user_id", "shop_id", unique=True),
+    )
+
+
+class PasswordResetToken(Base):
+    """ลิงก์ตั้งรหัสผ่านใหม่ที่ส่งไปทางอีเมล
+
+    **เก็บเฉพาะค่าแฮชของโทเคน ไม่เก็บตัวจริง**
+    เหตุผลเดียวกับที่ไม่เก็บรหัสผ่าน — ถ้าวันหนึ่งฐานข้อมูลรั่ว
+    คนที่ได้ไฟล์ไปจะเอาโทเคนในตารางนี้ไปตั้งรหัสผ่านใหม่ของใครก็ได้ทันที
+    เก็บเป็นแฮชแล้วค่าที่รั่วออกไปใช้อะไรไม่ได้เลย
+    """
+
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # ใช้แล้วต้องใช้ซ้ำไม่ได้ — กันคนที่แอบเห็นลิงก์ในกล่องจดหมายทีหลัง
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
 
 class Category(Base):
@@ -99,7 +146,15 @@ class Shop(Base):
     description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     address: Mapped[str | None] = mapped_column(String(255), nullable=True)
     district: Mapped[str | None] = mapped_column(String(100), index=True, nullable=True)
-    province: Mapped[str] = mapped_column(String(100), default="กรุงเทพมหานคร")
+    province: Mapped[str] = mapped_column(String(100), default="กรุงเทพมหานคร", index=True)
+    # วันหยุดประจำสัปดาห์ — เก็บเป็นเลขวันคั่นด้วยจุลภาค เช่น "1" คือหยุดทุกวันจันทร์
+    # ใช้เลขวันแบบเดียวกับ JavaScript คือ 0=อาทิตย์ ... 6=เสาร์
+    # เพื่อให้ฝั่งหน้าเว็บกับฝั่งเซิร์ฟเวอร์พูดภาษาเดียวกัน ไม่ต้องแปลงไปมา
+    #
+    # ต่างจากตาราง shop_closures ตรงที่อันนั้นเป็นวันหยุด "เฉพาะวันที่" เช่นหยุดปีใหม่
+    # ส่วนอันนี้คือวันหยุดที่เกิดซ้ำทุกสัปดาห์ ซึ่งถ้าจะเก็บในตารางเดิมต้องใส่ทีละวัน
+    # ไปจนถึงปีหน้า ซึ่งไม่มีใครทำ
+    closed_weekdays: Mapped[str | None] = mapped_column(String(20), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # พิกัดสำหรับแสดงบนแผนที่และคำนวณระยะทาง
     # Numeric(9,6) พอสำหรับความละเอียดระดับเมตร (ทศนิยม 6 ตำแหน่ง ≈ 0.11 เมตร)

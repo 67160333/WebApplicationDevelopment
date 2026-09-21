@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609141000" />
+  <link rel="stylesheet" href="css/app.css?v=202609211200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -38,8 +38,16 @@
           <input id="username" name="username" class="input" required autocomplete="username" />
         </div>
         <div>
-          <label class="label" for="password">รหัสผ่าน</label>
-          <input id="password" name="password" type="password" class="input" required autocomplete="current-password" />
+          <div class="flex items-baseline justify-between gap-3">
+            <label class="label" for="password" style="margin-bottom:0">รหัสผ่าน</label>
+            <!-- ลิงก์ลืมรหัสผ่านอยู่ติดช่องรหัสผ่าน ไม่ใช่ท้ายฟอร์ม
+                 เพราะคนจะนึกถึงมันตอนที่กำลังจะพิมพ์รหัสแล้วนึกไม่ออก -->
+            <a href="forgot-password.html" class="text-xs" style="color:var(--blue-600)">ลืมรหัสผ่าน</a>
+          </div>
+          <div class="pw-wrap" style="margin-top:var(--s-1)">
+            <input id="password" name="password" type="password" class="input" required autocomplete="current-password" />
+            <button type="button" id="peek" class="pw-peek" aria-label="แสดงรหัสผ่าน"></button>
+          </div>
         </div>
         <button id="submitBtn" type="submit" class="btn btn-primary btn-block">เข้าสู่ระบบ</button>
       </form>
@@ -58,11 +66,27 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202609141000"></script>
-  <script src="js/ui.js?v=202609141000"></script>
+  <script src="js/api.js?v=202609211200"></script>
+  <script src="js/ui.js?v=202609211200"></script>
   <script>
     renderNavbar();
     renderFooter();
+
+    // ปุ่มดู/ซ่อนรหัสผ่าน — ช่วยคนที่พิมพ์รหัสยาวแล้วไม่แน่ใจว่าพิมพ์ถูกไหม
+    // ซึ่งเป็นสาเหตุหนึ่งที่ทำให้คนเลือกตั้งรหัสสั้น ๆ เพื่อให้พิมพ์ไม่ผิด
+    const pwField = document.getElementById("password");
+    const peekBtn = document.getElementById("peek");
+    const paintPeek = () => {
+      const shown = pwField.type === "text";
+      peekBtn.innerHTML = icon(shown ? "eyeOff" : "eye", 17);
+      peekBtn.setAttribute("aria-label", shown ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน");
+    };
+    paintPeek();
+    peekBtn.addEventListener("click", () => {
+      pwField.type = pwField.type === "password" ? "text" : "password";
+      paintPeek();
+      pwField.focus();
+    });
 
     const alertBox = document.getElementById("alert");
     const params = new URLSearchParams(location.search);
@@ -113,8 +137,12 @@
         });
         Auth.save(res.access_token, res.user);
 
+        // ย้ายร้านโปรดที่ค้างอยู่ในเครื่องขึ้นบัญชีนี้ แล้วดึงของจริงมาทับ
+        // ทำก่อนเปลี่ยนหน้า ไม่งั้นคำขอจะถูกตัดกลางคัน
+        await Favorites.adopt();
+
         // กลับไปหน้าที่ค้างไว้ (รวม query string เช่น shop.html?id=1)
-        location.href = safeNext(params.get("next")) || "index.html";
+        location.href = safeNext(params.get("next")) || "./";
       } catch (err) {
         showAlert(alertBox, err.message);
         btnBusy(btn, false);

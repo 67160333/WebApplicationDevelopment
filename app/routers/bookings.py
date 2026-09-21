@@ -25,6 +25,7 @@ from app.schemas import (
     BookingReschedule,
     BookingStatusUpdate,
     InstantBookingCreate,
+    InstantDistanceUpdate,
     Message,
     Page,
     ReviewCreate,
@@ -40,6 +41,16 @@ router = APIRouter(prefix="/api", tags=["4. Bookings & Reviews"])
 
 # ระยะห่างระหว่างช่องเวลาที่เปิดให้เลือก (นาที)
 SLOT_STEP_MINUTES = 30
+
+# สัดส่วนมัดจำ — 20% ของค่าบริการ
+#
+# เดิมเขียน Decimal("0.2") ซ้ำอยู่สองที่ในไฟล์นี้ และหน้าเว็บก็คูณ 0.2 เองอีกที่
+# รวมเป็นสามจุดที่ต้องแก้พร้อมกันเสมอ ถ้าวันหนึ่งเปลี่ยนเป็น 30% แล้วลืมจุดใดจุดหนึ่ง
+# ตัวเลขที่ลูกค้าเห็นก่อนกดยืนยันจะไม่ตรงกับยอดที่ระบบเก็บจริง
+#
+# ฝั่งเซิร์ฟเวอร์รวมเหลือค่าเดียวตรงนี้ · ฝั่งหน้าเว็บยังต้องคำนวณเองอยู่
+# เพราะตอนเปิดกล่องยืนยันยังไม่มีใบจองให้ถาม (ดู mDeposit ใน shop.html)
+DEPOSIT_RATE = Decimal("0.2")
 
 # จองล่วงหน้าได้ไกลสุดกี่วัน
 #
@@ -588,8 +599,101 @@ def _window_text(segments: list[tuple[int, int]]) -> str:
     return " และ ".join(f"{fmt(s)}–{fmt(e)}" for s, e in segments)
 
 
+#           อา  จ    อ    พ    พฤ   ศ    ส
+DOW_TH = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์"]
+
+
+def closed_weekday_set(shop: Shop) -> set[int]:
+    """แปลง "1,3" เป็น {1, 3} — ทนค่าเพี้ยนที่อาจหลุดมาจากข้อมูลเก่า"""
+    raw = (shop.closed_weekdays or "").strip()
+    if not raw:
+        return set()
+    out: set[int] = set()
+    for part in raw.split(","):
+        part = part.strip()
+        if part.isdigit() and 0 <= int(part) <= 6:
+            out.add(int(part))
+    return out
+
+
+# ============================================================
+# อายุขั้นต่ำรายหมวด
+# ============================================================
+#
+# ผูกกับ "หมวด" ไม่ใช่ "ร้าน" เพราะเป็นเกณฑ์ที่มาจากลักษณะของบริการเอง
+# ไม่ใช่นโยบายที่แต่ละร้านตั้งต่างกันได้
+#
+# เลข 20 ของการสักมาจากแนวปฏิบัติที่ร้านสักในไทยใช้กันเป็นมาตรฐาน
+# (ต่ำกว่านั้นต้องมีผู้ปกครองมาด้วย ซึ่งระบบจองออนไลน์ยืนยันไม่ได้)
+# ส่วนคลินิกตั้งที่ 18 ตามเกณฑ์การให้ความยินยอมรับบริการทางการแพทย์ด้วยตัวเอง
+MIN_AGE_BY_CATEGORY: dict[str, int] = {
+    "tattoo": 20,
+    "beauty-clinic": 18,
+    "mens-clinic": 18,
+}
+
+
+def _age_on(birth: date_cls, on_date: date_cls) -> int:
+    """อายุเต็มปี ณ วันที่กำหนด — นับแบบยังไม่ถึงวันเกิดถือว่ายังไม่ครบปี"""
+    return on_date.year - birth.year - (
+        (on_date.month, on_date.day) < (birth.month, birth.day)
+    )
+
+
+def assert_age_allowed(user: User, shop: Shop, on_date: date_cls) -> None:
+    """กันอายุต่ำกว่าเกณฑ์ของหมวดนั้น — ตรวจ ณ วันที่เข้ารับบริการ
+
+    ตรวจที่ "วันนัด" ไม่ใช่ "วันที่กดจอง" เพราะคนที่อีกสามวันจะครบ 20
+    ควรจองคิวของสัปดาห์หน้าได้ การไล่ให้เขากลับมากดใหม่ในวันเกิดไม่มีเหตุผลรองรับ
+    """
+    category = db_category_slug(shop)
+    need = MIN_AGE_BY_CATEGORY.get(category or "")
+    if need is None:
+        return
+
+    if user.birth_date is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"บริการนี้รับผู้ที่มีอายุ {need} ปีขึ้นไป "
+                "กรุณาระบุวันเกิดในหน้าโปรไฟล์ก่อนจอง"
+            ),
+        )
+
+    age = _age_on(user.birth_date, on_date)
+    if age < need:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"บริการนี้รับผู้ที่มีอายุ {need} ปีขึ้นไป (ขณะนี้คุณอายุ {age} ปี)",
+        )
+
+
+def db_category_slug(shop: Shop) -> str | None:
+    """slug ของหมวดที่ร้านนี้สังกัด — ผ่าน relationship ที่โหลดมาแล้ว"""
+    return shop.category.slug if shop.category is not None else None
+
+
 def _closure_reason(db: Session, shop_id: int, on_date: date_cls) -> str | None:
-    """ร้านประกาศปิดวันนั้นไว้หรือไม่ ถ้าปิดคืนเหตุผลกลับไป"""
+    """ร้านปิดวันนั้นหรือไม่ ถ้าปิดคืนเหตุผลกลับไป
+
+    ตรวจสองชั้น
+      1. วันหยุดประจำสัปดาห์ (เช่น หยุดทุกวันจันทร์)
+      2. วันหยุดเฉพาะวันที่ที่ร้านประกาศไว้ (เช่น หยุดปีใหม่)
+
+    ฟังก์ชันนี้เป็นด่านเดียวที่ทุกเส้นทางการจองเรียกใช้ — ทั้งการจองปกติ
+    การเรียกใช้ทันที การเลื่อนนัด และการคำนวณช่องเวลาว่าง
+    ใส่กฎไว้ตรงนี้ที่เดียวจึงครอบคลุมทั้งระบบโดยไม่ต้องไปไล่แก้ทีละที่
+    (ถ้าไปเช็กเฉพาะตอนแสดงผล จะกลายเป็นบอกว่า "ปิดวันจันทร์"
+     แต่ยังกดจองวันจันทร์ได้จริง ซึ่งแย่กว่าไม่บอกเลย)
+    """
+    shop = db.get(Shop, shop_id)
+    if shop is not None:
+        # weekday() ของ Python นับ 0=จันทร์ แต่เราเก็บแบบ 0=อาทิตย์ ตาม JavaScript
+        # จึงต้องแปลง ไม่งั้นวันหยุดจะเลื่อนไปหนึ่งวันทั้งระบบ
+        dow = (on_date.weekday() + 1) % 7
+        if dow in closed_weekday_set(shop):
+            return f"ร้านหยุดประจำทุกวัน{DOW_TH[dow]}"
+
     row = db.scalar(
         select(ShopClosure).where(
             ShopClosure.shop_id == shop_id, ShopClosure.closed_date == on_date
@@ -913,7 +1017,7 @@ def create_instant_booking(
     total = (service.price + service.price_per_km * distance).quantize(
         Decimal("0.01"), rounding=ROUND_HALF_UP
     )
-    deposit = (total * Decimal("0.2")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    deposit = (total * DEPOSIT_RATE).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     # งานที่รับตอนดึกแล้วจะจบข้ามวัน ให้ตัดปลายไว้ที่สิ้นวัน
     # ระบบทั้งระบบยึดกฎ "หนึ่งการจองจบภายในวันเดียวกัน" ถ้าปล่อยให้ end_time
@@ -1007,6 +1111,12 @@ def create_booking(
             detail=f"{closed} กรุณาเลือกวันอื่น",
         )
 
+    # บางหมวดมีเกณฑ์อายุขั้นต่ำ — ตรวจเฉพาะคนที่จองให้ตัวเอง
+    # ร้านที่บันทึกคิวแทนลูกค้า walk-in ตรวจไม่ได้อยู่แล้วเพราะไม่มีบัญชีให้ดูวันเกิด
+    # กรณีนั้นเป็นหน้าที่ของร้านที่ต้องขอดูบัตรที่หน้าร้านเอง
+    if not (payload.guest_name or payload.guest_phone):
+        assert_age_allowed(current_user, shop, payload.booking_date)
+
     # ตรวจว่าช่างที่เลือกอยู่ในร้านนี้และยังเปิดรับงาน
     member: Staff | None = None
     if payload.staff_id is not None:
@@ -1070,7 +1180,7 @@ def create_booking(
                 detail="กรุณาระบุชื่อลูกค้าด้วย ไม่ใช่แค่เบอร์โทร",
             )
 
-    deposit = (service.price * Decimal("0.2")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    deposit = (service.price * DEPOSIT_RATE).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     booking = Booking(
         booking_code=_generate_booking_code(),
@@ -1125,6 +1235,91 @@ def create_booking(
 
     db.refresh(booking)
     return _with_payment(db, [booking])[0]
+
+
+@router.patch(
+    "/bookings/{booking_id}/distance",
+    response_model=BookingOut,
+    summary="ร้านแก้ระยะทางจริงของงานส่งของ",
+)
+def update_instant_distance(
+    payload: InstantDistanceUpdate,
+    booking_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """ปรับระยะทางจริง แล้วคิดค่าบริการกับมัดจำใหม่ — เจ้าของร้านเท่านั้น
+
+    ทำไมต้องมีเส้นนี้
+    ------------------------------------------------------------------
+    ค่าบริการส่งของ = ค่าเริ่มต้น + ระยะทาง × ค่าต่อกิโลเมตร แต่ระยะทาง
+    มาจากช่องที่ "ลูกค้าพิมพ์เอง" ตอนเรียกงาน เซิร์ฟเวอร์ไม่มีทางรู้ระยะจริง
+    เพราะไม่ได้เก็บพิกัดปลายทางไว้
+
+    ทดสอบแล้วพบว่าต้นทาง-ปลายทางคู่เดียวกันที่ห่างกันจริงราว 24 กม.
+    ถ้าพิมพ์ 1 จะจ่าย ฿70 แต่ถ้าพิมพ์ 25 จะจ่าย ฿310 — ต่างกัน ฿240
+    และร้านแก้ไม่ได้เลย เพราะใบงานถูกสร้างพร้อมราคาไปแล้วตั้งแต่ลูกค้ากด
+
+    คนที่รู้ระยะจริงคือคนที่วิ่งงาน จึงให้ร้านกรอกกลับมาก่อนปิดงาน
+    เหมือนแอปเรียกรถที่คิดค่าโดยสารจากเส้นทางจริง ไม่ใช่จากที่ผู้โดยสารบอก
+    """
+    booking = _get_booking_or_404(db, booking_id)
+    shop = db.get(Shop, booking.shop_id)
+    service = db.get(Service, booking.service_id)
+
+    if shop is None or (shop.owner_id != current_user.id and current_user.role != "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="เฉพาะเจ้าของร้านเท่านั้นที่แก้ระยะทางได้"
+        )
+    if service is None or service.booking_mode != "instant":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ใช้ได้เฉพาะงานแบบเรียกใช้ทันทีที่คิดค่าบริการตามระยะทาง",
+        )
+    if booking.status in ("completed", "cancelled"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="งานนี้จบไปแล้ว แก้ระยะทางไม่ได้ ถ้าคิดเงินผิดให้ใช้การคืนเงินแทน",
+        )
+
+    distance = Decimal(payload.distance_km).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    new_total = (service.price + service.price_per_km * distance).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+
+    # ลดราคาลงต่ำกว่าที่ลูกค้าจ่ายมาแล้วไม่ได้ — จะกลายเป็นยอดค้างติดลบ
+    # ซึ่งไม่มีที่ทางในระบบ ต้องคืนเงินส่วนเกินก่อนแล้วค่อยปรับ
+    paid = _paid_total(db, booking.id)
+    if new_total < paid:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"ลูกค้าชำระมาแล้ว ฿{paid:,.2f} ซึ่งมากกว่ายอดใหม่ ฿{new_total:,.2f} "
+                "กรุณาคืนเงินส่วนเกินก่อนแล้วค่อยปรับระยะทาง"
+            ),
+        )
+
+    old_total = Decimal(booking.total_price)
+    booking.distance_km = distance
+    booking.total_price = new_total
+    booking.deposit_amount = (new_total * DEPOSIT_RATE).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+
+    # ลูกค้าต้องรู้ทุกครั้งที่ยอดเปลี่ยน ไม่ใช่มาเห็นตอนจ่ายเงิน
+    if new_total != old_total:
+        diff = new_total - old_total
+        word = "เพิ่มขึ้น" if diff > 0 else "ลดลง"
+        notify(
+            db, booking.user_id, "price_adjusted",
+            f"ร้านปรับค่าบริการ {word} ฿{abs(diff):,.0f}",
+            f"ระยะทางจริง {distance} กม. · ยอดใหม่ ฿{new_total:,.0f} · {booking.booking_code}"
+            + (f" · {payload.reason}" if payload.reason else ""),
+        )
+
+    db.commit()
+    db.refresh(booking)
+    return booking
 
 
 @router.patch(

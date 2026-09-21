@@ -46,6 +46,9 @@ const ICON = {
   qr: '<rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><path d="M13.5 13.5h3v3h-3zM20.5 13.5h-2M13.5 20.5h3M20.5 17v3.5"/>',
   receipt: '<path d="M5.5 20.5v-16a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v16l-3-1.8-3 1.8-3-1.8-3 1.8Z"/><path d="M9 8h6M9 12h6"/>',
   crosshair: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2"/>',
+  // ดวงตาเปิด/ปิด — ปุ่มดูและซ่อนรหัสผ่าน
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3.2"/>',
+  eyeOff: '<path d="M4 4.5 20 20.5"/><path d="M9.6 6.1A8.7 8.7 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3.2 3.9"/><path d="M15.2 15.4A8.6 8.6 0 0 1 12 18.5c-6 0-9.5-6.5-9.5-6.5a17 17 0 0 1 4.3-4.8"/><path d="M10 10.2a3.2 3.2 0 0 0 4.2 4.3"/>',
   // แก้วกาแฟกับหูจับ — ใช้กับคาเฟ่ในรายการ "ระหว่างรอไปนั่งที่ไหนดี"
   coffee: '<path d="M4.5 8.5h12v6a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4v-6Z"/><path d="M16.5 10h1.8a2.2 2.2 0 0 1 0 4.4h-1.8"/><path d="M7.5 5.2V3.5M10.5 5.2V3.5M13.5 5.2V3.5"/>',
   // ส้อมกับมีด — ใช้กับร้านอาหาร
@@ -733,7 +736,16 @@ function renderFooter() {
         </div>
 
         <div class="mt-12 pt-6" style="border-top:1px solid rgba(255,255,255,.1)">
-          <div class="text-xs" style="color:rgba(255,255,255,.4);line-height:1.8">
+          ${/* หน้ากฎหมายต้องเข้าถึงได้จากทุกหน้า ซึ่งแปลว่าต้องอยู่ท้ายเว็บ
+                เป็นที่ที่คนคุ้นเคยว่าจะหาเจอ และเป็นสิ่งที่ PDPA คาดหวัง */""}
+          <nav class="foot-legal" aria-label="เอกสารและนโยบาย">
+            <a href="privacy.html">นโยบายความเป็นส่วนตัว</a>
+            <span aria-hidden="true">·</span>
+            <a href="terms.html">เงื่อนไขการใช้งาน</a>
+            <span aria-hidden="true">·</span>
+            <a href="mailto:dunlayutgghhtt@gmail.com">ติดต่อผู้พัฒนา</a>
+          </nav>
+          <div class="text-xs mt-3" style="color:rgba(255,255,255,.4);line-height:1.8">
             โปรเจกต์รายวิชา 89033167 Web Application Development · จัดทำเพื่อการศึกษา<br />
             ข้อมูลร้านและรีวิวในระบบเป็นข้อมูลตัวอย่างสำหรับสาธิต
             และการชำระเงินเป็นการจำลอง ไม่มีการตัดเงินจริง
@@ -801,9 +813,22 @@ const emptyHTML = (iconName, title, sub = "") => `
 // ============================================================
 // ร้านโปรด — เก็บไว้ในเครื่องผู้ใช้ ไม่ต้องล็อกอินก็กดบันทึกได้
 // ============================================================
+// ============================================================
+// ร้านโปรด — ผูกกับบัญชีที่เซิร์ฟเวอร์ ไม่ใช่กับเบราว์เซอร์
+// ============================================================
+//
+// **บัคที่แก้ตรงนี้** ของเดิมเก็บใน localStorage คีย์เดียวชื่อ bookvice_favorites
+// ซึ่งเป็นของ "เบราว์เซอร์" ไม่ใช่ของ "บัญชี" ผลคือ
+//   ก. ล็อกอินบัญชีอื่นในเครื่องเดิม → เห็นร้านโปรดของคนก่อนหน้า
+//   ข. ล็อกอินบัญชีเดิมในเครื่องอื่น → ร้านโปรดหายหมด
+// ข้อ ก. คือข้อมูลรั่วข้ามบัญชี ไม่ใช่แค่ความไม่สะดวก (ผู้ใช้จริงรายงานเข้ามา)
+//
+// ยังเก็บสำเนาไว้ในเครื่องด้วย เพื่อให้หน้าเว็บวาดหัวใจได้ทันทีโดยไม่ต้องรอ API
+// แต่ถือว่า "เซิร์ฟเวอร์คือความจริง" เสมอ — สำเนาในเครื่องเป็นแค่แคช
 const Favorites = {
   KEY: "bookvice_favorites",
 
+  /** อ่านจากแคชในเครื่อง — ใช้ตอนวาดหน้าเท่านั้น */
   list() {
     try {
       const raw = JSON.parse(localStorage.getItem(this.KEY) || "[]");
@@ -813,20 +838,89 @@ const Favorites = {
     }
   },
 
+  _save(list) {
+    try { localStorage.setItem(this.KEY, JSON.stringify(list)); } catch {}
+  },
+
   has(id) { return this.list().includes(Number(id)); },
   count() { return this.list().length; },
 
-  /** สลับสถานะร้านโปรด คืนค่าใหม่ว่าอยู่ในรายการหรือไม่ */
+  /** ดึงของจริงจากเซิร์ฟเวอร์มาทับแคช — เรียกตอนเปิดหน้าที่ต้องใช้ */
+  async sync() {
+    if (!Auth.isLoggedIn) { this._save([]); return []; }
+    try {
+      const ids = await apiGet("/api/favorites");
+      this._save(ids);
+      return ids;
+    } catch {
+      return this.list();   // เน็ตสะดุดก็ใช้แคชไปก่อน ไม่ทำให้หน้าพัง
+    }
+  },
+
+  /** ย้ายรายการที่ค้างในเครื่องขึ้นบัญชี — เรียกครั้งเดียวหลังล็อกอินสำเร็จ */
+  async adopt() {
+    const local = this.list();
+    try {
+      const ids = local.length
+        ? await apiPost("/api/favorites/merge", local)
+        : await apiGet("/api/favorites");
+      this._save(ids);
+    } catch {}
+  },
+
+  /** สลับสถานะ คืนค่าใหม่ว่าอยู่ในรายการหรือไม่
+   *
+   * อัปเดตแคชก่อนแล้วค่อยยิง API เพื่อให้หัวใจเปลี่ยนสีทันที
+   * ถ้า API ล้มเหลวค่อยย้อนกลับ — ผู้ใช้จะไม่รู้สึกว่ากดแล้วค้าง
+   */
   toggle(id) {
     id = Number(id);
     const list = this.list();
     const i = list.indexOf(id);
-    if (i >= 0) list.splice(i, 1);
-    else list.push(id);
-    localStorage.setItem(this.KEY, JSON.stringify(list));
-    return i < 0;
+    const adding = i < 0;
+    if (adding) list.push(id); else list.splice(i, 1);
+    this._save(list);
+
+    if (Auth.isLoggedIn) {
+      const call = adding
+        ? apiPut(`/api/favorites/${id}`)
+        : apiDelete(`/api/favorites/${id}`);
+      call.catch(() => {
+        const back = this.list();
+        const j = back.indexOf(id);
+        if (adding && j >= 0) back.splice(j, 1);
+        else if (!adding && j < 0) back.push(id);
+        this._save(back);
+        toast("บันทึกร้านโปรดไม่สำเร็จ กรุณาลองใหม่", "error");
+      });
+    }
+    return adding;
   },
 };
+
+// ============================================================
+// ที่ตั้งร้าน — จังหวัดมาก่อน แล้วค่อยอำเภอ
+// ============================================================
+//
+// ของเดิมโชว์แค่อำเภอ ("คลองเตย") ซึ่งพอมีร้านต่างจังหวัดเข้ามาก็อ่านไม่รู้เรื่อง
+// เพราะชื่ออำเภอซ้ำกันข้ามจังหวัดเยอะมาก (เมือง ท่าศาลา บางละมุง ฯลฯ)
+//
+// ลำดับ "จังหวัด · อำเภอ" ตรงกับวิธีที่คนไทยพูดถึงสถานที่จริง
+// คือบอกขอบเขตใหญ่ก่อนแล้วค่อยแคบลง ต่างจากการเขียนจ่าหน้าซองที่ไล่จากเล็กไปใหญ่
+const DOW_TH_FULL = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์"];
+const DOW_TH_SHORT = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
+
+function placeText(shop) {
+  return [shop.province, shop.district].filter(Boolean).join(" · ") || "—";
+}
+
+/** แปลง "1,3" เป็น [1,3] — ต้องตรงกับ closed_weekday_set() ฝั่งเซิร์ฟเวอร์ */
+function closedDays(shop) {
+  return String(shop.closed_weekdays || "")
+    .split(",")
+    .map((x) => Number(x.trim()))
+    .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6);
+}
 
 // ============================================================
 // ร้านนี้เปิดอยู่ไหมตอนนี้ — ช่วยให้ลูกค้ารู้ว่าโทรไปได้เลยหรือยัง

@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609141000" />
+  <link rel="stylesheet" href="css/app.css?v=202609211200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -200,8 +200,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202609141000"></script>
-  <script src="js/ui.js?v=202609141000"></script>
+  <script src="js/api.js?v=202609211200"></script>
+  <script src="js/ui.js?v=202609211200"></script>
   <script>
     renderNavbar("bookings");
     renderFooter();
@@ -487,6 +487,9 @@
               <div class="flex gap-2 mt-4 pt-4 flex-wrap" style="border-top:1px solid var(--border)">
                 ${canReview ? `<button data-review="${b.id}" data-shop="${esc(nameOf(b.shop_id))}" class="btn btn-primary btn-sm">${icon("star", 14)} เขียนรีวิว</button>` : ""}
                 ${canCancel && !isInstant ? `<button data-move="${b.id}" class="btn btn-outline btn-sm">เลื่อนนัด</button>` : ""}
+                ${/* ปุ่มเพิ่มลงปฏิทิน — โผล่เฉพาะคิวที่ยังไม่ผ่านและมีวันเวลาจริง
+                      งานเรียกใช้ทันทีไม่มีนัดล่วงหน้า จึงไม่ต้องมี */""}
+                ${canCancel && !isInstant ? `<button data-cal="${b.id}" class="btn btn-ghost btn-sm">${icon("calendar", 14)} เพิ่มลงปฏิทิน</button>` : ""}
                 <button data-print="${b.id}" class="btn btn-ghost btn-sm" aria-label="พิมพ์สลิปการจอง ${esc(b.booking_code)}">${icon("printer", 14)} พิมพ์สลิป</button>
                 ${b.payment_state !== "unpaid" ? `<button data-receipt="${b.id}" class="btn btn-ghost btn-sm">${icon("receipt", 14)} ใบเสร็จ</button>` : ""}
                 ${canRebook ? `<a href="shop.html?id=${b.shop_id}" class="btn btn-outline btn-sm">จองอีกครั้ง</a>` : ""}
@@ -781,6 +784,62 @@
           }
         })
       );
+      // ---------- เพิ่มนัดลงปฏิทินของผู้ใช้ ----------
+      //
+      // สร้างไฟล์ .ics ในเบราว์เซอร์แล้วให้ดาวน์โหลด ไม่แตะหลังบ้านเลย
+      // .ics เป็นมาตรฐานเดียวที่ Google Calendar, Apple Calendar, Outlook
+      // และปฏิทินบนมือถือเปิดได้เหมือนกันหมด จึงคุ้มกว่าทำลิงก์แยกรายเจ้า
+      document.querySelectorAll("[data-cal]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          const b = lastItems.find((x) => x.id === Number(btn.dataset.cal));
+          if (!b) return;
+
+          // .ics ใช้เวลาแบบ UTC (ลงท้าย Z) ส่วนเวลานัดของเราเป็นเวลาไทย
+          // ต้องบอกออฟเซ็ต +07:00 ให้ Date แปลงเอง ไม่งั้นนัดจะเพี้ยนไป 7 ชั่วโมง
+          const toUtc = (d, t) =>
+            new Date(`${d}T${t}+07:00`).toISOString().replace(/[-:]|\.\d{3}/g, "");
+
+          const shopName = nameOf(b.shop_id);
+          // บรรทัดใน .ics ห้ามมีขึ้นบรรทัดใหม่ดิบ ๆ ต้องหนีอักขระตามสเปก RFC 5545
+          const esc2 = (s) => String(s || "")
+            .replace(/\\/g, "\\\\").replace(/[;,]/g, (m) => "\\" + m).replace(/\n/g, "\\n");
+
+          const ics = [
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PRODID:-//Bookvice//TH",
+            "BEGIN:VEVENT",
+            `UID:${b.booking_code}@bookvice`,
+            `DTSTAMP:${new Date().toISOString().replace(/[-:]|\.\d{3}/g, "")}`,
+            `DTSTART:${toUtc(b.booking_date, b.booking_time)}`,
+            `DTEND:${toUtc(b.booking_date, b.end_time || b.booking_time)}`,
+            `SUMMARY:${esc2(`${serviceOf(b) || "นัดหมาย"} · ${shopName}`)}`,
+            `DESCRIPTION:${esc2(`รหัสการจอง ${b.booking_code}\nจองผ่าน Bookvice`)}`,
+            `LOCATION:${esc2(shopName)}`,
+            // เตือนล่วงหน้า 2 ชั่วโมง — พอให้เตรียมตัวและเดินทาง
+            "BEGIN:VALARM",
+            "TRIGGER:-PT2H",
+            "ACTION:DISPLAY",
+            `DESCRIPTION:${esc2(`อีก 2 ชั่วโมงถึงนัดที่ ${shopName}`)}`,
+            "END:VALARM",
+            "END:VEVENT",
+            "END:VCALENDAR",
+          ].join("\r\n");   // สเปกกำหนดให้ขึ้นบรรทัดด้วย CRLF เท่านั้น
+
+          const url = URL.createObjectURL(
+            new Blob([ics], { type: "text/calendar;charset=utf-8" })
+          );
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${b.booking_code}.ics`;
+          a.click();
+          // ปล่อยหน่วยความจำคืน ไม่งั้นไฟล์ค้างอยู่ในแท็บจนกว่าจะปิด
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+          toast("ดาวน์โหลดไฟล์นัดแล้ว เปิดไฟล์เพื่อเพิ่มลงปฏิทิน", "success", 4000);
+        })
+      );
+
       document.querySelectorAll("[data-print]").forEach((btn) =>
         btn.addEventListener("click", () => {
           const b = lastItems.find((x) => x.id === Number(btn.dataset.print));

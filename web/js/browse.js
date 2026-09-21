@@ -37,6 +37,8 @@ const BrowsePage = (() => {
   let catFilter = "";
   let myPos = null;
   let nearRadius = 20;
+  // คู่ [จังหวัด, เขต] ของร้านทั้งหมด ใช้กรองรายการเขตตามจังหวัดที่เลือก
+  let _areaPairs = [];
 
   // ลำดับคำขอ — กันผลลัพธ์เก่ามาทับผลลัพธ์ใหม่
   // อาการที่เคยเจอ: เปิดหน้าแล้วรีบกดปุ่มกรองทันที คำขอทั้งสองวิ่งพร้อมกัน
@@ -97,10 +99,28 @@ const BrowsePage = (() => {
               <summary id="moreSummary">ตัวกรองเพิ่มเติม</summary>
               <div class="grid sm:grid-cols-3 gap-4 pt-4">
                 ${cats}
+                ${/* จังหวัดมาก่อนอำเภอ — ลำดับเดียวกับที่คนไทยเขียนที่อยู่
+                      และการเลือกอำเภอก่อนจังหวัดไม่มีความหมาย เพราะชื่ออำเภอซ้ำกันข้ามจังหวัด
+                      เลือกจังหวัดแล้วรายการอำเภอจะเหลือเฉพาะของจังหวัดนั้น */""}
                 ${f.district ? `
                   <div>
-                    <label class="label" for="fDistrict">โซน / เขต</label>
-                    <select id="fDistrict" class="select"><option value="">ทุกพื้นที่</option></select>
+                    <label class="label" for="fProvince">จังหวัด</label>
+                    <select id="fProvince" class="select"><option value="">ทุกจังหวัด</option></select>
+                  </div>
+                  <div>
+                    <label class="label" for="fDistrict">เขต / อำเภอ</label>
+                    <select id="fDistrict" class="select"><option value="">ทุกเขต</option></select>
+                  </div>` : ""}
+                ${f.price !== false ? `
+                  <div>
+                    <label class="label" for="fPrice">ช่วงราคา</label>
+                    <select id="fPrice" class="select">
+                      <option value="">ทุกช่วงราคา</option>
+                      <option value="0-300">ไม่เกิน 300 บาท</option>
+                      <option value="300-800">300 – 800 บาท</option>
+                      <option value="800-1500">800 – 1,500 บาท</option>
+                      <option value="1500-">1,500 บาทขึ้นไป</option>
+                    </select>
                   </div>` : ""}
                 ${rating}
                 <div class="sm:col-span-3 flex items-center justify-between gap-4 flex-wrap">
@@ -134,17 +154,43 @@ const BrowsePage = (() => {
     }
 
     const distSel = $("fDistrict");
-    if (distSel) {
+    const provSel = $("fProvince");
+    if (distSel || provSel) {
       try {
         const q = new URLSearchParams({ page: 1, limit: 100 });
         if (cfg.group) q.set("group", cfg.group);
         const all = await apiGet(`/api/shops?${q}`);
-        [...new Set(all.items.map((s) => s.district).filter(Boolean))]
-          .sort()
-          .forEach((d) => distSel.add(new Option(d, d)));
-        distSel.value = params.get("district") || "";
+
+        // เก็บคู่ จังหวัด → เขต ไว้ เพื่อให้เลือกจังหวัดแล้วกรองเขตให้ตรงกันได้
+        // ถ้าไม่ทำ คนเลือก "เชียงใหม่" แล้วยังเห็น "คลองเตย" ในรายการเขต
+        _areaPairs = all.items
+          .filter((s) => s.province)
+          .map((s) => [s.province, s.district || ""]);
+
+        if (provSel) {
+          [...new Set(_areaPairs.map(([p]) => p))]
+            .sort((a, b) => a.localeCompare(b, "th"))
+            .forEach((p) => provSel.add(new Option(p, p)));
+          provSel.value = params.get("province") || "";
+        }
+        fillDistricts(params.get("district") || "");
       } catch {}
     }
+  }
+
+  /** เติมรายการเขตให้ตรงกับจังหวัดที่เลือกอยู่ */
+  function fillDistricts(keep = "") {
+    const distSel = $("fDistrict");
+    if (!distSel) return;
+    const prov = $("fProvince") ? $("fProvince").value : "";
+    const list = [...new Set(
+      _areaPairs.filter(([p]) => !prov || p === prov).map(([, d]) => d).filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b, "th"));
+
+    distSel.innerHTML = '<option value="">ทุกเขต</option>';
+    list.forEach((d) => distSel.add(new Option(d, d)));
+    // เก็บค่าเดิมไว้ถ้ายังอยู่ในจังหวัดที่เลือก ไม่งั้นรีเซ็ตเป็นทุกเขต
+    distSel.value = list.includes(keep) ? keep : "";
   }
 
   function updateMoreSummary() {
@@ -152,7 +198,9 @@ const BrowsePage = (() => {
     if (!box) return;
     const n = [
       $("fCat") && $("fCat").value,
+      $("fProvince") && $("fProvince").value,
       $("fDistrict") && $("fDistrict").value,
+      $("fPrice") && $("fPrice").value,
       $("fRating") && $("fRating").value,
       $("fCert") && $("fCert").checked ? "1" : "",
     ].filter(Boolean).length;
@@ -171,9 +219,17 @@ const BrowsePage = (() => {
     // ตัวกรองหมวดมาได้สองทาง — ดรอปดาวน์ หรือปุ่มชิปด้านบน (หน้ากีฬาใช้ชิป)
     const c = catFilter || ($("fCat") ? $("fCat").value : "");
     if (c) q.set("category_id", c);
+    if ($("fProvince") && $("fProvince").value) q.set("province", $("fProvince").value);
     if ($("fDistrict") && $("fDistrict").value) q.set("district", $("fDistrict").value);
     if ($("fRating") && $("fRating").value) q.set("min_rating", $("fRating").value);
     if ($("fCert") && $("fCert").checked) q.set("certified", "true");
+
+    // ช่วงราคาเก็บเป็น "ต่ำสุด-สูงสุด" เช่น "300-800" หรือ "1500-" (ไม่มีเพดาน)
+    if ($("fPrice") && $("fPrice").value) {
+      const [lo, hi] = $("fPrice").value.split("-");
+      if (lo) q.set("min_price", lo);
+      if (hi) q.set("max_price", hi);
+    }
 
     if (pickedDate) q.set("available_on", pickedDate);
     else if (availMode === "today") q.set("available_on", localDate());
@@ -202,21 +258,26 @@ const BrowsePage = (() => {
 
     try {
       const q = buildQuery(page);
-      if (onlyFav) q.set("limit", 100);
+      // ร้านโปรดกรองที่เซิร์ฟเวอร์แล้ว ไม่ต้องดึงทั้งหมดมากรองเองในเบราว์เซอร์
+      //
+      // ของเดิมดึง 100 ร้านมาแล้วค่อย filter ด้วยรายการใน localStorage
+      // ซึ่งพังสองทาง: ร้านโปรดที่อยู่นอก 100 รายการแรกจะหายไปเฉย ๆ
+      // และรายการใน localStorage เป็นของเบราว์เซอร์ ไม่ใช่ของบัญชี
+      if (onlyFav) {
+        q.set("favorites", "true");
+        q.set("limit", 100);
+      }
       const res = await apiGet(`/api/shops?${q}`);
       if (my !== loadSeq) return;
 
       // เก็บตัวกรองไว้ในลิงก์ให้แชร์และกดย้อนกลับได้
       // แต่ตัดพิกัดผู้ใช้ออกเสมอ — ที่อยู่เป็นข้อมูลส่วนตัว ไม่ควรค้างในแถบที่อยู่
       const shown = new URLSearchParams(q);
-      ["near_lat", "near_lng", "radius_km", "group", "limit"].forEach((k) => shown.delete(k));
+      ["near_lat", "near_lng", "radius_km", "group", "limit", "favorites"].forEach((k) => shown.delete(k));
+      if (onlyFav) shown.set("fav", "1");
       history.replaceState(null, "", `${cfg.page}${shown.toString() ? "?" + shown : ""}`);
 
-      let items = res.items;
-      if (onlyFav) {
-        const fav = Favorites.list();
-        items = items.filter((s) => fav.includes(s.id));
-      }
+      const items = res.items;
 
       if (!items.length) {
         count.textContent = "";
@@ -273,16 +334,35 @@ const BrowsePage = (() => {
       </div>`;
   }
 
+  /** วาดสถานะปุ่มหัวใจให้ตรงกับรายการปัจจุบัน
+   *
+   * แยกออกมาเพราะต้องเรียกสองจังหวะ — ตอนกด และตอนดึงข้อมูลจากเซิร์ฟเวอร์เสร็จ
+   * (การ์ดถูกวาดก่อนที่ Favorites.sync() จะกลับมา)
+   */
+  function paintFavBtn(b) {
+    const on = Favorites.has(b.dataset.fav);
+    b.classList.toggle("is-on", on);
+    b.title = on ? "บันทึกไว้แล้ว" : "บันทึกไว้ดูทีหลัง";
+    b.setAttribute("aria-pressed", String(on));
+    b.setAttribute("aria-label", on ? "เอาออกจากรายการที่บันทึก" : "บันทึกไว้ดูทีหลัง");
+  }
+
   function bindFav() {
     document.querySelectorAll("[data-fav]").forEach((b) =>
       b.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
+        // ร้านโปรดผูกกับบัญชี จึงต้องล็อกอินก่อน
+        // ของเดิมกดได้โดยไม่ต้องล็อกอิน แล้วไปเก็บในเบราว์เซอร์ ซึ่งเป็นต้นตอของบัค
+        if (!Auth.isLoggedIn) {
+          toast("กรุณาเข้าสู่ระบบเพื่อบันทึกร้านโปรด", "info", 4000);
+          setTimeout(() => {
+            location.href = `login.html?next=${encodeURIComponent(currentPage())}`;
+          }, 900);
+          return;
+        }
         const on = Favorites.toggle(b.dataset.fav);
-        b.classList.toggle("is-on", on);
-        b.title = on ? "บันทึกไว้แล้ว" : "บันทึกไว้ดูทีหลัง";
-        b.setAttribute("aria-pressed", String(on));
-        b.setAttribute("aria-label", on ? "เอาออกจากรายการที่บันทึก" : "บันทึกไว้ดูทีหลัง");
+        paintFavBtn(b);
         toast(on ? "บันทึกไว้แล้ว" : "เอาออกแล้ว");
         updateFavTab();
         if (!on && onlyFav) load(1);
@@ -340,9 +420,18 @@ const BrowsePage = (() => {
       typeTimer = setTimeout(() => load(1), 350);
     });
 
-    ["fCat", "fDistrict", "fRating", "fCert"].forEach((id) => {
+    ["fCat", "fDistrict", "fPrice", "fRating", "fCert"].forEach((id) => {
       const el = $(id);
       if (el) el.addEventListener("change", () => { updateMoreSummary(); load(1); });
+    });
+
+    // เปลี่ยนจังหวัดแล้วต้องเติมรายการเขตใหม่ก่อนค้นหา
+    // ไม่งั้นค่าเขตเดิมของจังหวัดอื่นจะติดไปด้วย แล้วผลลัพธ์จะว่างเปล่าแบบงง ๆ
+    const prov = $("fProvince");
+    if (prov) prov.addEventListener("change", () => {
+      fillDistricts($("fDistrict") ? $("fDistrict").value : "");
+      updateMoreSummary();
+      load(1);
     });
 
     const reset = $("resetBtn");
@@ -350,7 +439,9 @@ const BrowsePage = (() => {
       $("filterForm").reset();
       availMode = "";
       catFilter = "";
+      pickedDate = "";
       myPos = null;
+      fillDistricts();   // form.reset() คืนค่าช่องได้ แต่คืนรายการเขตที่ถูกกรองไว้ไม่ได้
       setNear(false);
       paintQuick();
       if (cfg.onResetChips) cfg.onResetChips();
@@ -372,6 +463,14 @@ const BrowsePage = (() => {
     paintQuick();
 
     $("favTab").addEventListener("click", () => {
+      // ร้านโปรดผูกกับบัญชีแล้ว จึงต้องล็อกอินก่อนถึงจะกรองได้
+      if (!Auth.isLoggedIn) {
+        toast("กรุณาเข้าสู่ระบบเพื่อดูร้านโปรดของคุณ", "info", 4000);
+        setTimeout(() => {
+          location.href = `login.html?next=${encodeURIComponent(currentPage())}`;
+        }, 900);
+        return;
+      }
       onlyFav = !onlyFav;
       updateFavTab();
       load(1);
@@ -446,7 +545,20 @@ const BrowsePage = (() => {
     if ($("fRating")) $("fRating").value = params.get("min_rating") || "";
     if ($("fCert")) $("fCert").checked = params.get("certified") === "true";
 
+    // คืนค่าช่วงราคาจากลิงก์ — ต้องประกอบกลับเป็นรูปแบบ "ต่ำ-สูง" ของดรอปดาวน์
+    if ($("fPrice")) {
+      const lo = params.get("min_price") || "";
+      const hi = params.get("max_price") || "";
+      if (lo || hi) $("fPrice").value = `${lo}-${hi}`;
+    }
+
     bindControls();
+    // ร้านโปรดของจริงอยู่ที่เซิร์ฟเวอร์ ต้องดึงมาก่อนวาดหัวใจบนการ์ด
+    // ไม่งั้นคนที่เพิ่งล็อกอินในเครื่องใหม่จะเห็นหัวใจว่างทั้งหน้า ทั้งที่เคยกดไว้
+    Favorites.sync().then(() => {
+      updateFavTab();
+      document.querySelectorAll("[data-fav]").forEach((b) => paintFavBtn(b));
+    });
     updateFavTab();
     updateMoreSummary();
     loadOptions().then(() => {
@@ -474,7 +586,7 @@ function cardFoot(s) {
   return `
     <div class="flex items-center gap-2.5 mt-3 pt-3 text-xs text-muted flex-wrap"
          style="border-top:1px solid var(--border)">
-      <span class="flex items-center gap-1.5">${icon("mapPin", 13)} ${esc(s.district || "—")}</span>
+      <span class="flex items-center gap-1.5">${icon("mapPin", 13)} ${esc(placeText(s))}</span>
       ${s.distance_km != null
         ? `<span class="dist-chip num">${icon("navigate", 11)} ${distanceText(s.distance_km)}</span>`
         : ""}

@@ -9,7 +9,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
-from app.models import Category, Service, Shop, ShopClosure, ShopImage, Staff, User
+from app.models import Category, Favorite, Service, Shop, ShopClosure, ShopImage, Staff, User
 from app.schemas import (
     CategoryOut,
     Message,
@@ -28,7 +28,7 @@ from app.schemas import (
     StaffOut,
     StaffUpdate,
 )
-from app.security import require_roles
+from app.security import get_current_user, get_optional_user, require_roles
 from app.storage import delete_shop_folder
 
 router = APIRouter(prefix="/api", tags=["3. Shops & Services"])
@@ -237,7 +237,17 @@ def list_shops(
             "ใช้แยกทางเข้าในหน้าเว็บ จะได้ไม่เอาสปากับสนามบอลมาปนกันในลิสต์เดียว"
         ),
     ),
+    province: str | None = Query(None, description="จังหวัด"),
     district: str | None = Query(None, description="เขต/อำเภอ"),
+    min_price: float | None = Query(
+        None, ge=0, description="ราคาเริ่มต้นของร้านต้องไม่ต่ำกว่านี้"
+    ),
+    max_price: float | None = Query(
+        None, ge=0, description="ราคาเริ่มต้นของร้านต้องไม่เกินนี้"
+    ),
+    favorites: bool | None = Query(
+        None, description="เอาเฉพาะร้านที่ผู้ใช้คนนี้กดถูกใจไว้ (ต้องล็อกอิน)"
+    ),
     min_rating: float | None = Query(None, ge=0, le=5, description="คะแนนขั้นต่ำ"),
     certified: bool | None = Query(None, description="เฉพาะร้านที่ผ่านการรับรองความสะอาด"),
     available_on: date | None = Query(
@@ -251,6 +261,7 @@ def list_shops(
         20, gt=0, le=200, description="รัศมีการค้นหาเป็นกิโลเมตร (ใช้เมื่อระบุพิกัด)"
     ),
     db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
 ):
     # พิกัดต้องมาเป็นคู่เสมอ ถ้าส่งมาแค่ตัวเดียวคำนวณระยะทางไม่ได้
     if (near_lat is None) != (near_lng is None):
@@ -274,12 +285,44 @@ def list_shops(
                 select(Category.id).where(Category.group_key == group)
             )
         )
+    if province:
+        stmt = stmt.where(Shop.province == province)
     if district:
         stmt = stmt.where(Shop.district == district)
     if min_rating is not None:
         stmt = stmt.where(Shop.rating_avg >= Decimal(str(min_rating)))
     if certified:
         stmt = stmt.where(Shop.is_certified.is_(True))
+
+    # ---------- ช่วงราคา ----------
+    #
+    # เทียบกับ "ราคาเริ่มต้นของร้าน" = บริการที่ถูกที่สุดที่ยังเปิดขายอยู่
+    # ซึ่งเป็นตัวเลขเดียวกับที่แสดงบนการ์ด ผู้ใช้จึงเห็นผลลัพธ์ตรงกับที่คาด
+    #
+    # ร้านที่ยังไม่มีบริการเลยจะไม่มีราคาเริ่มต้น จึงถูกตัดออกเมื่อมีการกรองราคา
+    # ดีกว่าเดาว่าเป็น 0 แล้วไปโผล่ในผลลัพธ์ "ไม่เกิน 500 บาท" ทั้งที่ยังไม่มีอะไรขาย
+    if min_price is not None or max_price is not None:
+        cheapest = (
+            select(func.min(Service.price))
+            .where(Service.shop_id == Shop.id, Service.is_active.is_(True))
+            .correlate(Shop)
+            .scalar_subquery()
+        )
+        if min_price is not None:
+            stmt = stmt.where(cheapest >= Decimal(str(min_price)))
+        if max_price is not None:
+            stmt = stmt.where(cheapest <= Decimal(str(max_price)))
+
+    # ---------- เฉพาะร้านโปรด ----------
+    if favorites:
+        if current_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="กรุณาเข้าสู่ระบบก่อนดูร้านโปรด",
+            )
+        stmt = stmt.where(
+            Shop.id.in_(select(Favorite.shop_id).where(Favorite.user_id == current_user.id))
+        )
 
     # ---------- ค้นหาแบบ "ใกล้ฉัน" ----------
     if near_lat is not None and near_lng is not None:
@@ -367,6 +410,89 @@ def get_shop(shop_id: int = Path(..., ge=1), db: Session = Depends(get_db)):
     )
     detail.cover_url = next((im.url for im in detail.images if im.is_cover), None)
     return detail
+
+
+# ============================================================
+# ร้านโปรด
+# ============================================================
+#
+# ย้ายจาก localStorage มาเก็บที่นี่ เพราะของเดิมใช้คีย์เดียวต่อเบราว์เซอร์
+# ไม่ผูกกับบัญชี ผลคือใครล็อกอินในเครื่องเดียวกันต่อจากคนอื่นจะเห็น
+# ร้านโปรดของคนก่อนหน้าติดมาด้วย — เป็นข้อมูลรั่วข้ามบัญชี ไม่ใช่แค่ความรำคาญ
+@router.get("/favorites", response_model=list[int], summary="รหัสร้านที่กดถูกใจไว้")
+def list_favorites(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return list(
+        db.scalars(
+            select(Favorite.shop_id)
+            .where(Favorite.user_id == current_user.id)
+            .order_by(Favorite.id.desc())
+        ).all()
+    )
+
+
+@router.put("/favorites/{shop_id}", response_model=Message, summary="กดถูกใจร้าน")
+def add_favorite(
+    shop_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """ใช้ PUT ไม่ใช่ POST เพราะกดซ้ำแล้วผลต้องเหมือนเดิม ไม่ใช่เพิ่มอีกแถว"""
+    _get_shop_or_404(db, shop_id)
+    exists = db.scalar(
+        select(Favorite).where(
+            Favorite.user_id == current_user.id, Favorite.shop_id == shop_id
+        )
+    )
+    if exists is None:
+        db.add(Favorite(user_id=current_user.id, shop_id=shop_id))
+        db.commit()
+    return Message(message="บันทึกร้านโปรดแล้ว")
+
+
+@router.delete("/favorites/{shop_id}", response_model=Message, summary="เอาออกจากร้านโปรด")
+def remove_favorite(
+    shop_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db.query(Favorite).filter(
+        Favorite.user_id == current_user.id, Favorite.shop_id == shop_id
+    ).delete()
+    db.commit()
+    return Message(message="เอาออกจากร้านโปรดแล้ว")
+
+
+@router.post("/favorites/merge", response_model=list[int], summary="ย้ายร้านโปรดจากเครื่องขึ้นบัญชี")
+def merge_favorites(
+    shop_ids: list[int],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """รับรายการที่ค้างอยู่ใน localStorage มารวมกับของในบัญชี
+
+    มีไว้เพื่อไม่ให้คนที่เคยกดถูกใจไว้ก่อนเปลี่ยนระบบต้องมากดใหม่ทั้งหมด
+    หน้าเว็บเรียกครั้งเดียวตอนล็อกอินสำเร็จ แล้วล้างของในเครื่องทิ้ง
+    """
+    have = set(
+        db.scalars(select(Favorite.shop_id).where(Favorite.user_id == current_user.id)).all()
+    )
+    # กรองเฉพาะรหัสที่เป็นร้านจริง ไม่งั้นค่าขยะใน localStorage จะทำ FK พัง
+    real = set(
+        db.scalars(select(Shop.id).where(Shop.id.in_([int(x) for x in shop_ids[:200]]))).all()
+    )
+    for sid in real - have:
+        db.add(Favorite(user_id=current_user.id, shop_id=sid))
+    db.commit()
+    return list(
+        db.scalars(
+            select(Favorite.shop_id)
+            .where(Favorite.user_id == current_user.id)
+            .order_by(Favorite.id.desc())
+        ).all()
+    )
 
 
 @router.post(

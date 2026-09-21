@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609141000" />
+  <link rel="stylesheet" href="css/app.css?v=202609211200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -55,11 +55,23 @@
           <input id="phone" name="phone" class="input" pattern="[0-9]{9,15}" placeholder="0891234567" autocomplete="tel" />
         </div>
 
+        <!-- วันเกิด — บริการบางหมวดมีเกณฑ์อายุขั้นต่ำ (สักลาย 20 ปี คลินิก 18 ปี)
+             ถ้าไม่กรอกตอนนี้ จะจองหมวดเหล่านั้นไม่ได้จนกว่าจะไปเติมในโปรไฟล์ -->
+        <div>
+          <label class="label" for="birth_date">วันเกิด
+            <span class="text-muted" style="font-weight:400">(ไม่บังคับ)</span></label>
+          <input id="birth_date" name="birth_date" type="date" class="input" />
+          <p class="hint">บริการบางอย่าง เช่น สักลายและคลินิก มีเกณฑ์อายุขั้นต่ำ</p>
+        </div>
+
         <div>
           <label class="label" for="password">รหัสผ่าน</label>
-          <input id="password" name="password" type="password" class="input" required minlength="8"
-                 autocomplete="new-password" />
-          <p class="hint">อย่างน้อย 8 ตัวอักษร</p>
+          <div class="pw-wrap">
+            <input id="password" name="password" type="password" class="input" required minlength="8"
+                   autocomplete="new-password" />
+            <button type="button" id="peek" class="pw-peek" aria-label="แสดงรหัสผ่าน"></button>
+          </div>
+          <p class="hint">อย่างน้อย 8 ตัวอักษร · ภาษาไทยได้ไม่เกิน 24 ตัว</p>
         </div>
 
         <div>
@@ -86,12 +98,27 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202609141000"></script>
-  <script src="js/ui.js?v=202609141000"></script>
+  <script src="js/api.js?v=202609211200"></script>
+  <script src="js/ui.js?v=202609211200"></script>
   <script>
     renderNavbar();
     renderFooter();
     const alertBox = document.getElementById("alert");
+
+    // ปุ่มดู/ซ่อนรหัสผ่าน — สำคัญกว่าในหน้าสมัคร เพราะตั้งรหัสผิดแล้วเข้าไม่ได้เลย
+    const pwField = document.getElementById("password");
+    const peekBtn = document.getElementById("peek");
+    const paintPeek = () => {
+      const shown = pwField.type === "text";
+      peekBtn.innerHTML = icon(shown ? "eyeOff" : "eye", 17);
+      peekBtn.setAttribute("aria-label", shown ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน");
+    };
+    paintPeek();
+    peekBtn.addEventListener("click", () => {
+      pwField.type = pwField.type === "password" ? "text" : "password";
+      paintPeek();
+      pwField.focus();
+    });
 
     // ---------- ตรวจชื่อผู้ใช้ซ้ำแบบเรียลไทม์ ----------
     const usernameInput = document.getElementById("username");
@@ -140,6 +167,9 @@
         full_name: document.getElementById("full_name").value.trim(),
         role: document.getElementById("role").value,
       };
+      // ส่งเฉพาะตอนที่กรอกจริง — ส่งสตริงว่างไปจะโดน 422 ทั้งที่ช่องนี้ไม่บังคับ
+      const bd = document.getElementById("birth_date").value;
+      if (bd) body.birth_date = bd;
       // ส่ง phone เฉพาะตอนกรอก (สตริงว่างจะไม่ผ่าน validation)
       const phone = document.getElementById("phone").value.trim();
       if (phone) body.phone = phone;
@@ -147,7 +177,8 @@
       try {
         const res = await apiPost("/api/auth/register", body);
         Auth.save(res.access_token, res.user);
-        location.href = "index.html";
+        await Favorites.adopt();   // ของที่กดถูกใจไว้ก่อนสมัครต้องไม่หาย
+        location.href = "./";
       } catch (err) {
         showAlert(alertBox, err.message);
         btnBusy(btn, false);

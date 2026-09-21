@@ -34,6 +34,10 @@ COLUMNS: list[tuple[str, str, str]] = [
     # พิกัดร้านสำหรับแผนที่และการหาร้านใกล้ฉัน
     ("shops", "latitude",  "NUMERIC(9,6)"),
     ("shops", "longitude", "NUMERIC(9,6)"),
+    # วันหยุดประจำสัปดาห์ เช่น "1" = หยุดทุกวันจันทร์ (0=อาทิตย์ ... 6=เสาร์)
+    ("shops", "closed_weekdays", "VARCHAR(20)"),
+    # วันเกิดผู้ใช้ — ใช้กันอายุต่ำกว่าเกณฑ์ของบริการบางหมวด
+    ("users", "birth_date", "DATE"),
     # คำเรียกทรัพยากรที่จองได้ ต่างกันตามหมวด (ช่าง / คอร์ท / สนาม / พนักงานส่ง)
     ("categories", "resource_label", "VARCHAR(30) NOT NULL DEFAULT 'ช่าง'"),
     # บริการแบบเรียกใช้ทันที ไม่ต้องเลือกวันเวลา
@@ -132,6 +136,9 @@ INDEXES: list[str] = [
     # ร้านที่มีพิกัดเท่านั้นที่ต้องใช้ตอนค้นหาร้านใกล้ฉัน จึงทำ partial index ให้เล็กลง
     "CREATE INDEX IF NOT EXISTS ix_shops_geo ON shops (latitude, longitude) "
     "WHERE latitude IS NOT NULL AND longitude IS NOT NULL",
+    "CREATE INDEX IF NOT EXISTS ix_shops_province ON shops (province)",
+    # กดถูกใจร้านเดิมซ้ำต้องไม่ได้แถวใหม่ ให้ฐานข้อมูลกันอีกชั้นนอกเหนือจากโค้ด
+    "CREATE UNIQUE INDEX IF NOT EXISTS uq_favorite_user_shop ON favorites (user_id, shop_id)",
 ]
 
 

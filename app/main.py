@@ -7,9 +7,11 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select
 
 from app.config import settings
 from app.database import Base, SessionLocal, engine, wait_for_db
@@ -146,6 +148,93 @@ def health_check():
 
 
 # ============================================================
+# แท็กแชร์ลิงก์รายร้าน
+# ============================================================
+#
+# ทำไมต้องทำฝั่งเซิร์ฟเวอร์ ทั้งที่เว็บเราวาดหน้าด้วย JavaScript
+# ------------------------------------------------------------------
+# บอตที่อ่านลิงก์ (LINE, Facebook, X, Discord, Slack) **ไม่รัน JavaScript**
+# มันดึง HTML ดิบมาแล้วอ่านแท็ก <meta> ที่มีอยู่ตอนนั้นเท่านั้น
+# ถ้าเราไปเขียน og:image ด้วย JS หลังหน้าโหลดเสร็จ บอตจะไม่มีวันเห็น
+#
+# ของเดิม shop.html มี og:title ตายตัวว่า "รายละเอียดร้าน — Bookvice"
+# ทุกร้านจึงแชร์ออกไปแล้วหน้าตาเหมือนกันหมด ไม่มีรูป ไม่มีชื่อร้าน
+#
+# ตรงนี้จึงอ่านไฟล์ shop.html แล้วสลับแท็กให้ก่อนส่งออกไป
+# ใช้ได้เฉพาะตอน SERVE_WEB (บนเว็บจริง) — ในเครื่อง nginx เสิร์ฟเอง
+# ซึ่งไม่เป็นไร เพราะไม่มีใครแชร์ลิงก์ localhost
+_OG_CACHE: dict[str, str] = {}
+
+
+def _shop_share_html(shop_id: int) -> str | None:
+    """คืน HTML ของ shop.html ที่สลับแท็กแชร์เป็นข้อมูลร้านนั้นแล้ว"""
+    from html import escape
+
+    from app.models import Shop, ShopImage
+    from app.storage import image_url
+
+    web_dir = Path(__file__).resolve().parent.parent / "web"
+    path = web_dir / "shop.html"
+    if not path.is_file():
+        return None
+
+    raw = _OG_CACHE.get("shop.html")
+    if raw is None:
+        raw = path.read_text(encoding="utf-8")
+        _OG_CACHE["shop.html"] = raw
+
+    db = SessionLocal()
+    try:
+        shop = db.get(Shop, shop_id)
+        if shop is None:
+            return None
+
+        cover = db.scalar(
+            select(ShopImage)
+            .where(ShopImage.shop_id == shop.id, ShopImage.is_cover.is_(True))
+            .limit(1)
+        )
+        title = f"{shop.name} — จองคิวผ่าน Bookvice"
+        where = " · ".join(x for x in [shop.district, shop.province] if x)
+        desc = (shop.description or "").strip() or (
+            f"ดูช่วงเวลาที่ว่างจริงของ {shop.name}"
+            + (f" ({where})" if where else "")
+            + " แล้วจองได้ทันที"
+        )
+        # บอตส่วนใหญ่ตัดคำอธิบายราว 200 ตัวอักษร ตัดมาให้พอดีตั้งแต่ต้นทาง
+        desc = desc[:197] + "…" if len(desc) > 200 else desc
+    finally:
+        db.close()
+
+    img = ""
+    if cover is not None:
+        url = image_url(shop.id, cover.filename)
+        # og:image ต้องเป็น URL เต็มเสมอ บอตไม่เติม domain ให้
+        img = url if url.startswith("http") else f"{settings.PUBLIC_BASE_URL}{url}"
+
+    out = raw
+    for key, value in (
+        ('<meta property="og:title" content="รายละเอียดร้าน — Bookvice" />',
+         f'<meta property="og:title" content="{escape(title, quote=True)}" />'),
+        ('<title>รายละเอียดร้าน — Bookvice</title>',
+         f'<title>{escape(title)}</title>'),
+    ):
+        out = out.replace(key, value)
+
+    # คำอธิบายกับรูปใส่เพิ่มเข้าไปก่อนปิด </head> ไม่ต้องไปหาแท็กเดิมให้ยุ่ง
+    extra = (
+        f'<meta property="og:description" content="{escape(desc, quote=True)}" />\n'
+        f'<meta name="description" content="{escape(desc, quote=True)}" />\n'
+    )
+    if img:
+        extra += (
+            f'<meta property="og:image" content="{escape(img, quote=True)}" />\n'
+            f'<meta name="twitter:card" content="summary_large_image" />\n'
+        )
+    return out.replace("</head>", extra + "</head>", 1)
+
+
+# ============================================================
 # เสิร์ฟหน้าเว็บจาก FastAPI (ใช้เฉพาะตอน deploy ที่เปิดได้พอร์ตเดียว)
 # ============================================================
 #
@@ -156,6 +245,36 @@ def health_check():
 if settings.SERVE_WEB:
     WEB_DIR = Path(__file__).resolve().parent.parent / "web"
     if WEB_DIR.is_dir():
+
+        # ต้องประกาศ "ก่อน" mount StaticFiles ที่ "/" ไม่งั้นจะโดนกลืน
+        @app.get("/shop.html", include_in_schema=False)
+        def shop_page(id: int | None = None):
+            """หน้าร้าน — แทรกแท็กแชร์ของร้านนั้นให้ก่อนส่งออก
+
+            ไม่มี id หรือหาร้านไม่เจอ ก็ส่งไฟล์เดิมไปตามปกติ
+            หน้าจะไปเจอ error เองแล้วขึ้นข้อความ "ไม่พบร้าน" ซึ่งถูกต้องอยู่แล้ว
+            """
+            if id is not None:
+                try:
+                    html = _shop_share_html(id)
+                    if html:
+                        return HTMLResponse(html)
+                except Exception as exc:
+                    # แท็กแชร์เป็นของเสริม ห้ามทำให้หน้าร้านเปิดไม่ได้
+                    print(f"สร้างแท็กแชร์ของร้าน {id} ไม่สำเร็จ: {exc}")
+            return FileResponse(WEB_DIR / "shop.html")
+
+        # หน้าที่ไม่มีอยู่จริงต้องได้ 404.html ไม่ใช่ข้อความเปล่า ๆ ของเซิร์ฟเวอร์
+        @app.exception_handler(404)
+        async def not_found(request: Request, exc):
+            # คำขอที่เป็น API ต้องได้ JSON เหมือนเดิม ไม่ใช่หน้าเว็บ
+            if request.url.path.startswith(("/api", "/docs", "/redoc", "/openapi")):
+                return JSONResponse({"detail": "ไม่พบเส้นทางนี้"}, status_code=404)
+            page = WEB_DIR / "404.html"
+            if page.is_file():
+                return HTMLResponse(page.read_text(encoding="utf-8"), status_code=404)
+            return JSONResponse({"detail": "ไม่พบหน้านี้"}, status_code=404)
+
         app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
         print(f"เสิร์ฟหน้าเว็บจาก {WEB_DIR}")
     else:

@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609141000" />
+  <link rel="stylesheet" href="css/app.css?v=202609211200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -74,8 +74,8 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202609141000"></script>
-  <script src="js/ui.js?v=202609141000"></script>
+  <script src="js/api.js?v=202609211200"></script>
+  <script src="js/ui.js?v=202609211200"></script>
   <script>
     renderNavbar();
     renderFooter();
@@ -122,6 +122,15 @@
               <label class="label" for="pPhone">เบอร์โทรศัพท์</label>
               <input id="pPhone" class="input" value="${esc(me.phone || "")}" pattern="[0-9]{9,15}" />
             </div>
+            <div>
+              <label class="label" for="pBirth">วันเกิด</label>
+              <input id="pBirth" type="date" class="input" value="${esc(me.birth_date || "")}" />
+              <p class="hint">
+                ${me.age != null
+                  ? `ขณะนี้อายุ ${me.age} ปี`
+                  : "บริการบางอย่าง เช่น สักลายและคลินิก ต้องระบุวันเกิดก่อนจอง"}
+              </p>
+            </div>
             <button id="saveBtn" type="submit" class="btn btn-primary">บันทึกการเปลี่ยนแปลง</button>
           </form>`;
 
@@ -138,6 +147,8 @@
           };
           const phone = document.getElementById("pPhone").value.trim();
           if (phone) body.phone = phone;
+          const birth = document.getElementById("pBirth").value;
+          if (birth) body.birth_date = birth;
 
           try {
             const updated = await apiPut(`/api/users/${me.id}`, body);

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ไม่พบหน้านี้ — Bookvice</title>
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#16233F" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><defs><linearGradient id='a' x1='11' y1='5' x2='36' y2='27' gradientUnits='userSpaceOnUse'><stop stop-color='%23F9AE8B'/><stop offset='1' stop-color='%23E8785A'/></linearGradient><linearGradient id='b' x1='11' y1='21' x2='38' y2='43' gradientUnits='userSpaceOnUse'><stop stop-color='%233FC0D6'/><stop offset='1' stop-color='%2322A898'/></linearGradient></defs><rect width='48' height='48' rx='11' fill='%23fff'/><path d='M11 5h16a11 11 0 0 1 0 22H11z' fill='url(%23a)'/><path d='M11 21h18a11 11 0 0 1 0 22H11z' fill='url(%23b)'/><path d='m16.5 32.5 4.5 4.5 9-9' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='5' y='5' width='6.5' height='38' rx='3.25' fill='%2316233F'/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202609211200" />
+</head>
+<body>
+  <div id="navbar"></div>
+
+  <main id="main" class="max-w-6xl mx-auto px-5" style="padding:var(--s-8) var(--s-5)">
+    <div style="max-width:52ch">
+      <p class="num" style="font-size:var(--fs-xl);font-weight:600;color:var(--border-strong);line-height:1">404</p>
+      <h1 class="h1" style="margin-top:var(--s-2)">ไม่พบหน้าที่คุณกำลังหา</h1>
+      <p class="text-muted" style="margin-top:var(--s-3);line-height:1.75">
+        ลิงก์อาจพิมพ์ผิด หรือหน้านี้ถูกย้ายไปแล้ว
+        ถ้าคุณกดมาจากลิงก์ที่เราส่งให้ รบกวนแจ้งเราด้วยจะขอบคุณมาก
+      </p>
+
+      <div class="flex flex-wrap items-center" style="gap:var(--s-3);margin-top:var(--s-5)">
+        <a href="./" class="btn btn-primary">กลับหน้าแรก</a>
+        <a href="shops.html" class="btn btn-outline">ค้นหาร้าน</a>
+      </div>
+
+      <div style="margin-top:var(--s-7);padding-top:var(--s-5);border-top:1px solid var(--border)">
+        <p class="text-sm text-muted" style="margin-bottom:var(--s-3)">หรือไปที่กลุ่มบริการโดยตรง</p>
+        <nav class="grp-switch" id="groupLinks" style="border-top:none;padding-top:0;margin-top:0"></nav>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/api.js?v=202609211200"></script>
+  <script src="js/ui.js?v=202609211200"></script>
+  <script>
+    renderNavbar("");
+    renderFooter();
+    document.getElementById("groupLinks").innerHTML = GROUPS
+      .map((g) => `<a href="${g.key}.html">${icon(g.icon, 15)} ${esc(g.name)}</a>`)
+      .join("");
+  </script>
+</body>
+</html>

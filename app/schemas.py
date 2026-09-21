@@ -47,6 +47,28 @@ Password = Annotated[
 ]
 FullName = Annotated[str, Field(min_length=2, max_length=150)]
 Phone = Annotated[str, Field(pattern=r"^[0-9]{9,15}$")]
+
+
+def _sane_birth_date(v: date) -> date:
+    """ปฏิเสธวันเกิดที่เป็นไปไม่ได้
+
+    เคยเจอในระบบจริงว่าคนกรอกปีเป็น พ.ศ. (เช่น 2545) ซึ่งกลายเป็นอนาคต
+    หรือพิมพ์ปีผิดจนได้อายุ 300 ปี ถ้าปล่อยผ่าน ด่านตรวจอายุจะคำนวณเพี้ยนตาม
+    """
+    from datetime import date as _d
+
+    today = _d.today()
+    if v > today:
+        raise ValueError("วันเกิดต้องไม่ใช่วันในอนาคต (ถ้ากรอกเป็น พ.ศ. ให้เปลี่ยนเป็น ค.ศ.)")
+    if today.year - v.year > 120:
+        raise ValueError("วันเกิดไม่ถูกต้อง")
+    return v
+
+
+BirthDate = Annotated[date, AfterValidator(_sane_birth_date)]
+
+# วันหยุดประจำสัปดาห์ — เลขวันคั่นจุลภาค 0=อาทิตย์ ถึง 6=เสาร์ เช่น "1,2"
+ClosedWeekdays = Annotated[str, Field(pattern=r"^$|^[0-6](,[0-6])*$", max_length=20)]
 Rating = Annotated[int, Field(ge=1, le=5, description="คะแนน 1-5")]
 
 # พิกัดภูมิศาสตร์ — จำกัดช่วงให้ถูกต้องตามความเป็นจริง
@@ -64,12 +86,24 @@ class RegisterRequest(BaseModel):
     password: Password = Field(..., description="อย่างน้อย 8 ตัวอักษร", examples=["Password123"])
     full_name: FullName = Field(..., examples=["ทดสอบ ระบบ"])
     phone: Phone | None = Field(None, examples=["0891234567"])
+    birth_date: BirthDate | None = Field(
+        None, description="วันเกิด — ใช้ตรวจเกณฑ์อายุของบริการบางหมวด", examples=["2000-05-20"]
+    )
     role: Literal["customer", "owner"] = Field("customer", description="สมัครเป็นลูกค้าหรือเจ้าของร้าน")
 
 
 class LoginRequest(BaseModel):
     username: str = Field(..., description="ใส่ username หรือ email ก็ได้", examples=["mind"])
     password: str = Field(..., examples=["Password123"])
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr = Field(..., description="อีเมลที่ใช้สมัคร", examples=["test@example.com"])
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(..., min_length=20, max_length=200, description="โทเคนจากลิงก์ในอีเมล")
+    new_password: Password = Field(..., description="รหัสผ่านใหม่ อย่างน้อย 8 ตัวอักษร")
 
 
 class ChangePasswordRequest(BaseModel):
@@ -85,9 +119,26 @@ class UserOut(BaseModel):
     email: EmailStr
     full_name: str
     phone: str | None = None
+    birth_date: date | None = None
     role: str
     is_active: bool
     created_at: datetime
+
+    @computed_field
+    @property
+    def age(self) -> int | None:
+        """อายุเต็มปี — คำนวณสดทุกครั้ง ไม่เก็บลงฐานข้อมูล
+
+        ถ้าเก็บเป็นตัวเลข พอถึงวันเกิดจริงก็ต้องมีใครมาไล่บวกให้ ซึ่งไม่มีทางทำได้
+        """
+        if self.birth_date is None:
+            return None
+        from datetime import date as _d
+
+        t = _d.today()
+        return t.year - self.birth_date.year - (
+            (t.month, t.day) < (self.birth_date.month, self.birth_date.day)
+        )
 
 
 class TokenResponse(BaseModel):
@@ -102,6 +153,7 @@ class UserUpdate(BaseModel):
     full_name: FullName | None = None
     email: EmailStr | None = None
     phone: Phone | None = None
+    birth_date: BirthDate | None = None
     role: Literal["customer", "owner", "admin"] | None = Field(None, description="เฉพาะ admin")
     is_active: bool | None = Field(None, description="เฉพาะ admin")
 
@@ -145,6 +197,9 @@ class ShopCreate(BaseModel):
     longitude: Longitude | None = Field(None, examples=[100.544600])
     open_time: time = Field(time(10, 0), examples=["10:00:00"])
     close_time: time = Field(time(20, 0), examples=["20:00:00"])
+    closed_weekdays: ClosedWeekdays | None = Field(
+        None, description="วันหยุดประจำสัปดาห์ 0=อาทิตย์ ถึง 6=เสาร์ เช่น \"1\" คือหยุดทุกวันจันทร์"
+    )
 
 
 class ShopUpdate(BaseModel):
@@ -158,6 +213,9 @@ class ShopUpdate(BaseModel):
     longitude: Longitude | None = None
     open_time: time | None = None
     close_time: time | None = None
+    closed_weekdays: ClosedWeekdays | None = Field(
+        None, description="วันหยุดประจำสัปดาห์ — ส่งสตริงว่างเพื่อยกเลิกวันหยุด"
+    )
     is_active: bool | None = None
     is_certified: bool | None = Field(None, description="เฉพาะ admin")
 
@@ -178,6 +236,7 @@ class ShopOut(BaseModel):
     longitude: Decimal | None = None
     open_time: time
     close_time: time
+    closed_weekdays: str | None = None
     is_certified: bool
     rating_avg: Decimal
     rating_count: int
@@ -335,6 +394,21 @@ class BookingCreate(BaseModel):
         None, max_length=500,
         description="ข้อมูลสุขภาพที่ร้านควรทราบ เช่น แพ้สารเคมี ตั้งครรภ์",
         examples=["แพ้น้ำหอม"],
+    )
+
+
+class InstantDistanceUpdate(BaseModel):
+    """ร้านแก้ระยะทางจริงหลังวิ่งงานเสร็จ
+
+    ระยะทางตอนเรียกงานเป็นตัวเลขที่ลูกค้าพิมพ์เอง จึงเป็นแค่ค่าประมาณ
+    ร้านที่วิ่งจริงเท่านั้นที่รู้ระยะจริง — เส้นนี้ให้ร้านกรอกกลับมา
+    """
+
+    distance_km: Decimal = Field(
+        ..., gt=0, le=200, description="ระยะทางจริงที่วิ่งได้ (กิโลเมตร)", examples=[12.4]
+    )
+    reason: str | None = Field(
+        None, max_length=200, description="เหตุผลที่ปรับ เช่น ปลายทางไกลกว่าที่แจ้ง"
     )
 
 

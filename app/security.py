@@ -160,6 +160,26 @@ def get_current_user(
     return user
 
 
+def get_optional_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """คืนผู้ใช้ถ้าล็อกอินอยู่ ไม่ล็อกอินก็คืน None โดยไม่โยน error
+
+    ใช้กับเส้นทางที่เปิดให้ทุกคนเข้าได้ แต่ถ้ารู้ว่าเป็นใครจะทำอะไรเพิ่มได้
+    เช่นหน้ารายการร้านที่กรองเฉพาะร้านโปรดได้เมื่อล็อกอินแล้ว
+
+    token เสียหรือหมดอายุก็คืน None เหมือนไม่ได้ล็อกอิน ไม่ใช่ตอบ 401
+    เพราะคนที่แค่เปิดดูรายการร้านไม่ควรโดนเตะออกเพราะ token เก่าค้างอยู่
+    """
+    if credentials is None:
+        return None
+    try:
+        return get_current_user(credentials, db)
+    except HTTPException:
+        return None
+
+
 def require_roles(*roles: str):
     """จำกัดสิทธิ์ตาม role เช่น Depends(require_roles("admin"))"""
 

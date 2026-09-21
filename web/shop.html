@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609141000" />
+  <link rel="stylesheet" href="css/app.css?v=202609211200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -166,8 +166,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202609141000"></script>
-  <script src="js/ui.js?v=202609141000"></script>
+  <script src="js/api.js?v=202609211200"></script>
+  <script src="js/ui.js?v=202609211200"></script>
   <script>
     renderNavbar("shops");
     renderFooter();
@@ -244,6 +244,17 @@
       try {
         const shop = await apiGet(`/api/shops/${shopId}`);
         shopData = shop;
+
+        // ชื่อบนแท็บเบราว์เซอร์ต้องบอกว่ากำลังดูร้านไหน
+        // ------------------------------------------------------------------
+        // คนเปิดหลายแท็บพร้อมกันเพื่อเทียบร้าน ถ้าทุกแท็บชื่อ "รายละเอียดร้าน"
+        // เหมือนกันหมดก็แยกไม่ออกว่าอันไหนคืออันไหน
+        //
+        // ส่วนแท็ก og: สำหรับตอนแชร์ลิงก์ เขียนตรงนี้ไม่ได้ผล
+        // เพราะบอตที่อ่านลิงก์ไม่รัน JavaScript — ฝั่งเซิร์ฟเวอร์แทรกให้แล้ว
+        // (ดู _shop_share_html ใน app/main.py)
+        document.title = `${shop.name} — จองคิวผ่าน Bookvice`;
+
         RES_RAW = shop.resource_label || "ช่าง";
         RES = esc(RES_RAW);
         // สิ่งของใช้ "คอร์ทไหนก็ได้" / "ทุกคอร์ท" · คนใช้ "ใครก็ได้" / "ทุกคน"
@@ -333,13 +344,27 @@
               <dl class="grid sm:grid-cols-3 gap-5 mt-5 pt-5" style="border-top:1px solid var(--border)">
                 <div>
                   <dt class="text-xs text-muted flex items-center gap-1.5">${icon("mapPin", 13)} ที่ตั้ง</dt>
-                  <dd class="text-sm mt-1">${esc(s.address || "—")}<br />
-                    <span class="text-muted">${esc(s.district || "")} ${esc(s.province || "")}</span></dd>
+                  ${/* จังหวัดขึ้นก่อนอำเภอ — ชื่ออำเภอซ้ำกันข้ามจังหวัดเยอะ
+                        เห็น "เมือง" เฉย ๆ แล้วไม่รู้ว่าเมืองของจังหวัดไหน */""}
+                  <dd class="text-sm mt-1"><span class="text-muted">${esc(placeText(s))}</span><br />
+                    ${esc(s.address || "—")}</dd>
                 </div>
                 <div>
                   <dt class="text-xs text-muted flex items-center gap-1.5">${icon("clock", 13)} เวลาทำการ</dt>
                   <dd class="text-sm mt-1 num">${shortTime(s.open_time)} – ${shortTime(s.close_time)} น.</dd>
                   <dd class="mt-1"><span class="shop-st ${shopStatus(s).cls}">${shopStatus(s).text}</span></dd>
+                  ${/* ตารางทั้งสัปดาห์แบบ Google Maps — พับไว้เพราะคนส่วนใหญ่
+                        อยากรู้แค่ "ตอนนี้เปิดไหม" ส่วนคนที่วางแผนล่วงหน้าค่อยกางดู */""}
+                  <dd class="mt-2">
+                    <details class="week-hours">
+                      <summary>ดูเวลาทำการทั้งสัปดาห์</summary>
+                      <table class="week-table">
+                        ${weekRows(s)}
+                      </table>
+                      ${closedDays(s).length ? "" : `
+                        <p class="hint" style="margin:8px 0 0">ร้านนี้เปิดทุกวัน ไม่มีวันหยุดประจำ</p>`}
+                    </details>
+                  </dd>
                 </div>
                 <div>
                   <dt class="text-xs text-muted flex items-center gap-1.5">${icon("creditCard", 13)} ราคาเริ่มต้น</dt>
@@ -424,8 +449,14 @@
             <button id="dGo" class="btn btn-primary btn-block" style="margin-top:16px">
               ${icon("navigate", 15)} เรียกใช้บริการตอนนี้
             </button>
+            ${/* ต้องบอกตรง ๆ ว่าราคานี้ยังไม่ใช่ราคาสุดท้าย
+                  ระยะทางมาจากที่ลูกค้าพิมพ์เอง ซึ่งเซิร์ฟเวอร์ตรวจไม่ได้
+                  ร้านที่วิ่งจริงจะกรอกระยะจริงกลับมาก่อนปิดงาน แล้วยอดจะขยับ
+                  ถ้าไม่เขียนไว้ ลูกค้าจะรู้สึกว่าโดนคิดเงินเพิ่มทีหลังโดยไม่บอก */""}
             <p class="hint text-center" style="margin-top:8px">
-              กดแล้วระบบจะจ่ายงานให้${RES}ทันที และยืนยันงานให้อัตโนมัติ
+              กดแล้วระบบจะจ่ายงานให้${RES}ทันที และยืนยันงานให้อัตโนมัติ<br />
+              ค่าบริการคิดจากระยะทางที่คุณกรอก ทางร้านจะปรับตามระยะจริงก่อนปิดงาน
+              และแจ้งให้ทราบทุกครั้งที่ยอดเปลี่ยน
             </p>
           </div>
         </section>` : ""}
@@ -437,7 +468,22 @@
              การหาก๊วนคือขั้นตอนแรก ไม่ใช่ขั้นตอนหลังจอง -->
         ${IS_TEAM ? `<section class="mt-10 reveal" id="matchSection"></section>` : ""}
 
-        <!-- ---------- จองคิว 3 ขั้นตอน ---------- -->
+        <!-- ---------- รีวิว ----------
+             ย้ายขึ้นมาก่อนขั้นตอนจอง ตามที่ผู้ใช้จริงเสนอ
+             เหตุผลคือคนอ่านรีวิว "เพื่อตัดสินใจว่าจะจองไหม" ไม่ใช่อ่านหลังจองเสร็จ
+             ของเดิมรีวิวอยู่ท้ายหน้า ต้องเลื่อนผ่านขั้นตอนจองทั้งหมดไปก่อน
+             แล้วถ้าอ่านแล้วไม่ถูกใจก็ต้องเลื่อนกลับขึ้นมา -->
+        <section class="mt-12 reveal">
+          <h2 class="h2">รีวิวจากผู้ใช้บริการ</h2>
+          <p class="hint">เขียนรีวิวได้เฉพาะผู้ที่จองผ่านระบบและใช้บริการเสร็จแล้วเท่านั้น</p>
+
+          <div id="reviewSummary" class="mt-5"></div>
+          <div id="reviewFilters" class="rv-filters"></div>
+          <div id="reviewList" class="mt-4 space-y-3"></div>
+          <div id="reviewMore" class="text-center mt-4"></div>
+        </section>
+
+        <!-- ---------- จองคิว ---------- -->
         ${INSTANT ? "" : `
         <section class="mt-10 reveal">
           <h2 class="h2">จองคิว</h2>
@@ -454,10 +500,32 @@
               </div>
             </div>
 
-            <!-- ขั้นที่ 2 -->
+            <!-- ขั้นที่ 2 — เลือกผู้ให้บริการ (เฉพาะร้านที่ทรัพยากรเป็น "คน")
+                 ------------------------------------------------------------------
+                 ย้ายขึ้นมาก่อนเลือกวันและเวลา เพราะ "ช่วงเวลาที่ว่าง" ขึ้นอยู่กับ
+                 ว่าเลือกใคร ของเดิมให้เลือกเวลาก่อนแล้วค่อยเลื่อนลงไปดูการ์ดช่าง
+                 ซึ่งแปลว่าพอเปลี่ยนช่าง เวลาที่เพิ่งเลือกไว้ก็ใช้ไม่ได้แล้ว
+                 ต้องย้อนกลับขึ้นไปเลือกใหม่ (ผู้ใช้จริงสะดุดตรงนี้)
+
+                 ร้านที่จองเป็นสถานที่ (สนาม คอร์ท ห้อง) ไม่มีขั้นนี้
+                 เพราะเลือกจากผังทรัพยากร x เวลา ในขั้นถัดไปทีเดียวจบ -->
+            ${staff.length && !IS_VENUE ? `
             <div class="bk-step">
               <div class="bk-head">
-                <span class="bk-num">2</span> เลือกวัน
+                <span class="bk-num">2</span> เลือก${RES}
+                <span id="staffHint" class="bk-note"></span>
+              </div>
+              <label class="any-res">
+                <input type="checkbox" id="anyStaff" />
+                <span>ให้ร้านจัด${RES}ให้ — ${esc(ANY_RES)}</span>
+              </label>
+              <div id="staffGrid" class="staff-grid mt-4"></div>
+            </div>` : ""}
+
+            <!-- ขั้นที่ 3 -->
+            <div class="bk-step">
+              <div class="bk-head">
+                <span class="bk-num">${staff.length && !IS_VENUE ? 3 : 2}</span> เลือกวัน
                 <span id="dateHint" class="bk-note"></span>
               </div>
               <!-- บนมือถือปัดนิ้วได้อยู่แล้ว แต่บนคอมพิวเตอร์ไม่มีอะไรบอกว่าแถบนี้เลื่อนได้
@@ -472,27 +540,18 @@
               </div>
             </div>
 
-            <!-- ขั้นที่ 3 —
+            <!-- ขั้นสุดท้าย —
                  สถานที่ (สนาม/คอร์ท/ห้อง) แสดงเป็น "ผัง" ทรัพยากร x เวลา
                  คนอยากรู้ว่าสองทุ่มมีคอร์ทไหนว่างบ้าง ซึ่งผังตอบได้ในแวบเดียว
                  ส่วน dropdown ต้องกดไล่ดูทีละคอร์ท
 
-                 คน (ช่าง/แพทย์) ยังใช้ dropdown + รายการเวลาเหมือนเดิม
-                 เพราะคนเลือกช่างจากฝีมือและรีวิว ไม่ได้เลือกจากผัง -->
+                 ดรอปดาวน์เลือกช่างที่เคยอยู่ตรงนี้ถูกย้ายไปเป็นขั้นที่ 2 แล้ว
+                 การมีสองที่ให้เลือกเรื่องเดียวกันทำให้ต้องคอยซิงก์กันตลอด
+                 และผู้ใช้ก็ไม่รู้ว่าอันไหนคือตัวจริง -->
             <div class="bk-step">
               <div class="bk-head">
-                <span class="bk-num">3</span> ${IS_VENUE ? `เลือก${RES}และเวลา` : "เลือกเวลา"}
-                ${staff.length && !IS_VENUE ? `
-                  <label class="staff-pick">
-                    <span class="text-muted">${RES}</span>
-                    <select id="staffSelect" class="select select-inline">
-                      <option value="">${ANY_RES}</option>
-                      ${staff.map((st) => `
-                        <option value="${st.id}">
-                          ${esc(st.name)}${st.rating_count ? ` · ${Number(st.rating_avg).toFixed(1)} ดาว` : ""}
-                        </option>`).join("")}
-                    </select>
-                  </label>` : ""}
+                <span class="bk-num">${staff.length && !IS_VENUE ? 4 : 3}</span>
+                ${IS_VENUE ? `เลือก${RES}และเวลา` : "เลือกเวลา"}
               </div>
               <div id="pickedBar"></div>
               <div id="slotBox"></div>
@@ -509,8 +568,11 @@
               opacity: 0 คือมีเนื้อหาครบใน DOM แต่มองไม่เห็นอะไรเลย */""}
         ${hasPin ? `<section class="mt-12" id="waitSection" hidden></section>` : ""}
 
-        <!-- ---------- ทรัพยากรที่จองได้ (ช่าง / คอร์ท / สนาม) ---------- -->
-        ${staff.length && !INSTANT ? `
+        <!-- ---------- ทรัพยากรที่จองได้ (เฉพาะร้านที่จองเป็นสถานที่) ----------
+             ร้านที่ทรัพยากรเป็น "คน" ย้ายการ์ดชุดนี้ขึ้นไปเป็นขั้นที่ 2 ของการจองแล้ว
+             เหลือไว้ตรงนี้เฉพาะสนาม คอร์ท และห้อง ซึ่งเป็นข้อมูลประกอบ
+             ไม่ใช่ขั้นตอนที่ต้องเลือก (ผังในขั้นสุดท้ายเป็นตัวเลือกจริง) -->
+        ${staff.length && !INSTANT && IS_VENUE ? `
           <section class="mt-12 reveal" id="staffSection">
             <div class="section-head">
               <div>
@@ -520,17 +582,6 @@
             </div>
             <div id="staffGrid" class="staff-grid"></div>
           </section>` : ""}
-
-        <!-- ---------- รีวิว ---------- -->
-        <section class="mt-12 reveal">
-          <h2 class="h2">รีวิวจากผู้ใช้บริการ</h2>
-          <p class="hint">เขียนรีวิวได้เฉพาะผู้ที่จองผ่านระบบและใช้บริการเสร็จแล้วเท่านั้น</p>
-
-          <div id="reviewSummary" class="mt-5"></div>
-          <div id="reviewFilters" class="rv-filters"></div>
-          <div id="reviewList" class="mt-4 space-y-3"></div>
-          <div id="reviewMore" class="text-center mt-4"></div>
-        </section>
 
         <!-- ---------- แผนที่ ---------- -->
         ${hasPin ? `
@@ -657,6 +708,31 @@
           alertBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
       });
+    }
+
+    /** ตารางเวลาทำการทั้งสัปดาห์ — วันนี้ตัวหนา วันหยุดขึ้นว่า "ปิด"
+     *
+     * ต้องอ่านวันหยุดจาก closed_weekdays ชุดเดียวกับที่ฝั่งเซิร์ฟเวอร์ใช้บล็อกการจอง
+     * ถ้าสองฝั่งไม่ตรงกัน จะเกิดกรณีที่ตารางบอกว่าเปิดแต่กดจองแล้วโดนปฏิเสธ
+     */
+    function weekRows(s) {
+      const closed = closedDays(s);
+      const today = new Date().getDay();
+      const hours = shortTime(s.open_time) === shortTime(s.close_time)
+        ? "เปิด 24 ชั่วโมง"
+        : `${shortTime(s.open_time)} – ${shortTime(s.close_time)} น.`;
+
+      // เริ่มจากวันนี้แล้วไล่ไปข้างหน้า ผู้ใช้จะเห็นวันที่เกี่ยวกับตัวเองก่อน
+      return Array.from({ length: 7 }, (_, i) => (today + i) % 7)
+        .map((d) => {
+          const off = closed.includes(d);
+          return `
+            <tr class="${d === today ? "is-today" : ""}">
+              <th>${DOW_TH_FULL[d]}${d === today ? " (วันนี้)" : ""}</th>
+              <td class="${off ? "wk-off" : "num"}">${off ? "ปิด" : hours}</td>
+            </tr>`;
+        })
+        .join("");
     }
 
     function serviceOption(sv) {
@@ -1389,10 +1465,13 @@
         })
       );
 
-      const sel = document.getElementById("staffSelect");
-      if (sel) sel.addEventListener("change", () =>
-        setStaff(sel.value ? Number(sel.value) : null, false)
-      );
+      // ช่องติ๊ก "ให้ร้านจัดให้" — ติ๊กแล้วล้างช่างที่เลือกไว้
+      // เอาติ๊กออกเฉย ๆ ไม่ต้องทำอะไร เพราะยังไม่รู้ว่าผู้ใช้อยากได้ใคร
+      // ปล่อยให้เขากดการ์ดเองแล้ว setStaff จะเอาติ๊กออกให้
+      const any = document.getElementById("anyStaff");
+      if (any) any.addEventListener("change", () => {
+        if (any.checked) setStaff(null, false);
+      });
     }
 
     const thaiShort = (iso) => {
@@ -1492,6 +1571,15 @@
       const staff = (shopData.staff || []).filter((x) => x.is_active);
       grid.innerHTML = staff.map(staffCard).join("");
 
+      // บอกสถานะปัจจุบันไว้ข้างหัวข้อขั้นตอน คนจะได้ไม่ต้องเลื่อนหาว่าเลือกใครไว้
+      const hint = document.getElementById("staffHint");
+      if (hint) {
+        const st = staff.find((x) => x.id === state.staffId);
+        hint.textContent = st ? `เลือก ${st.name}` : ANY_RES;
+      }
+      const any = document.getElementById("anyStaff");
+      if (any) any.checked = state.staffId === null;
+
       grid.querySelectorAll("[data-pickstaff]").forEach((b) =>
         b.addEventListener("click", () => setStaff(Number(b.dataset.pickstaff), true))
       );
@@ -1509,8 +1597,10 @@
       state.pickedDate = false;
       pickedTime = null;          // คนละคนคนละตาราง ช่องที่เลือกไว้อาจไม่ว่างแล้ว
 
-      const sel = document.getElementById("staffSelect");
-      if (sel) sel.value = id ? String(id) : "";
+      // ช่องติ๊ก "ให้ร้านจัดให้" กับการ์ดที่เลือกไว้ต้องตรงกันเสมอ
+      // ติ๊ก = ไม่เจาะจงใคร · เลือกการ์ด = เจาะจง แล้วช่องติ๊กต้องหลุดออกเอง
+      const any = document.getElementById("anyStaff");
+      if (any) any.checked = id === null;
 
       renderStaffCards();
       renderPickedBar();
@@ -1869,11 +1959,20 @@
         favBtn.setAttribute("aria-label", on ? "เอาออกจากร้านโปรด" : "บันทึกเป็นร้านโปรด");
       };
       paint(Favorites.has(s.id));
+      // ของจริงอยู่ที่เซิร์ฟเวอร์ — ดึงมาทับแคชแล้ววาดใหม่
+      // ไม่งั้นคนที่เพิ่งล็อกอินในเครื่องใหม่จะเห็นหัวใจว่าง ทั้งที่เคยกดไว้
+      Favorites.sync().then(() => paint(Favorites.has(s.id)));
+
       favBtn.addEventListener("click", () => {
+        if (!Auth.isLoggedIn) {
+          toast("กรุณาเข้าสู่ระบบเพื่อบันทึกร้านโปรด", "info", 4000);
+          setTimeout(() => {
+            location.href = `login.html?next=${encodeURIComponent(currentPage())}`;
+          }, 900);
+          return;
+        }
         const on = Favorites.toggle(s.id);
         paint(on);
-        // ร้านโปรดเก็บไว้ในเครื่อง ไม่ได้ยิงเซิร์ฟเวอร์ จึงไม่มีอะไรบอกว่ากดติด
-        // ถ้าไม่บอก ผู้ใช้จะไม่รู้ว่ากดแล้วไปโผล่ที่ไหน
         toast(on ? "บันทึกไว้ในร้านโปรดแล้ว" : "เอาออกจากร้านโปรดแล้ว");
       });
 
@@ -2028,6 +2127,9 @@
         <div>${icon("clock", 15)} <span class="num">${shortTime(time)}–${end} น.</span></div>
         <div>${icon("user", 15)} <span>${esc(staffNameOf(state.staffId))}</span></div>`;
       document.getElementById("mPrice").textContent = `฿${baht(sv.price)}`;
+      // 0.2 ตรงนี้ต้องตรงกับ DEPOSIT_RATE ใน app/routers/bookings.py เสมอ
+      // ตอนเปิดกล่องยืนยันยังไม่มีใบจอง จึงถามเซิร์ฟเวอร์ไม่ได้ ต้องคำนวณเอง
+      // ถ้าวันหนึ่งเปลี่ยนสัดส่วนมัดจำ ต้องแก้ทั้งสองที่พร้อมกัน
       document.getElementById("mDeposit").textContent =
         `มัดจำ ฿${baht(Number(sv.price) * 0.2)} · ส่วนที่เหลือชำระที่ร้านในวันเข้ารับบริการ`;
 
@@ -2057,8 +2159,8 @@
 
       document.querySelectorAll("[data-svc]").forEach((x) =>
         x.classList.toggle("is-active", Number(x.dataset.svc) === state.serviceId));
-      const sel = document.getElementById("staffSelect");
-      if (sel) sel.value = state.staffId || "";
+      // ดรอปดาวน์เลือกช่างถูกแทนด้วยการ์ดในขั้นที่ 2 แล้ว จึงวาดการ์ดใหม่แทน
+      renderStaffCards();
 
       await loadRange();
 

@@ -749,15 +749,10 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 .svc-name { display: block; font-size: var(--fs-base); font-weight: 600; line-height: 1.45; }
 .svc-meta { display: block; font-size: var(--fs-xs); color: var(--muted); margin-top: 2px; }
 
-/* เลือกช่างแบบย่อ อยู่มุมขวาของหัวข้อขั้นที่ 3 */
-.staff-pick {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  font-size: var(--fs-sm);
-  font-weight: 400;
-}
+/* .staff-pick ถูกถอดออกแล้ว — ดรอปดาวน์เลือกช่างมุมขวาของหัวข้อขั้นตอน
+   ถูกแทนด้วยการ์ดเลือกช่างในขั้นที่ 2 การมีสองที่ให้เลือกเรื่องเดียวกัน
+   ทำให้ต้องคอยซิงก์กันตลอดและผู้ใช้ไม่รู้ว่าอันไหนคือตัวจริง
+   (.select-inline ยังใช้อยู่ที่อื่น จึงเก็บไว้) */
 .select-inline {
   width: auto;
   padding: 5px 9px;
@@ -2188,6 +2183,101 @@ details:not([open]) > *:not(summary) { display: none !important; }
 }
 /* ลูกศรขยับออกตอนชี้ — บอกทิศทางว่ากดแล้วไปข้างหน้า */
 .see-all:hover { gap: var(--s-2); }
+
+/* ============================================================
+   หน้าเอกสาร — นโยบายความเป็นส่วนตัว เงื่อนไขการใช้งาน
+   ============================================================
+   เป็นหน้าที่คนอ่านเป็นย่อหน้ายาว ไม่ใช่หน้าที่กวาดสายตาหาของ
+   จึงจำกัดความกว้างบรรทัดและเพิ่มระยะบรรทัด ต่างจากหน้าอื่นของเว็บ */
+.doc-page { max-width: 72ch; }
+.doc-page h2 { margin: var(--s-7) 0 var(--s-3); }
+.doc-page h2:first-of-type { margin-top: var(--s-6); }
+.doc-page p { margin: 0 0 var(--s-3); line-height: 1.85; }
+.doc-page ul { margin: 0 0 var(--s-4); padding-left: 0; }
+.doc-page li {
+  position: relative;
+  padding-left: var(--s-5);
+  margin-bottom: var(--s-2);
+  line-height: 1.8;
+}
+/* จุดนำหน้าวาดเอง เพราะรีเซ็ตของเราปิด list-style ไว้ทั้งเว็บ */
+.doc-page li::before {
+  content: "";
+  position: absolute;
+  left: var(--s-2); top: .72em;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+.doc-page a { color: var(--blue-600); text-decoration: underline; }
+.doc-page a:hover { color: var(--blue-700); }
+.doc-page code {
+  background: var(--navy-50);
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
+  font-size: .92em;
+}
+.doc-date { color: var(--muted); font-size: var(--fs-sm); margin-top: var(--s-2); }
+
+/* ช่องติ๊ก "ให้ร้านจัดผู้ให้บริการให้" ในขั้นตอนจอง
+   วางไว้เหนือการ์ด เพราะคนที่ไม่เจาะจงจะได้จบตั้งแต่บรรทัดแรก
+   ไม่ต้องกวาดสายตาผ่านการ์ดทุกใบก่อนถึงจะรู้ว่าข้ามได้ */
+.any-res {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--surface);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+}
+.any-res:hover { border-color: var(--border-strong); }
+.any-res input { width: 16px; height: 16px; accent-color: var(--navy-800); flex-shrink: 0; }
+.any-res:has(input:checked) { border-color: var(--blue-600); background: var(--blue-50); }
+
+/* ตารางเวลาทำการทั้งสัปดาห์ในหน้าร้าน */
+.week-hours > summary {
+  cursor: pointer; list-style: none;
+  font-size: var(--fs-sm); color: var(--blue-600);
+  display: inline-flex; align-items: center; gap: var(--s-1);
+}
+.week-hours > summary::-webkit-details-marker { display: none; }
+.week-hours > summary::after { content: "▾"; font-size: var(--fs-2xs); }
+.week-hours[open] > summary::after { content: "▴"; }
+.week-table { margin-top: var(--s-2); font-size: var(--fs-sm); border-collapse: collapse; }
+.week-table th {
+  text-align: left; font-weight: 400; color: var(--muted);
+  padding: 3px var(--s-4) 3px 0; white-space: nowrap;
+}
+.week-table td { padding: 3px 0; }
+/* วันนี้ต้องหาเจอในแวบเดียว เพราะเป็นแถวเดียวที่คนส่วนใหญ่สนใจ */
+.week-table tr.is-today th,
+.week-table tr.is-today td { font-weight: 600; color: var(--ink); }
+.week-table .wk-off { color: var(--danger); }
+
+/* ช่องรหัสผ่านที่มีปุ่มดู/ซ่อนอยู่ข้างใน */
+.pw-wrap { position: relative; }
+.pw-wrap .input { padding-right: 44px; }
+.pw-peek {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  background: none; border: 0; cursor: pointer;
+  color: var(--muted); border-radius: var(--r-sm);
+  transition: color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+}
+.pw-peek:hover { color: var(--ink); background: var(--navy-50); }
+.pw-peek:focus-visible { outline: none; box-shadow: var(--ring); }
+
+/* แถวลิงก์เอกสารท้ายเว็บ */
+.foot-legal {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2);
+  font-size: var(--fs-sm);
+}
+.foot-legal a { color: rgba(255,255,255,.68); text-decoration: none; }
+.foot-legal a:hover { color: #fff; text-decoration: underline; }
+.foot-legal span { color: rgba(255,255,255,.28); }
 
 /* ============================================================
    ระหว่างรอ ไปนั่งที่ไหนดี — รายการร้านรอบ ๆ จาก OpenStreetMap

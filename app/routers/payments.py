@@ -388,6 +388,20 @@ def refund_payment(
     payment.status = "refunded"
     payment.refunded_at = _now()
 
+    # คืนเงินแล้วต้องล้างค่าปรับยกเลิกออกจากใบจองด้วย
+    # ------------------------------------------------------------------
+    # ตอนลูกค้ากดยกเลิกเอง ระบบบันทึก cancellation_fee = ค่ามัดจำ แปลว่า
+    # "ลูกค้าเสียมัดจำไปแล้ว" แต่ร้านยังกดคืนเงินเต็มจำนวนได้ (ซึ่งควรทำได้
+    # เพราะเป็นดุลพินิจของร้าน) ผลคือใบจองยังค้างข้อความว่าโดนหักเงิน
+    # ทั้งที่เงินกลับเข้ากระเป๋าลูกค้าครบแล้ว — ลูกค้าเปิดดูแล้วสับสน
+    # และรายงานของร้านก็นับค่าปรับที่ไม่มีอยู่จริง
+    #
+    # ตัดค่าปรับลงตามยอดที่คืนไป ถ้าคืนครบก็เหลือศูนย์
+    if booking.cancellation_fee and booking.cancellation_fee > 0:
+        booking.cancellation_fee = _money(
+            max(Decimal(booking.cancellation_fee) - _money(payment.amount), Decimal("0"))
+        )
+
     notify(
         db, booking.user_id, "payment_refunded",
         f"ร้านคืนเงิน ฿{payment.amount:,.0f} แล้ว",
