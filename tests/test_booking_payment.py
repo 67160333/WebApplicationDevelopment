@@ -706,6 +706,53 @@ def main():
         "username": "mind", "password": DEMO_PASSWORD,
     }).status_code, 200)
 
+    # ------------------------------------------------------------------
+    # ข้อมูลตัวอย่างต้องไม่แตะร้านของผู้ใช้จริง
+    # ------------------------------------------------------------------
+    # บั๊กจริงที่เกิดบนเว็บจริง: seed_closed_weekdays() ใส่วันหยุดประจำสัปดาห์
+    # ให้ "ทุกร้านที่ยังไม่ได้ตั้งค่า" ซึ่งกินร้านที่ผู้ใช้เปิดเองไปด้วย
+    # ร้านของผู้ใช้จริงร้านหนึ่งจึงถูกสั่งปิดวันจันทร์โดยที่เจ้าของไม่เคยสั่ง
+    #
+    # เทสต์นี้สร้างร้านใหม่ในนามผู้ใช้จริง แล้วเรียกฟังก์ชัน seed ซ้ำ
+    # ร้านนั้นต้องไม่ถูกแตะเลย
+    print("\n--- ข้อมูลตัวอย่างต้องไม่แตะร้านของผู้ใช้จริง ---")
+    from app.seed_extra import seed_closed_weekdays  # noqa: E402
+
+    real = c.post("/api/auth/register", json={
+        "username": "realowner_t", "email": "realowner_t@example.com",
+        "password": DEMO_PASSWORD, "full_name": "เจ้าของร้านจริง",
+        "role": "owner",
+    })
+    check("สมัครบัญชีเจ้าของร้านจริงได้", real.status_code in (200, 201), True)
+    real_hdr = login("realowner_t")
+
+    cats = c.get("/api/categories").json()
+    spa = next((x for x in cats if x["slug"] == "spa-massage"), cats[0])
+    made = c.post("/api/shops", headers=real_hdr, json={
+        "name": "ร้านของผู้ใช้จริง ทดสอบ", "category_id": spa["id"],
+        "province": "ชลบุรี", "district": "บ้านบึง",
+        "open_time": "10:00:00", "close_time": "20:00:00",
+    })
+    check("เปิดร้านในนามผู้ใช้จริงได้", made.status_code in (200, 201), True)
+    real_shop_id = made.json()["id"]
+
+    check("ร้านที่เพิ่งเปิด ต้องยังไม่มีวันหยุดประจำ",
+          c.get(f"/api/shops/{real_shop_id}").json()["closed_weekdays"], None)
+
+    db = SessionLocal()
+    try:
+        seed_closed_weekdays(db)
+    finally:
+        db.close()
+
+    check("เรียก seed ซ้ำแล้ว ร้านของผู้ใช้จริงต้องไม่ถูกตั้งวันหยุดให้",
+          c.get(f"/api/shops/{real_shop_id}").json()["closed_weekdays"], None)
+
+    # ต้องยังทำงานกับร้านตัวอย่างอยู่ ไม่ใช่ปิดตายทั้งฟังก์ชัน
+    demo_spa = c.get("/api/shops/1").json()
+    check("ร้านตัวอย่างต้องยังได้วันหยุดประจำตามปกติ",
+          bool(demo_spa["closed_weekdays"]), True)
+
     print("\n" + "=" * 60)
     print(f"สรุป: ผ่าน {ok} · ไม่ผ่าน {fail} · ข้าม {skipped} บล็อก")
     if skipped:
