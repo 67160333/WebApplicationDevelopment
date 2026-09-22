@@ -392,6 +392,11 @@ CLOSED_WEEKDAY_BY_CATEGORY: dict[str, str] = {
 }
 
 
+# บัญชีเจ้าของร้านที่ระบบสร้างขึ้นเองตอน seed
+# ร้านของบัญชีเหล่านี้เท่านั้นที่ถือเป็น "ร้านตัวอย่าง" และแก้ได้
+DEMO_OWNER_USERNAMES = ("spaowner", "nailowner", "demoowner", "venueowner", "menowner")
+
+
 def seed_closed_weekdays(db: Session) -> None:
     """ใส่วันหยุดประจำสัปดาห์ให้ร้านตัวอย่างที่ยังไม่ได้ตั้งไว้
 
@@ -399,10 +404,27 @@ def seed_closed_weekdays(db: Session) -> None:
     ก่อนหน้านี้โค้ดทำงานถูกทุกอย่าง แต่ไม่มีร้านไหนในฐานข้อมูลมีวันหยุดเลย
     ตารางจึงขึ้นว่าเปิดครบเจ็ดวันเหมือนกันหมด ผู้ทดลองใช้จึงรายงานว่ายังไม่ได้ทำ
 
-    ข้ามร้านที่ตั้งค่าไว้แล้วเสมอ — เจ้าของร้านตั้งเองได้จากหน้าจัดการร้าน
-    ห้ามเขียนทับของจริงด้วยข้อมูลตัวอย่าง
+    **แตะเฉพาะร้านของบัญชีตัวอย่างเท่านั้น**
+    รุ่นแรกของฟังก์ชันนี้แก้ทุกร้านที่ยังไม่ได้ตั้งค่า ซึ่งรวมร้านจริงที่ผู้ใช้
+    เปิดเองด้วย ร้านของผู้ใช้จริงร้านหนึ่งจึงถูกสั่งปิดวันจันทร์โดยที่เจ้าของ
+    ไม่เคยสั่ง — ข้อมูลตัวอย่างต้องไม่เปลี่ยนเวลาทำการของร้านที่มีคนใช้จริง
+
+    ข้ามร้านที่ตั้งค่าไว้แล้วเสมอ เจ้าของตั้งเองได้จากหน้าจัดการร้าน
     """
-    rows = list(db.scalars(select(Shop).where(Shop.closed_weekdays.is_(None))).all())
+    demo_owner_ids = list(
+        db.scalars(select(User.id).where(User.username.in_(DEMO_OWNER_USERNAMES))).all()
+    )
+    if not demo_owner_ids:
+        return
+
+    rows = list(
+        db.scalars(
+            select(Shop).where(
+                Shop.closed_weekdays.is_(None),
+                Shop.owner_id.in_(demo_owner_ids),
+            )
+        ).all()
+    )
     if not rows:
         return
 
@@ -416,4 +438,4 @@ def seed_closed_weekdays(db: Session) -> None:
 
     if changed:
         db.commit()
-        print(f"ใส่วันหยุดประจำสัปดาห์ให้ร้าน {changed} ร้าน")
+        print(f"ใส่วันหยุดประจำสัปดาห์ให้ร้านตัวอย่าง {changed} ร้าน")
