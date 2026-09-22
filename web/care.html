@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609212000" />
+  <link rel="stylesheet" href="css/app.css?v=202609221200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -40,9 +40,9 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202609212000"></script>
-  <script src="js/ui.js?v=202609212000"></script>
-  <script src="js/browse.js?v=202609212000"></script>
+  <script src="js/api.js?v=202609221200"></script>
+  <script src="js/ui.js?v=202609221200"></script>
+  <script src="js/browse.js?v=202609221200"></script>
   <script>
     renderNavbar("g:care");
     renderFooter();
@@ -56,10 +56,7 @@
 
     // แถบสลับกลุ่ม — สร้างจาก GROUPS ใน ui.js ไม่ใช่พิมพ์ชื่อซ้ำในทุกหน้า
     // ถ้าวันหนึ่งเปลี่ยนชื่อกลุ่ม จะเปลี่ยนที่เดียวแล้วถูกทั้งเว็บ
-    document.querySelector(".grp-switch").innerHTML = GROUPS
-      .filter((g) => g.key !== "care")
-      .map((g) => `<a href="${g.key}.html">${icon(g.icon, 15)} ${esc(g.name)}</a>`)
-      .join("");
+    renderGroupSwitch("care");
 
     // กลุ่มนี้ตัดสินใจด้วย "คน" — ช่างคนไหน มือดีแค่ไหน คนอื่นว่ายังไง
     // การ์ดจึงเน้นดาว จำนวนรีวิว และจำนวนช่าง มากกว่าราคาหรือเวลาปิด

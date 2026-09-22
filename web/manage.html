@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609212000" />
+  <link rel="stylesheet" href="css/app.css?v=202609221200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -190,8 +190,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202609212000"></script>
-  <script src="js/ui.js?v=202609212000"></script>
+  <script src="js/api.js?v=202609221200"></script>
+  <script src="js/ui.js?v=202609221200"></script>
   <script>
     renderNavbar("manage");
     renderFooter();
@@ -1017,7 +1017,7 @@
           <div class="card card-pad">
             <h2 class="h2">ประกาศวันหยุด</h2>
             <p class="hint">วันที่บันทึกไว้ ระบบจะปิดรับจองทั้งวันทันที และลูกค้าจะเห็นเหตุผลที่คุณระบุ</p>
-            <form id="clForm" class="grid sm:grid-cols-[170px_1fr_auto] gap-3 mt-5 items-end">
+            <form id="clForm" class="grid closure-form gap-3 mt-5 items-end">
               <div>
                 <label class="label" for="clDate">วันที่ปิด</label>
                 <input id="clDate" type="date" class="input" required min="${localDate()}" />

@@ -471,6 +471,9 @@ body {
 .alert-error   { background: var(--danger-bg);  color: var(--danger);   border-color: #eed3d1; }
 .alert-success { background: var(--success-bg); color: var(--success);  border-color: #c9e6d8; }
 .alert-info    { background: var(--blue-50);    color: var(--blue-700); border-color: var(--blue-100); }
+/* ใช้ในหน้าเงื่อนไขการใช้งาน เตือนว่าเว็บนี้เป็นงานเรียน ไม่ใช่บริการจริง
+   เคยเรียกใช้โดยไม่มีกฎรองรับ กล่องจึงออกมาเป็นสีเทาเปล่า ๆ ไม่สะดุดตา */
+.alert-warn    { background: var(--warn-bg);    color: var(--warn);     border-color: #ecdcb8; }
 
 /* ---------- แถบเมนู ---------- */
 .nav-link {
@@ -965,6 +968,20 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   .hero-facts .f:not(:first-child) { display: none; }
 }
 
+/* ---------- สองผังที่เคยเขียนเป็นคลาสของ Tailwind ----------
+   ของเดิมเขียนว่า sm:grid-cols-[220px_1fr] ซึ่งเป็นรูปแบบ "ใส่ค่าเองในชื่อคลาส"
+   ของ Tailwind ที่ต้องมีตัวคอมไพล์คอยสร้างกฎให้ตอนบิลด์
+   เว็บนี้เขียน CSS เอง ไม่มีตัวคอมไพล์ คลาสพวกนี้จึงไม่เคยมีผลอะไรเลย
+   ผังกลายเป็นคอลัมน์เดียวเสมอ ทั้งที่ตั้งใจให้เป็นสองคอลัมน์
+
+   เปลี่ยนมาตั้งชื่อคลาสเองแทน อ่านแล้วรู้ว่าใช้ที่ไหน และแก้ได้จากที่เดียว */
+@media (min-width: 640px) {
+  /* หัวร้านที่ยังไม่มีรูป — ภาพแทน 220px แล้วเนื้อหากินที่เหลือ */
+  .shop-head-2col { grid-template-columns: 220px 1fr; }
+  /* ฟอร์มประกาศวันหยุด — วันที่ · เหตุผล · ปุ่ม */
+  .closure-form   { grid-template-columns: 170px 1fr auto; }
+}
+
 /* ---------- ภาพประกอบร้าน ---------- */
 .shop-art { position: relative; overflow: hidden; }
 .shop-art svg { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -1295,6 +1312,14 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   position: relative;
   display: flex;
   flex-direction: column;
+  /* ระยะห่างระหว่างชิ้นส่วนในการ์ดคุมที่นี่ที่เดียว ไม่ตั้ง margin ทีละชิ้น
+     ------------------------------------------------------------------
+     สำคัญเพราะ .staff-sched ใช้ margin-top:auto ดันตัวเองลงไปชิดขอบล่าง
+     เพื่อให้เส้นคั่นของทุกการ์ดในแถวอยู่ระดับเดียวกัน
+     แต่ "auto" ยุบเหลือ 0 ได้ถ้าการ์ดใบนั้นเนื้อหาสั้น (เช่นไม่มีประวัติ)
+     ผลคือข้อความบรรทัดสุดท้ายไปแปะกับเส้นคั่นพอดี — เคยเกิดจริง
+     gap เป็นระยะขั้นต่ำที่ auto กินไม่ได้ จึงแก้ได้ตรงจุด */
+  gap: 14px;
   padding: 18px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1400,7 +1425,8 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
    ระยะห่างขั้นต่ำจึงมาจาก padding-top 13px ด้านบน ซึ่งพอดีกับเส้นคั่นอยู่แล้ว */
 .staff-card.is-picked .staff-sched { border-top-color: var(--blue-100); }
 
-.staff-actions { display: flex; gap: var(--s-2); margin-top: 14px; }
+/* ไม่ต้องมี margin-top แล้ว — gap ของ .staff-card คุมระยะให้ทุกชิ้น */
+.staff-actions { display: flex; gap: var(--s-2); }
 .staff-actions .btn:first-child { flex: 1; }
 
 /* แถบบอกว่ากำลังดูคิวของใคร (อยู่ในขั้นที่ 3) */
@@ -3019,6 +3045,10 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .px-1 { padding-left:0.25rem;padding-right:0.25rem; }
 .px-5 { padding-left:1.25rem;padding-right:1.25rem; }
 .py-1\.5 { padding-top:0.375rem;padding-bottom:0.375rem; }
+/* py-10 ถูกเรียกใช้ใน 9 หน้าแต่ไม่เคยมีอยู่จริง จึงได้ padding 0
+   หัวข้อของหน้ากลุ่มเลยไปชิดแถบเมนูด้านบน — ระยะที่เห็นเป็นของที่บังเอิญได้มา
+   จากที่อื่น ไม่ใช่ค่าที่ตั้งใจ */
+.py-10 { padding-top:2.5rem;padding-bottom:2.5rem; }
 .py-12 { padding-top:3rem;padding-bottom:3rem; }
 .py-14 { padding-top:3.5rem;padding-bottom:3.5rem; }
 .py-16 { padding-top:4rem;padding-bottom:4rem; }
@@ -3345,6 +3375,11 @@ details:not([open]) > *:not(summary) { display: none !important; }
   padding: 22px 24px;
   margin-bottom: 6px;
   background: var(--navy-50);
+  /* มีเส้นรอบกล่องครบทุกด้าน แล้วค่อยเน้นด้านซ้ายให้หนาขึ้นเป็นสีของกลุ่ม
+     ของเดิมมีเส้นด้านซ้ายด้านเดียว อีกสามด้านไม่มีอะไรเลย
+     พอมุมโค้ง 12px เส้นที่มีด้านเดียวจะจบกลางอากาศตรงมุม
+     ดูเหมือนกล่องถูกตัดขอบหายไป ไม่ใช่การเน้นสี */
+  border: 1px solid var(--border);
   border-left: 4px solid var(--navy-800);
 }
 .grp-hero-in { display: flex; align-items: flex-start; gap: var(--s-4); }
@@ -3380,9 +3415,14 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .grp-cta-s { font-size: var(--fs-xs); color: var(--muted); margin-top: 2px; max-width: 60ch; }
 
 .grp-switch {
-  display: flex; gap: var(--s-2); flex-wrap: wrap;
+  display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap;
   margin-top: 16px; padding-top: 14px;
   border-top: 1px solid rgba(0, 0, 0, .07);
+}
+/* คำว่า "กลุ่มอื่น" — บอกว่าชิปข้าง ๆ คือทางไปหน้าอื่น ไม่ใช่หมวดย่อยของหน้านี้ */
+.grp-switch-label {
+  font-size: var(--fs-xs); color: var(--muted); opacity: .75;
+  margin-right: 2px;
 }
 .grp-switch a {
   display: inline-flex; align-items: center; gap: var(--s-2);
@@ -3390,6 +3430,10 @@ details:not([open]) > *:not(summary) { display: none !important; }
   padding: 5px 11px; border-radius: 999px; background: rgba(255, 255, 255, .75);
   transition: color var(--t) var(--ease), background var(--t) var(--ease);
 }
+/* ไอคอนชุดนี้ออกแบบมาที่ 24px พอย่อเหลือ 15px เส้นจะบางลงเหลือราว 1px
+   รายละเอียดเล็ก ๆ เลยเละจนดูเหมือนขีดมั่ว ๆ ไม่ใช่รูปอะไร
+   เพิ่มความหนาเส้นชดเชยเฉพาะตอนใช้ขนาดเล็กตรงนี้ */
+.grp-switch a svg { stroke-width: 2.2; }
 .grp-switch a:hover { color: var(--ink); background: #fff; }
 
 /* ---------- แถบเลือกกีฬา (เฉพาะหน้า play) ----------
