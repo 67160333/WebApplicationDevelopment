@@ -1,8 +1,8 @@
 """7) Shop Images — รูปภาพหน้าร้านและผลงาน"""
 
-from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Response, UploadFile, status
 from sqlalchemy import func, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, undefer
 
 from app.database import get_db
 from app.models import Shop, ShopImage, User
@@ -12,11 +12,14 @@ from app.storage import (
     MAX_IMAGES_PER_SHOP,
     MAX_UPLOAD_BYTES,
     UploadError,
-    delete_shop_image,
     process_shop_image,
 )
 
 router = APIRouter(prefix="/api", tags=["7. Shop Images"])
+
+# router ตัวที่สอง ไม่มี prefix /api
+# เพราะ URL ของไฟล์รูปคือ /uploads/shops/... ซึ่งถูกใช้ไปแล้วทั่วระบบ
+files_router = APIRouter(tags=["7. Shop Images"])
 
 
 def _get_shop_or_404(db: Session, shop_id: int) -> Shop:
@@ -31,6 +34,51 @@ def _ensure_owner(shop: Shop, user: User) -> None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="คุณไม่ใช่เจ้าของร้านนี้"
         )
+
+
+# ============================================================
+# เสิร์ฟไบต์ของรูปจากฐานข้อมูล
+# ============================================================
+#
+# เส้นทางนี้หน้าตาเหมือนไฟล์บนดิสก์ แต่จริง ๆ อ่านจากฐานข้อมูล
+# ตั้งใจให้เหมือนเดิม เพราะ URL ชุดนี้ถูกบันทึกไว้ในที่อื่นแล้ว
+# (แท็กแชร์ลิงก์ที่บอตของ LINE/Facebook เก็บไว้ · แคชของเบราว์เซอร์)
+#
+# **ไม่ต้องล็อกอิน** เพราะรูปหน้าร้านเป็นข้อมูลสาธารณะอยู่แล้ว
+# ถ้าบังคับล็อกอิน แท็กแชร์ลิงก์จะไม่มีรูปเพราะบอตไม่มีบัญชี
+@files_router.get(
+    "/uploads/shops/{shop_id}/{filename}",
+    summary="ไฟล์รูปของร้าน",
+    include_in_schema=False,
+    response_class=Response,
+)
+def serve_shop_image(
+    shop_id: int = Path(..., ge=1),
+    filename: str = Path(..., max_length=120),
+    db: Session = Depends(get_db),
+):
+    # undefer บอกให้ดึงคอลัมน์ data มาด้วย — ปกติมันถูกตั้งเป็น deferred
+    # เพื่อไม่ให้หน้าค้นหาลากไบต์ของรูปมาโดยไม่จำเป็น
+    image = db.scalars(
+        select(ShopImage)
+        .where(ShopImage.shop_id == shop_id, ShopImage.filename == filename)
+        .options(undefer(ShopImage.data))
+        .limit(1)
+    ).first()
+
+    if image is None or not image.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ไม่พบรูปนี้")
+
+    return Response(
+        content=image.data,
+        media_type="image/webp",
+        headers={
+            # ชื่อไฟล์เป็นค่าสุ่มและไม่ถูกใช้ซ้ำ เนื้อหาจึงไม่มีวันเปลี่ยน
+            # แคชยาว ๆ ได้เลย เบราว์เซอร์จะไม่ถามซ้ำและฐานข้อมูลไม่ต้องทำงานอีก
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "ETag": f'"{filename}"',
+        },
+    )
 
 
 @router.get(
@@ -80,7 +128,7 @@ async def upload_image(
 
     raw = await file.read()
     try:
-        filename, width, height, size = process_shop_image(raw, shop_id)
+        filename, data, width, height = process_shop_image(raw)
     except UploadError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
 
@@ -88,21 +136,17 @@ async def upload_image(
     image = ShopImage(
         shop_id=shop_id,
         filename=filename,
+        data=data,
         is_cover=(used == 0),
         sort_order=used,
         width=width,
         height=height,
-        size_bytes=size,
+        size_bytes=len(data),
     )
     db.add(image)
-    try:
-        db.commit()
-    except Exception:
-        # บันทึกฐานข้อมูลไม่สำเร็จ ต้องเก็บกวาดไฟล์ที่เขียนลงดิสก์ไปแล้วด้วย
-        # ไม่งั้นจะเหลือไฟล์ค้างที่ไม่มีใครอ้างถึง กินพื้นที่ไปเรื่อย ๆ
-        db.rollback()
-        delete_shop_image(shop_id, filename)
-        raise
+    # ไม่ต้องมีขั้นตอนเก็บกวาดตอนล้มเหลวแล้ว — ไบต์ของรูปอยู่ในธุรกรรมเดียวกับแถว
+    # ถ้า commit ไม่ผ่าน ทั้งคู่หายไปพร้อมกัน ไม่มีไฟล์ค้างที่ไม่มีใครอ้างถึง
+    db.commit()
     db.refresh(image)
     return ShopImageOut.model_validate(image)
 
@@ -153,7 +197,7 @@ def delete_image(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ไม่พบรูปนี้")
     _ensure_owner(_get_shop_or_404(db, image.shop_id), current_user)
 
-    shop_id, filename, was_cover = image.shop_id, image.filename, image.is_cover
+    shop_id, was_cover = image.shop_id, image.is_cover
     db.delete(image)
     db.flush()
 
@@ -170,5 +214,4 @@ def delete_image(
             nxt.is_cover = True
 
     db.commit()
-    delete_shop_image(shop_id, filename)
     return Message(message="ลบรูปเรียบร้อย")

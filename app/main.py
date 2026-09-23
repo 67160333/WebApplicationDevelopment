@@ -35,8 +35,8 @@ from app.seed import seed_database
 from app.seed_extra import backfill_coordinates, enrich_demo_data, seed_closed_weekdays
 from app.seed_men import seed_category_groups, seed_men_services
 from app.seed_photos import seed_stock_photos
+from app.routers.images import files_router
 from app.seed_venues import seed_venues
-from app.storage import UPLOAD_ROOT, ensure_dirs
 
 
 @asynccontextmanager
@@ -54,9 +54,6 @@ async def lifespan(app: FastAPI):
         resolve_jwt_secret(db)
     finally:
         db.close()
-
-    # โฟลเดอร์เก็บรูปที่ผู้ใช้อัปโหลด ต้องมีก่อนถึงจะ mount ให้เสิร์ฟไฟล์ได้
-    ensure_dirs()
 
     if settings.SEED_ON_START:
         db = SessionLocal()
@@ -113,11 +110,53 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# เสิร์ฟรูปที่ผู้ใช้อัปโหลด — ต้องสร้างโฟลเดอร์ก่อน ไม่งั้น StaticFiles จะโยน error ตอนเริ่ม
-# check_dir=False บอกให้ข้ามการตรวจตอน mount แล้วไปเช็คตอนมีคนขอไฟล์แทน
-# (ตอน import โมดูลนี้ lifespan ยังไม่ทำงาน โฟลเดอร์จึงอาจยังไม่มี)
-UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=UPLOAD_ROOT, check_dir=False), name="uploads")
+
+# ============================================================
+# ส่วนหัวความปลอดภัย
+# ============================================================
+#
+# ส่วนหัวเหล่านี้เป็นคำสั่งที่เซิร์ฟเวอร์บอกเบราว์เซอร์ว่า "อย่าทำสิ่งนี้"
+# ราคาถูกมาก ใส่ครั้งเดียวคุ้มครองทุกหน้า และปิดช่องโจมตีที่พบบ่อยที่สุด
+#
+# ที่มา: ตรวจด้วย securityheaders.com แล้วพบว่าเว็บไม่มีส่วนหัวชุดนี้เลยสักตัว
+_SECURITY_HEADERS = {
+    # ห้ามเบราว์เซอร์เดาชนิดไฟล์เอง
+    # ถ้าไม่ใส่ ไฟล์ที่ผู้ใช้อัปโหลดอาจถูกตีความเป็น HTML แล้วรันสคริปต์ได้
+    "X-Content-Type-Options": "nosniff",
+    # ห้ามเว็บอื่นเอาเว็บเราไปใส่ใน iframe
+    # กัน clickjacking — เอาหน้าจองเราไปซ้อนใต้ปุ่มล่อให้กดโดยไม่รู้ตัว
+    "X-Frame-Options": "DENY",
+    # ตอนผู้ใช้กดลิงก์ออกไปเว็บอื่น ส่งไปแค่ชื่อโดเมน ไม่ส่งเส้นทางเต็ม
+    # เส้นทางเต็มอาจมีรหัสร้านหรือเลขที่การจองติดไปด้วย
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    # ปิดสิทธิ์ที่เว็บนี้ไม่เคยใช้ ถ้าวันหนึ่งมีสคริปต์แปลกปลอมเข้ามาก็ใช้ไม่ได้
+    # (ตำแหน่งที่ตั้งใช้ในเบราว์เซอร์ผ่านปุ่ม "ใกล้ฉัน" จึงต้องเปิดไว้ให้ตัวเอง)
+    "Permissions-Policy": "camera=(), microphone=(), payment=(), geolocation=(self)",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for name, value in _SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+
+    # HSTS — บอกเบราว์เซอร์ว่า "ต่อไปนี้ให้เข้าเว็บนี้ด้วย https เท่านั้น"
+    #
+    # ใส่เฉพาะตอนที่คำขอเข้ามาทาง https จริง ๆ
+    # ถ้าใส่ตอนพัฒนาบน http://localhost เบราว์เซอร์จะจำไว้แล้วบังคับ https
+    # กับ localhost ทุกพอร์ตในอนาคต ซึ่งแก้คืนยากมาก (เจอกันบ่อย)
+    if request.url.scheme == "https":
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
+    return response
+
+# เสิร์ฟรูปที่ผู้ใช้อัปโหลด
+#
+# เดิมใช้ StaticFiles ชี้ไปที่โฟลเดอร์บนดิสก์ แต่โฮสต์ฟรีไม่มีดิสก์ถาวร
+# ไฟล์จึงหายทุกครั้งที่เครื่องหลับแล้วตื่น ตอนนี้ไบต์ของรูปอยู่ในฐานข้อมูล
+# และเสิร์ฟผ่าน files_router ซึ่งใช้ URL รูปแบบเดิมทุกประการ
 
 # รวม router ทั้งหมดเข้าแอป
 app.include_router(auth.router)
@@ -127,6 +166,7 @@ app.include_router(staff.router)
 app.include_router(bookings.router)
 app.include_router(notifications.router)
 app.include_router(images.router)
+app.include_router(files_router)
 app.include_router(payments.router)
 app.include_router(matches.router)
 app.include_router(gaps.router)

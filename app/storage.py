@@ -20,16 +20,12 @@ from __future__ import annotations
 
 import secrets
 from io import BytesIO
-from pathlib import Path
 
 from PIL import Image, UnidentifiedImageError
 
-from app.config import settings
-
-# โฟลเดอร์เก็บไฟล์จริง — ผูกกับ Docker volume ไว้ ลบคอนเทนเนอร์แล้วรูปไม่หาย
-# บนโฮสต์ฟรีที่ไม่มีที่เก็บถาวร ให้ตั้ง UPLOAD_DIR ชี้ไปที่อื่นได้
-UPLOAD_ROOT = Path(settings.UPLOAD_DIR)
-SHOP_IMAGE_DIR = UPLOAD_ROOT / "shops"
+# ไฟล์นี้ไม่แตะดิสก์แล้ว — ไบต์ของรูปถูกส่งกลับให้ผู้เรียกไปเก็บในฐานข้อมูล
+# เหตุผลเต็มอยู่ใน docstring ของ ShopImage ใน models.py
+#   สรุปสั้น ๆ: โฮสต์ฟรีไม่มีดิสก์ถาวร ไฟล์หายทุกครั้งที่เครื่องหลับแล้วตื่น
 
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024      # 5 MB ต่อไฟล์
 MAX_IMAGES_PER_SHOP = 8
@@ -63,19 +59,12 @@ def _sniff(raw: bytes) -> str:
     raise UploadError("รองรับเฉพาะไฟล์ภาพ JPG, PNG, WebP และ GIF เท่านั้น")
 
 
-def ensure_dirs() -> None:
-    """สร้างโฟลเดอร์อัปโหลดถ้ายังไม่มี — เรียกตอนระบบเริ่มทำงาน"""
-    SHOP_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+def process_shop_image(raw: bytes) -> tuple[str, bytes, int, int]:
+    """ตรวจ ย่อ และแปลงเป็น WebP
 
-
-def shop_dir(shop_id: int) -> Path:
-    return SHOP_IMAGE_DIR / str(shop_id)
-
-
-def process_shop_image(raw: bytes, shop_id: int) -> tuple[str, int, int, int]:
-    """ตรวจ ย่อ แปลงเป็น WebP แล้วบันทึกลงดิสก์
-
-    คืนค่า (ชื่อไฟล์, กว้าง, สูง, ขนาดไบต์)
+    คืนค่า (ชื่อไฟล์, ไบต์ของรูป, กว้าง, สูง)
+    ผู้เรียกเป็นคนเอาไบต์ไปเก็บ — ฟังก์ชันนี้ไม่แตะที่เก็บข้อมูลเลย
+    จึงย้ายไปเก็บที่อื่น (ดิสก์ · S3 · Cloudinary) ได้โดยไม่ต้องแก้ที่นี่
     """
     if not raw:
         raise UploadError("ไฟล์ว่างเปล่า กรุณาเลือกไฟล์ใหม่")
@@ -118,37 +107,11 @@ def process_shop_image(raw: bytes, shop_id: int) -> tuple[str, int, int, int]:
     img.save(buffer, format="WEBP", quality=82, method=4)
     data = buffer.getvalue()
 
-    target_dir = shop_dir(shop_id)
-    target_dir.mkdir(parents=True, exist_ok=True)
-
+    # ชื่อไฟล์ยังต้องมี เพราะใช้ประกอบ URL และให้เบราว์เซอร์รู้ว่าเป็นคนละรูป
     # token_hex(8) ให้ชื่อสุ่ม 16 ตัวอักษร เดาไม่ได้และแทบไม่มีทางชนกัน
     filename = f"{secrets.token_hex(8)}.webp"
-    (target_dir / filename).write_bytes(data)
 
-    return filename, img.width, img.height, len(data)
-
-
-def delete_shop_image(shop_id: int, filename: str) -> None:
-    """ลบไฟล์ออกจากดิสก์ — ไม่พังถ้าไฟล์หายไปแล้ว
-
-    ตรวจซ้ำว่าเส้นทางที่จะลบอยู่ในโฟลเดอร์ของร้านนี้จริง ๆ
-    กันกรณีชื่อไฟล์ในฐานข้อมูลถูกแก้ให้มี ../ ปนมา
-    """
-    base = shop_dir(shop_id).resolve()
-    target = (base / filename).resolve()
-    if not str(target).startswith(str(base)):
-        return
-    target.unlink(missing_ok=True)
-
-
-def delete_shop_folder(shop_id: int) -> None:
-    """ลบรูปทั้งร้าน — ใช้ตอนลบร้านทิ้ง"""
-    folder = shop_dir(shop_id)
-    if not folder.is_dir():
-        return
-    for item in folder.iterdir():
-        item.unlink(missing_ok=True)
-    folder.rmdir()
+    return filename, data, img.width, img.height
 
 
 # ============================================================
@@ -164,11 +127,11 @@ def image_url(shop_id: int, filename: str) -> str:
        ซึ่งถูก commit เข้า repo จึงอยู่ถาวร ไม่หายตอน deploy หรือตอนเครื่องรีสตาร์ต
 
     2. **รูปที่เจ้าของร้านอัปโหลดเอง** — `filename` เป็นชื่อไฟล์ล้วน
-       ไฟล์อยู่ใน `uploads/shops/{id}/` ซึ่งเป็นดิสก์ชั่วคราวบน Render
+       ไบต์ของรูปอยู่ในฐานข้อมูล และเสิร์ฟผ่านเส้นทาง `/uploads/shops/{id}/{ชื่อไฟล์}`
 
-    ทำไมต้องมีชนิดที่ 1: Render free tier เก็บไฟล์ใน /tmp และ**ล้างทิ้งทุกครั้ง
-    ที่เครื่องหลับแล้วตื่น** (ไม่ใช่แค่ตอน deploy) รูปตัวอย่างของร้านสาธิต
-    จึงหายไปเสมอ ทำให้เว็บจริงไม่มีรูปสักใบให้คนที่เปิดมาดู
+    เส้นทางของชนิดที่ 2 หน้าตาเหมือนไฟล์บนดิสก์ทั้งที่จริงมาจากฐานข้อมูล
+    ตั้งใจให้เหมือนเดิม เพราะ URL ชุดนี้ถูกบันทึกไว้ในที่อื่นแล้ว
+    (แท็กแชร์ลิงก์ · แคชของเบราว์เซอร์) การเปลี่ยนรูปแบบ URL จะทำให้ของเก่าพัง
     """
     if filename.startswith("/"):
         return filename

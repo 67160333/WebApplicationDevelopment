@@ -41,8 +41,20 @@ router = APIRouter(prefix="/api/auth", tags=["1. Authentication"])
     status_code=status.HTTP_201_CREATED,
     summary="สมัครสมาชิก",
 )
-def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+def register(payload: RegisterRequest, request: Request, db: Session = Depends(get_db)):
     """สร้างบัญชีผู้ใช้ใหม่ แล้วคืน token ให้ใช้งานได้ทันที"""
+    # จำกัดจำนวนบัญชีที่เปิดได้จากไอพีเดียวกัน
+    # ------------------------------------------------------------------
+    # ไม่มีด่านนี้ สคริปต์ตัวเดียวสร้างบัญชีได้ไม่จำกัด แล้วเอาไปจองคิวรัว ๆ
+    # จนตารางของร้านเต็มไปด้วยคิวผี ซึ่งเป็นการโจมตีที่ทำได้ง่ายที่สุด
+    # และสร้างความเสียหายกับร้านจริงมากที่สุด
+    #
+    # ใช้ตัวนับชุดเดียวกับหน้าเข้าสู่ระบบ แต่คนละคีย์ จึงไม่รบกวนกัน
+    ip = request.client.host if request.client else "unknown"
+    key = f"register|{ip}"
+    check_login_allowed(key)
+    record_login_fail(key)
+
     exists = db.scalar(
         select(User).where(or_(User.username == payload.username, User.email == payload.email))
     )

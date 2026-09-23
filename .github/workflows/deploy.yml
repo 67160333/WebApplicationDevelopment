@@ -1,0 +1,48 @@
+# นำขึ้นเว็บจริงอัตโนมัติทุกครั้งที่ push เข้า main
+#
+# ทำไมต้องมีไฟล์นี้
+# ------------------------------------------------------------------
+# Render มีระบบ auto-deploy ในตัวอยู่แล้ว แต่ของโปรเจกต์นี้ไม่เคยทำงาน
+# (ตั้งเป็น "On Commit" ไว้แล้วแต่ webhook ไม่เคยถูกยิง) ผลคือต้องเข้าไปกด
+# Manual Deploy เองทุกครั้ง ซึ่งลืมได้ง่ายมาก — เคยลืมจนโค้ดค้างอยู่บน GitHub
+# สี่รอบติดโดยไม่มีใครรู้ว่าเว็บจริงยังเป็นของเก่า
+#
+# ไฟล์นี้เลี่ยงปัญหานั้นด้วยการยิง deploy hook ของ Render เอง
+# ซึ่งเป็น URL ลับที่ Render ออกให้ ใครยิงก็สั่ง deploy ได้ จึงต้องเก็บเป็น secret
+#
+# วิธีตั้งค่า (ทำครั้งเดียว)
+# ------------------------------------------------------------------
+# 1. Render → เลือก service bookvice → Settings → Deploy Hook → คัดลอก URL
+# 2. GitHub → repo นี้ → Settings → Secrets and variables → Actions
+#    → New repository secret
+#    ชื่อ   RENDER_DEPLOY_HOOK
+#    ค่า    URL ที่คัดลอกมาจากข้อ 1
+#
+# ถ้ายังไม่ได้ตั้ง secret ขั้นตอนนี้จะข้ามไปเฉย ๆ ไม่ทำให้ workflow แดง
+
+name: Deploy to Render
+
+on:
+  push:
+    branches: [main]
+  # กดสั่งเองได้จากแท็บ Actions เผื่อต้อง deploy ซ้ำโดยไม่มีโค้ดใหม่
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: เรียก deploy hook ของ Render
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::ยังไม่ได้ตั้ง secret RENDER_DEPLOY_HOOK — ข้ามการ deploy"
+            echo "วิธีตั้งอยู่ในคอมเมนต์หัวไฟล์ .github/workflows/deploy.yml"
+            exit 0
+          fi
+          # -f ทำให้ curl คืนรหัสข้อผิดพลาดเมื่อเซิร์ฟเวอร์ตอบ 4xx/5xx
+          # ไม่ใส่แล้ว workflow จะขึ้นเขียวทั้งที่ deploy ไม่ได้เริ่มเลย
+          curl -fsS -X POST "$HOOK"
+          echo ""
+          echo "สั่ง deploy แล้ว — ดูความคืบหน้าได้ที่ dashboard.render.com"

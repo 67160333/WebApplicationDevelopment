@@ -29,7 +29,6 @@ from app.schemas import (
     StaffUpdate,
 )
 from app.security import get_current_user, get_optional_user, require_roles
-from app.storage import delete_shop_folder
 
 router = APIRouter(prefix="/api", tags=["3. Shops & Services"])
 
@@ -578,9 +577,8 @@ def delete_shop(
     _ensure_owner(shop, current_user)
     db.delete(shop)
     db.commit()
-    # ฐานข้อมูลลบแถวรูปให้เองด้วย CASCADE แต่ไฟล์บนดิสก์ต้องเก็บกวาดเอง
-    # ทำหลัง commit เพราะถ้าลบไฟล์ก่อนแล้วฐานข้อมูลล้มเหลว รูปจะหายทั้งที่ร้านยังอยู่
-    delete_shop_folder(shop_id)
+    # ไม่ต้องเก็บกวาดอะไรต่อ — ไบต์ของรูปอยู่ในตาราง shop_images
+    # ซึ่งถูกลบไปพร้อมร้านด้วย CASCADE
     return Message(message="ลบร้านสำเร็จ")
 
 

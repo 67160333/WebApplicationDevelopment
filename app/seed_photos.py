@@ -53,13 +53,14 @@ def seed_stock_photos(db: Session) -> None:
     ถ้าลบรูปปกเก่าแล้วเพิ่มรูปปกใหม่พร้อมกัน จะชนดัชนี `uq_shop_one_cover`
     ที่บังคับว่าร้านหนึ่งมีรูปปกได้รูปเดียว จึงต้อง flush รอบลบให้จบก่อน
     """
-    from app.storage import UPLOAD_ROOT
-
     def file_exists(shop_id: int, filename: str) -> bool:
-        """รูปที่มากับโค้ดถือว่ามีเสมอ ส่วนรูปอัปโหลดต้องเช็คดิสก์จริง"""
-        if filename.startswith("/"):
-            return True
-        return (UPLOAD_ROOT / "shops" / str(shop_id) / filename).exists()
+        """รูปยังใช้ได้อยู่ไหม
+
+        รูปที่มากับโค้ด (ชื่อขึ้นต้นด้วย /) ถือว่ามีเสมอ เพราะ commit เข้า repo ไว้
+        ส่วนรูปที่อัปโหลดตอนนี้เก็บไบต์ไว้ในฐานข้อมูลแล้ว ซึ่งลบไม่ได้โดยไม่ตั้งใจ
+        จึงถือว่ามีเสมอเช่นกัน — เดิมต้องเช็คดิสก์เพราะไฟล์หายเองได้
+        """
+        return True
 
     slug_of = {c.id: c.slug for c in db.scalars(select(Category)).all()}
     shops = db.scalars(select(Shop).order_by(Shop.id)).all()
