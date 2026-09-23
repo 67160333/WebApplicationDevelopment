@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609221800" />
+  <link rel="stylesheet" href="css/app.css?v=202609231200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -166,8 +166,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202609221800"></script>
-  <script src="js/ui.js?v=202609221800"></script>
+  <script src="js/api.js?v=202609231200"></script>
+  <script src="js/ui.js?v=202609231200"></script>
   <script>
     renderNavbar("shops");
     renderFooter();
@@ -1600,6 +1600,53 @@
       return `background:linear-gradient(135deg,${a},${b})`;
     }
 
+    /** รูปแทนตัวช่าง — ใช้รูปจริงถ้ามี ไม่มีก็ใช้ตัวอักษรแรกบนพื้นไล่สีเหมือนเดิม
+     *
+     *  ฟังก์ชันเดียวใช้ได้ทั้งการ์ดในหน้าจองและกล่องโปรไฟล์
+     *  ถ้าแยกเขียนสองที่ พอเพิ่มรูปจริงเข้ามาจะลืมแก้ที่ใดที่หนึ่งเสมอ
+     */
+    function avatar(st, cls = "av-lg", extra = "") {
+      if (st.photo_url) {
+        return `<span class="${cls} has-photo">
+          <img src="${esc(fileUrl(st.photo_url))}" alt="${esc(st.name)}" loading="lazy" />
+          ${extra}
+        </span>`;
+      }
+      return `<span class="${cls}" style="${avatarStyle(st.name)}">
+        ${esc(st.name.trim().charAt(0))}${extra}
+      </span>`;
+    }
+
+    /** แถบคะแนนย่อยรายด้านของช่าง — แสดงเฉพาะด้านที่มีคนให้คะแนนแล้ว
+     *
+     *  ใช้แถบยาวแทนตัวเลขเปล่า เพราะ "4.6 กับ 4.2" ต่างกันแค่ไหนคนอ่านไม่รู้สึก
+     *  แต่พอเห็นแถบยาวไม่เท่ากันจะเทียบได้ทันที
+     */
+    function aspectRows(a) {
+      if (!a) return "";
+      const rows = [
+        ["ฝีมือ", a.skill],
+        ["ความสะอาด", a.cleanliness],
+        ["ตรงเวลา", a.punctuality],
+        ["ความคุ้มค่า", a.value],
+      ].filter(([, v]) => v !== null && v !== undefined);
+
+      if (!rows.length) return "";
+
+      return `
+        <div class="mt-4 pt-4" style="border-top:1px solid var(--border)">
+          <p class="label">คะแนนเฉพาะ${RES}คนนี้</p>
+          <div class="aspect-rows">
+            ${rows.map(([label, v]) => `
+              <div class="aspect-row">
+                <span class="aspect-name">${label}</span>
+                <span class="aspect-bar"><i style="width:${(v / 5 * 100).toFixed(0)}%"></i></span>
+                <b class="num">${Number(v).toFixed(1)}</b>
+              </div>`).join("")}
+          </div>
+        </div>`;
+    }
+
     // แถบวันทำงาน 7 ช่อง — วันที่ทำงานจะเข้ม วันหยุดจะจาง เห็นปุ๊บรู้เลย
     function weekDots(st) {
       const on = st.work_days ? st.work_days.split(",").map(Number) : [0, 1, 2, 3, 4, 5, 6];
@@ -1617,10 +1664,7 @@
           ${picked ? `<span class="picked-tag">${icon("check", 12)} กำลังเลือกอยู่</span>` : ""}
 
           <div class="flex items-start gap-3">
-            <span class="av-lg" style="${avatarStyle(st.name)}">
-              ${esc(st.name.trim().charAt(0))}
-              ${picked ? `<span class="av-check">${icon("check", 11)}</span>` : ""}
-            </span>
+            ${avatar(st, "av-lg", picked ? `<span class="av-check">${icon("check", 11)}</span>` : "")}
             <div style="min-width:0;flex:1">
               <div class="font-semibold">${esc(st.name)}</div>
               ${st.position ? `<div class="text-xs" style="color:var(--blue-600)">${esc(st.position)}</div>` : ""}
@@ -1708,7 +1752,7 @@
       const time = workTimeText(st);
       bar.innerHTML = `
         <div class="picked-bar">
-          <span class="av-sm" style="${avatarStyle(st.name)}">${esc(st.name.trim().charAt(0))}</span>
+          ${avatar(st, "av-sm")}
           <span>กำลังดูคิวของ <b>${esc(st.name)}</b>
             <span class="text-muted">· ${workDaysText(st)}${time ? ` ${time}` : ""}</span>
           </span>
@@ -2095,9 +2139,7 @@
         const time = workTimeText(p);
         body.innerHTML = `
           <div class="flex items-center gap-3">
-            <span class="staff-avatar" style="width:52px;height:52px;font-size:20px">
-              ${esc(p.name.trim().charAt(0))}
-            </span>
+            ${avatar(p, "av-xl")}
             <div>
               ${p.position ? `<div class="text-sm" style="color:var(--blue-600)">${esc(p.position)}</div>` : ""}
               <div class="flex items-center gap-2 mt-1 flex-wrap">
@@ -2111,15 +2153,52 @@
 
           ${p.bio ? `<p class="text-sm text-ink-soft mt-4">${esc(p.bio)}</p>` : ""}
 
-          <dl class="grid grid-cols-2 gap-4 mt-4 pt-4" style="border-top:1px solid var(--border)">
-            <div>
-              <dt class="text-xs text-muted">งานที่ให้บริการแล้ว</dt>
-              <dd class="text-sm font-semibold num mt-0.5">${p.jobs_done} ครั้ง</dd>
+          ${/* แถบตัวเลขสามช่อง — ทั้งหมดคำนวณจากงานจริง เจ้าของร้านแต่งไม่ได้
+                ซ่อนช่องที่ยังไม่มีข้อมูลพอ ดีกว่าโชว์ 0% ซึ่งอ่านแล้วเหมือนช่างแย่
+                ทั้งที่ความจริงคือยังไม่มีใครมาใช้บริการ */""}
+          <div class="stat-row mt-4 pt-4" style="border-top:1px solid var(--border)">
+            <div class="stat-cell">
+              <b class="num">${p.jobs_done}</b>
+              <span>งานที่ทำเสร็จ</span>
             </div>
-            <div>
-              <dt class="text-xs text-muted">วันและเวลาทำงาน</dt>
-              <dd class="text-sm mt-0.5">${workDaysText(p)}${time ? `<br /><span class="num">${time}</span>` : ""}</dd>
+            ${p.repeat_rate !== null && p.repeat_rate !== undefined ? `
+            <div class="stat-cell">
+              <b class="num">${p.repeat_rate}%</b>
+              <span>ลูกค้ากลับมาซ้ำ</span>
+            </div>` : ""}
+            ${p.total_customers ? `
+            <div class="stat-cell">
+              <b class="num">${p.total_customers}</b>
+              <span>ลูกค้าที่เคยดูแล</span>
+            </div>` : ""}
+            ${p.months_with_shop ? `
+            <div class="stat-cell">
+              <b class="num">${p.months_with_shop >= 12
+                  ? (p.months_with_shop / 12).toFixed(1).replace(/\.0$/, "") + " ปี"
+                  : p.months_with_shop + " เดือน"}</b>
+              <span>อยู่กับร้านนี้</span>
+            </div>` : ""}
+          </div>
+
+          ${/* ถนัดอะไร — นับจากงานที่ทำเสร็จจริง ไม่ใช่คำที่ร้านพิมพ์เอง */""}
+          ${p.top_services && p.top_services.length ? `
+          <div class="mt-4 pt-4" style="border-top:1px solid var(--border)">
+            <p class="label">บริการที่ทำบ่อยที่สุด</p>
+            <div class="svc-tags">
+              ${p.top_services.map((sv) => `
+                <span class="svc-tag">${esc(sv.name)}
+                  <b class="num">${sv.count}</b>
+                </span>`).join("")}
             </div>
+          </div>` : ""}
+
+          ${/* คะแนนย่อยของช่างคนนี้โดยเฉพาะ ไม่ใช่ของทั้งร้าน
+                ร้านหนึ่งมีช่างหลายคน คะแนนรวมจึงบอกไม่ได้ว่าคนนี้เป็นยังไง */""}
+          ${aspectRows(p.aspects)}
+
+          <dl class="mt-4 pt-4" style="border-top:1px solid var(--border)">
+            <dt class="text-xs text-muted">วันและเวลาทำงาน</dt>
+            <dd class="text-sm mt-0.5">${workDaysText(p)}${time ? `<br /><span class="num">${time}</span>` : ""}</dd>
           </dl>
 
           <div class="mt-5 pt-4" style="border-top:1px solid var(--border)">

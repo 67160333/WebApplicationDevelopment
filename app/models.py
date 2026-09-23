@@ -301,6 +301,16 @@ class Staff(Base):
     bio: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    # ---------- รูปโปรไฟล์ ----------
+    # ลูกค้าเลือกช่างจากหน้าคนก่อนเป็นอันดับแรก โดยเฉพาะงานที่ต้องอยู่ใกล้ตัว
+    # อย่างนวด ทำผม หรือสัก ตัวอักษรแรกของชื่อในวงกลมไม่ได้ช่วยตัดสินใจอะไรเลย
+    #
+    # เก็บไบต์ในฐานข้อมูลเหมือนรูปร้าน ด้วยเหตุผลเดียวกัน (ดู ShopImage)
+    # photo_name เป็นชื่อสุ่มที่ใช้ประกอบ URL และให้เบราว์เซอร์แยกแคชได้
+    # ทั้งคู่เป็น NULL ได้ — ช่างที่ยังไม่มีรูปจะใช้ตัวอักษรแรกเหมือนเดิม
+    photo_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    photo: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True, deferred=True)
+
     # ---------- ตารางเวลาทำงานของช่างคนนี้ ----------
     # work_days เก็บเลขวันคั่นด้วยจุลภาค 0=อาทิตย์ ... 6=เสาร์ เช่น "1,2,3,4,5" = จันทร์-ศุกร์
     # ว่างไว้ = ทำงานทุกวันที่ร้านเปิด

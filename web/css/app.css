@@ -890,6 +890,9 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   font-size: var(--fs-sm);
   flex-shrink: 0;
 }
+/* มีรูปจริง — ตัดเป็นวงกลมและไม่ให้รูปที่ไม่ได้สัดส่วนถูกบีบจนหน้าเบี้ยว */
+.staff-avatar.has-photo { overflow: hidden; }
+.staff-avatar.has-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* ขั้นตอนการจอง */
 
@@ -1366,6 +1369,79 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 }
 .av-lg { width: 46px; height: 46px; font-size: var(--fs-md); }
 .av-sm { width: 24px; height: 24px; font-size: var(--fs-2xs); }
+.av-xl { width: 60px; height: 60px; font-size: var(--fs-lg); }
+
+/* มีรูปจริง — ไม่ต้องมีพื้นไล่สีแล้ว
+   overflow:hidden ทำให้รูปสี่เหลี่ยมถูกตัดเป็นวงกลมตามกรอบ
+   object-fit:cover กันรูปที่ไม่ได้สัดส่วนถูกบีบจนหน้าเบี้ยว */
+.av-lg.has-photo, .av-sm.has-photo, .av-xl.has-photo {
+  background: var(--navy-50);
+  overflow: hidden;
+}
+.av-lg.has-photo img, .av-sm.has-photo img, .av-xl.has-photo img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+
+/* ---------- แถบตัวเลขในโปรไฟล์ช่าง ----------
+   ตัวเลขทุกตัวมาจากงานจริง ไม่ใช่ข้อความที่ร้านพิมพ์เอง จึงให้น้ำหนักมากได้ */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+  gap: var(--s-3);
+}
+.stat-cell { text-align: center; }
+.stat-cell b {
+  display: block;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--navy-800);
+  line-height: 1.2;
+}
+.stat-cell span {
+  display: block;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* ---------- ป้ายบริการที่ช่างทำบ่อย ---------- */
+.svc-tags { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-2); }
+.svc-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--blue-50);
+  color: var(--ink-soft);
+  font-size: var(--fs-xs);
+}
+.svc-tag b { color: var(--blue-700); font-weight: 600; }
+
+/* ---------- คะแนนย่อยรายด้าน ----------
+   ใช้แถบยาวแทนตัวเลขเปล่า เพราะ "4.6 กับ 4.2" ต่างกันแค่ไหนคนอ่านไม่รู้สึก
+   แต่เห็นแถบยาวไม่เท่ากันจะเทียบได้ทันที */
+.aspect-rows { display: grid; gap: 7px; margin-top: var(--s-2); }
+.aspect-row {
+  display: grid;
+  grid-template-columns: 74px 1fr 30px;
+  align-items: center;
+  gap: var(--s-3);
+}
+.aspect-name { font-size: var(--fs-xs); color: var(--muted); }
+.aspect-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+.aspect-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--gold);
+}
+.aspect-row b { font-size: var(--fs-xs); color: var(--ink); text-align: right; }
 
 .av-check {
   position: absolute;

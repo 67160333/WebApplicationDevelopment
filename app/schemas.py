@@ -349,13 +349,62 @@ class StaffOut(BaseModel):
     work_end: TimeStr | None = None
     rating_avg: Decimal = Decimal("0.00")
     rating_count: int = 0
+    # ชื่อไฟล์รูปโปรไฟล์ — ซ่อนจากผลลัพธ์ ใช้แค่ประกอบ photo_url ข้างล่าง
+    photo_name: str | None = Field(None, exclude=True)
+
+    @computed_field(description="ที่อยู่รูปโปรไฟล์ — null เมื่อยังไม่ได้อัปรูป")
+    @property
+    def photo_url(self) -> str | None:
+        """ประกอบ URL จากชื่อไฟล์ ไม่เก็บ URL ไว้ในฐานข้อมูล
+
+        ถ้าเก็บ URL เต็มไว้ วันหนึ่งที่เปลี่ยนรูปแบบเส้นทาง ข้อมูลเก่าทั้งตารางจะพัง
+        เก็บแค่ชื่อไฟล์แล้วประกอบตอนส่งออก จึงแก้รูปแบบได้ที่เดียว
+        """
+        if not self.photo_name:
+            return None
+        return f"/uploads/staff/{self.id}/{self.photo_name}"
+
+
+class StaffService(BaseModel):
+    """บริการหนึ่งอย่างที่ช่างคนนี้เคยทำ พร้อมจำนวนครั้ง"""
+
+    name: str
+    count: int
+
+
+class StaffAspects(BaseModel):
+    """คะแนนย่อยรายด้านของช่างคนนี้โดยเฉพาะ
+
+    None แปลว่ายังไม่มีใครให้คะแนนด้านนั้น ต่างจาก 0 ซึ่งแปลว่าให้คะแนนแล้วได้ศูนย์
+    หน้าเว็บจึงต้องเช็ค null ไม่ใช่เช็คว่าเป็นค่าเท็จ
+    """
+
+    skill: float | None = Field(None, description="ฝีมือ")
+    cleanliness: float | None = Field(None, description="ความสะอาด")
+    punctuality: float | None = Field(None, description="ตรงเวลา")
+    value: float | None = Field(None, description="ความคุ้มค่า")
 
 
 class StaffDetail(StaffOut):
-    """โปรไฟล์ช่าง พร้อมชื่อร้านและสถิติการทำงาน"""
+    """โปรไฟล์ช่าง พร้อมชื่อร้านและสถิติที่คำนวณจากงานและรีวิวจริง
+
+    ตัวเลขทุกตัวในนี้มาจากฐานข้อมูล ไม่ได้มาจากช่องที่เจ้าของร้านกรอกเอง
+    จึงปลอมไม่ได้และแน่นขึ้นเองตามการใช้งาน
+    """
 
     shop_name: str
     jobs_done: int = Field(0, description="จำนวนงานที่ให้บริการเสร็จแล้ว")
+    top_services: list[StaffService] = Field(
+        default_factory=list, description="บริการที่ทำบ่อยที่สุด เรียงจากมากไปน้อย"
+    )
+    aspects: StaffAspects = Field(
+        default_factory=StaffAspects, description="คะแนนย่อยรายด้านเฉพาะช่างคนนี้"
+    )
+    total_customers: int = Field(0, description="จำนวนลูกค้าที่เคยใช้บริการช่างคนนี้")
+    repeat_rate: int | None = Field(
+        None, description="เปอร์เซ็นต์ลูกค้าที่กลับมาหาซ้ำ — null เมื่อยังมีลูกค้าไม่ถึง 5 คน"
+    )
+    months_with_shop: int | None = Field(None, description="อยู่กับร้านมากี่เดือน")
 
 
 class ShopDetail(ShopOut):

@@ -35,7 +35,8 @@ from app.seed import seed_database
 from app.seed_extra import backfill_coordinates, enrich_demo_data, seed_closed_weekdays
 from app.seed_men import seed_category_groups, seed_men_services
 from app.seed_photos import seed_stock_photos
-from app.routers.images import files_router
+from app.routers.images import files_router as image_files_router
+from app.routers.staff import files_router as staff_files_router
 from app.seed_venues import seed_venues
 
 
@@ -166,7 +167,8 @@ app.include_router(staff.router)
 app.include_router(bookings.router)
 app.include_router(notifications.router)
 app.include_router(images.router)
-app.include_router(files_router)
+app.include_router(image_files_router)
+app.include_router(staff_files_router)
 app.include_router(payments.router)
 app.include_router(matches.router)
 app.include_router(gaps.router)

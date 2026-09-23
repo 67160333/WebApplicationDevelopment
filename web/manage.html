@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609221800" />
+  <link rel="stylesheet" href="css/app.css?v=202609231200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -190,8 +190,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202609221800"></script>
-  <script src="js/ui.js?v=202609221800"></script>
+  <script src="js/api.js?v=202609231200"></script>
+  <script src="js/ui.js?v=202609231200"></script>
   <script>
     renderNavbar("manage");
     renderFooter();
@@ -1410,6 +1410,33 @@
       return `${a}–${b} น.`;
     }
 
+    /** เลือกไฟล์แล้วอัปเป็นรูปโปรไฟล์ของช่างคนนั้นทันที
+     *
+     *  สร้าง input ชั่วคราวแทนที่จะวางไว้ในหน้า เพราะถ้าวางไว้ต้องมีทีละคน
+     *  ตามจำนวนช่าง ซึ่งรกและต้องคอยล้างค่าเดิมทุกครั้งที่วาดตารางใหม่
+     */
+    function pickStaffPhoto(staffId, btn) {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.addEventListener("change", async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const label = btn.textContent;
+        btnBusy(btn, true, "กำลังอัป");
+        try {
+          await apiUpload(`/api/staff/${staffId}/photo`, file);
+          toast("อัปรูปเรียบร้อย");
+          renderStaff();
+        } catch (err) {
+          btnBusy(btn, false);
+          btn.textContent = label;
+          toast(err.message, "error", 5000);
+        }
+      });
+      input.click();
+    }
+
     async function renderStaff() {
       panel.innerHTML = loadingHTML();
       try {
@@ -1432,7 +1459,9 @@
                     <tr>
                       <td>
                         <div class="flex items-center gap-2.5">
-                          <span class="staff-avatar">${esc(st.name.trim().charAt(0))}</span>
+                          ${st.photo_url
+                            ? `<span class="staff-avatar has-photo"><img src="${esc(fileUrl(st.photo_url))}" alt="${esc(st.name)}" /></span>`
+                            : `<span class="staff-avatar">${esc(st.name.trim().charAt(0))}</span>`}
                           <div>
                             <div class="font-medium">${esc(st.name)}</div>
                             ${st.bio ? `<div class="text-xs text-muted mt-0.5">${esc(st.bio)}</div>` : ""}
@@ -1456,6 +1485,7 @@
                           <button data-tstf="${st.id}" data-active="${st.is_active}" class="btn btn-outline btn-sm">
                             ${st.is_active ? "พักงาน" : "กลับมารับคิว"}
                           </button>
+                          <button data-pstf="${st.id}" class="btn btn-outline btn-sm">${st.photo_url ? "เปลี่ยนรูป" : "ใส่รูป"}</button>
                           <button data-estf='${esc(JSON.stringify(st))}' class="btn btn-outline btn-sm">แก้ไข</button>
                           <button data-dstf="${st.id}" class="btn btn-danger btn-sm">ลบ</button>
                         </div>
@@ -1465,11 +1495,19 @@
               </table>`
               : `<div class="p-8 text-center">
                    <p class="text-sm text-muted">ยังไม่มี${RES()}ในร้าน</p>
-                   <p class="hint">เพิ่ม${RES()}เพื่อให้ลูกค้าเลือกได้ตอนจอง และให้ระบบจัดคิวแยกราย${RES()}</p>
+                   <p class="hint">เพิ่ม${RES()}เพื่อให้ลูกค้าเลือกได้ตอนจอง และให้ระบบจัดคิวแยกราย${RES()}<br />
+                     ใส่รูปด้วยจะช่วยมาก — ลูกค้าเลือกคนจากหน้าตาก่อนเสมอ
+                     ส่วนคะแนนและสถิติระบบสรุปให้เองจากงานจริง</p>
                  </div>`}
           </div>`;
 
         document.getElementById("addStf").addEventListener("click", () => openStf(null));
+
+        // ปุ่มใส่รูป — เปิดหน้าต่างเลือกไฟล์ทันที ไม่ต้องมีหน้าจอกลาง
+        // เจ้าของร้านคลิกครั้งเดียวได้เลย ยิ่งขั้นตอนน้อยยิ่งมีคนทำ
+        document.querySelectorAll("[data-pstf]").forEach((b) =>
+          b.addEventListener("click", () => pickStaffPhoto(Number(b.dataset.pstf), b))
+        );
         document.querySelectorAll("[data-estf]").forEach((b) =>
           b.addEventListener("click", () => openStf(JSON.parse(b.dataset.estf)))
         );
