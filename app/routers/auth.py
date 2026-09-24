@@ -22,6 +22,7 @@ from app.schemas import (
     TokenResponse,
 )
 from app.security import (
+    REGISTER_MAX_PER_IP,
     check_login_allowed,
     clear_login_fails,
     create_access_token,
@@ -52,7 +53,7 @@ def register(payload: RegisterRequest, request: Request, db: Session = Depends(g
     # ใช้ตัวนับชุดเดียวกับหน้าเข้าสู่ระบบ แต่คนละคีย์ จึงไม่รบกวนกัน
     ip = request.client.host if request.client else "unknown"
     key = f"register|{ip}"
-    check_login_allowed(key)
+    check_login_allowed(key, max_attempts=REGISTER_MAX_PER_IP)
     record_login_fail(key)
 
     exists = db.scalar(

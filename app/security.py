@@ -51,6 +51,12 @@ LOGIN_MAX_FAILS = 8          # ผิดได้ 8 ครั้ง
 LOGIN_WINDOW_SEC = 300       # ภายใน 5 นาที
 LOGIN_LOCK_SEC = 300         # แล้วล็อกอีก 5 นาที
 
+# เพดานการสมัครสมาชิกต่อไอพี — สูงกว่าการเดารหัสมากโดยตั้งใจ
+# เครือข่ายมหาวิทยาลัยและออฟฟิศให้ทุกคนออกเน็ตผ่านไอพีเดียวกัน
+# ถ้าใช้ 8 ครั้งเท่ากับหน้าเข้าสู่ระบบ ทั้งห้องสมัครพร้อมกันคนที่ 9 จะโดนบล็อก
+# 30 ครั้งต่อ 5 นาทียังกันสคริปต์ที่สมัครเป็นร้อยบัญชีได้เหมือนเดิม
+REGISTER_MAX_PER_IP = 30
+
 
 def _prune(key: str, now: float) -> list[float]:
     """ทิ้งความพยายามที่เก่าเกินกรอบเวลาออกจากรายการ"""
@@ -62,13 +68,17 @@ def _prune(key: str, now: float) -> list[float]:
     return keep
 
 
-def check_login_allowed(key: str) -> None:
-    """เรียกก่อนตรวจรหัสผ่าน — ถ้าผิดมาเกินโควตาให้ตอบ 429 ทันที"""
+def check_login_allowed(key: str, max_attempts: int = LOGIN_MAX_FAILS) -> None:
+    """เรียกก่อนตรวจรหัสผ่าน — ถ้าผิดมาเกินโควตาให้ตอบ 429 ทันที
+
+    max_attempts ปรับได้ต่อจุดที่เรียก เพราะแต่ละงานเสี่ยงไม่เท่ากัน
+    เดารหัสผ่าน 8 ครั้งก็พอจะสงสัยแล้ว แต่สมัครสมาชิก 8 คนจากไอพีเดียวกันเป็นเรื่องปกติ
+    """
     import time
 
     now = time.time()
     fails = _prune(key, now)
-    if len(fails) >= LOGIN_MAX_FAILS:
+    if len(fails) >= max_attempts:
         wait = int(LOGIN_LOCK_SEC - (now - fails[-1]))
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,

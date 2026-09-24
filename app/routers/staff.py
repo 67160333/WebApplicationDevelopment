@@ -226,7 +226,13 @@ def get_staff(staff_id: int = Path(..., ge=1), db: Session = Depends(get_db)):
     # ---------- อยู่กับร้านมานานแค่ไหน ----------
     months = None
     if member.created_at is not None:
-        days = (datetime.now(timezone.utc) - member.created_at).days
+        created = member.created_at
+        # PostgreSQL คืนเวลาที่มี timezone แต่ SQLite (ที่ชุดทดสอบใช้) คืนแบบไม่มี
+        # เอาเวลาที่มีกับไม่มี timezone มาลบกันตรง ๆ Python จะโยน TypeError ทันที
+        # จึงเติม UTC ให้ก่อนถ้ายังไม่มี — ค่าในตารางบันทึกเป็น UTC อยู่แล้ว (ดู now_utc)
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        days = (datetime.now(timezone.utc) - created).days
         months = max(days // 30, 0)
 
     return StaffDetail(

@@ -63,6 +63,28 @@ def check(label, got, want):
         print(f"  ❌ {label}  ได้ {got} ควรเป็น {want}")
 
 
+def find_free_slot(c, service_id, staff_id=None, start=3, span=14):
+    """ไล่หาวันแรกที่มีช่องว่าง เริ่มจากวันนี้ + start วัน
+
+    ห้ามล็อกวันที่ตายตัว เพราะร้านตัวอย่างมีวันหยุดประจำสัปดาห์
+    ถ้ารันเทสต์วันพฤหัส "วันนี้ + 4" คือวันจันทร์ ซึ่งร้านสปาปิด
+    บล็อกนั้นจะถูกข้ามทั้งที่ระบบไม่ได้พัง
+
+    คืนค่า (วันที่เป็นข้อความ, ช่องเวลาที่ว่าง, ช่องทั้งหมดของวันนั้น)
+    หรือ (None, None, []) ถ้าไล่ครบแล้วไม่เจอเลย
+    """
+    for d in range(start, start + span):
+        day = str(date.today() + timedelta(days=d))
+        url = f"/api/services/{service_id}/availability?date={day}"
+        if staff_id:
+            url += f"&staff_id={staff_id}"
+        slots = c.get(url).json()["slots"]
+        free = next((x for x in slots if x["available"]), None)
+        if free:
+            return day, free, slots
+    return None, None, []
+
+
 def main():
     with TestClient(main_mod.app) as c:
         def login(u, p="Password123"):
@@ -362,9 +384,7 @@ def main():
         detail = c.get(f"/api/shops/{court['id']}").json()
         sv = next((x for x in detail["services"] if x["is_active"]), None)
         st = next((x for x in detail["staff"] if x["is_active"]), None)
-        day = str(date.today() + timedelta(days=3))
-        av = c.get(f"/api/services/{sv['id']}/availability?date={day}&staff_id={st['id']}").json()
-        free = next((s for s in av["slots"] if s["available"]), None)
+        day, free, _ = find_free_slot(c, sv["id"], st["id"], start=3)
 
         if free:
             mk = c.post("/api/bookings", headers=cust, json={
@@ -423,9 +443,7 @@ def main():
     if salon:
         d2 = c.get(f"/api/shops/{salon['id']}").json()
         sv2 = next((x for x in d2["services"] if x["is_active"]), None)
-        day2 = str(date.today() + timedelta(days=4))
-        av2 = c.get(f"/api/services/{sv2['id']}/availability?date={day2}").json()
-        fr2 = next((s for s in av2["slots"] if s["available"]), None)
+        day2, fr2, _ = find_free_slot(c, sv2["id"], start=4)
         if fr2:
             b2 = c.post("/api/bookings", headers=cust, json={
                 "service_id": sv2["id"], "booking_date": day2, "booking_time": fr2["time"],
@@ -615,11 +633,10 @@ def main():
                    if x["is_active"] and x["booking_mode"] == "scheduled"), None)
         st = next((x for x in detail["staff"] if x["is_active"]), None)
         if sv and st:
-            av = c.get(
-                f"/api/services/{sv['id']}/availability"
-                f"?date={date.today() + timedelta(days=8)}&staff_id={st['id']}"
-            ).json()
-            slots = av["slots"]
+            _, _, slots = find_free_slot(c, sv["id"], st["id"], start=8)
+            # all() ของรายการว่างได้ True เสมอ ต้องเช็กก่อนว่ามีช่องจริง
+            # ไม่งั้นเจอวันร้านปิดแล้วสามข้อล่างจะผ่านทั้งที่ไม่ได้ตรวจอะไร
+            check("หาวันที่ร้านเปิดเจอ", len(slots) > 0, True)
             check("ทุกช่องมีป้ายบอกว่าคุ้มจะจองไหม",
                   all("fits_well" in x for x in slots), True)
             check("ทุกช่องมีจำนวนนาทีที่จะเสียไป",
@@ -752,6 +769,65 @@ def main():
     demo_spa = c.get("/api/shops/1").json()
     check("ร้านตัวอย่างต้องยังได้วันหยุดประจำตามปกติ",
           bool(demo_spa["closed_weekdays"]), True)
+
+    # ------------------------------------------------------------------
+    # โปรไฟล์ช่าง — สถิติจากงานจริง และรูปโปรไฟล์
+    # ------------------------------------------------------------------
+    # เทสต์นี้เกิดจากการตรวจรอบหลัง: endpoint นี้ไม่เคยถูกเรียกในชุดทดสอบเลย
+    # และมีจุดที่พังเฉพาะบน SQLite อยู่จริง (ลบเวลาที่มีกับไม่มี timezone)
+    # ถ้าไม่มีเทสต์ บั๊กแบบนี้จะหลุดไปรู้ตอนผู้ใช้กดดูโปรไฟล์บนเว็บจริง
+    print("\n--- โปรไฟล์ช่าง ---")
+    from io import BytesIO  # noqa: E402
+
+    from PIL import Image  # noqa: E402
+
+    shop1 = c.get("/api/shops/1").json()
+    member = shop1["staff"][0]
+    r = c.get(f"/api/staff/{member['id']}")
+    check("เปิดโปรไฟล์ช่างได้ (ไม่พังเรื่อง timezone บน SQLite)", r.status_code, 200)
+    prof = r.json()
+    check("มีรายการบริการที่ทำบ่อย (เป็นลิสต์เสมอ แม้ว่าง)", isinstance(prof.get("top_services"), list), True)
+    check("มีคะแนนย่อยรายด้าน", isinstance(prof.get("aspects"), dict), True)
+    check("อัตรากลับมาซ้ำต้องเป็น null เมื่อลูกค้ายังไม่ถึง 5 คน",
+          prof["repeat_rate"] is None or prof["total_customers"] >= 5, True)
+    check("ยังไม่มีรูป photo_url ต้องเป็น null", prof.get("photo_url"), None)
+    check("ไม่ส่งชื่อไฟล์ดิบออกไป (ซ่อน photo_name)", "photo_name" in prof, False)
+
+    # อัปรูปในนามเจ้าของร้าน 1 (spaowner)
+    owner_hdr = login("spaowner")
+    buf = BytesIO()
+    Image.new("RGB", (320, 320), (200, 120, 90)).save(buf, format="PNG")
+    up = c.post(
+        f"/api/staff/{member['id']}/photo",
+        headers=owner_hdr,
+        files={"file": ("face.png", buf.getvalue(), "image/png")},
+    )
+    check("เจ้าของร้านอัปรูปช่างได้", up.status_code, 200)
+    url = up.json().get("photo_url") or ""
+    check("ได้ที่อยู่รูปกลับมา", url.startswith(f"/uploads/staff/{member['id']}/"), True)
+
+    got = c.get(url)
+    check("เปิดรูปจากที่อยู่นั้นได้", got.status_code, 200)
+    check("รูปถูกแปลงเป็น WebP", got.headers.get("content-type"), "image/webp")
+
+    # ลูกค้าทั่วไปต้องอัปรูปช่างของร้านคนอื่นไม่ได้
+    bad = c.post(
+        f"/api/staff/{member['id']}/photo",
+        headers=cust,
+        files={"file": ("x.png", buf.getvalue(), "image/png")},
+    )
+    check("ลูกค้าอัปรูปช่างไม่ได้", bad.status_code, 403)
+
+    # อัปรูปใหม่แล้ว URL เก่าต้องใช้ไม่ได้ ไม่งั้นแคชหนึ่งปีจะค้างรูปเดิม
+    buf2 = BytesIO()
+    Image.new("RGB", (320, 320), (40, 90, 200)).save(buf2, format="PNG")
+    up2 = c.post(
+        f"/api/staff/{member['id']}/photo",
+        headers=owner_hdr,
+        files={"file": ("face2.png", buf2.getvalue(), "image/png")},
+    )
+    check("อัปรูปใหม่ทับได้", up2.status_code, 200)
+    check("URL เก่าต้องใช้ไม่ได้แล้ว", c.get(url).status_code, 404)
 
     print("\n" + "=" * 60)
     print(f"สรุป: ผ่าน {ok} · ไม่ผ่าน {fail} · ข้าม {skipped} บล็อก")

@@ -20,7 +20,7 @@
 ถ้าให้เลือกจุดเดียวจะพลาดโอกาสที่เขาก็โอเคไปเยอะมาก
 """
 
-from datetime import date as date_cls, datetime, time as time_cls, timezone
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy import select

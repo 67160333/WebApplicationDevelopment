@@ -1356,8 +1356,10 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 }
 @keyframes tagPop { from { opacity: 0; transform: translateY(4px) scale(.9) } }
 
-/* รูปแทนตัวช่าง */
-.av-lg, .av-sm {
+/* รูปแทนตัวช่าง — สามขนาด ใช้กฎฐานร่วมกันทั้งหมด
+   ถ้าเพิ่มขนาดใหม่ต้องใส่ชื่อในบรรทัดนี้ด้วย ไม่งั้นจะได้กล่องสี่เหลี่ยมตัวอักษรไม่อยู่กลาง
+   (เคยพลาดมาแล้วตอนเพิ่ม av-xl) */
+.av-lg, .av-sm, .av-xl {
   position: relative;
   display: grid;
   place-items: center;
@@ -1418,30 +1420,32 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 }
 .svc-tag b { color: var(--blue-700); font-weight: 600; }
 
-/* ---------- คะแนนย่อยรายด้าน ----------
+/* ---------- คะแนนย่อยรายด้านของช่างแต่ละคน (sa = staff aspect) ----------
+   ตั้งชื่อแยกจาก .aspect-row ของหน้าร้านโดยตั้งใจ — ครั้งแรกใช้ชื่อเดียวกัน
+   แล้วกฎนี้ไปทับกล่องคะแนน 4 ช่องใต้รีวิวร้านจนผังพัง
    ใช้แถบยาวแทนตัวเลขเปล่า เพราะ "4.6 กับ 4.2" ต่างกันแค่ไหนคนอ่านไม่รู้สึก
    แต่เห็นแถบยาวไม่เท่ากันจะเทียบได้ทันที */
-.aspect-rows { display: grid; gap: 7px; margin-top: var(--s-2); }
-.aspect-row {
+.sa-rows { display: grid; gap: 7px; margin-top: var(--s-2); }
+.sa-row {
   display: grid;
   grid-template-columns: 74px 1fr 30px;
   align-items: center;
   gap: var(--s-3);
 }
-.aspect-name { font-size: var(--fs-xs); color: var(--muted); }
-.aspect-bar {
+.sa-name { font-size: var(--fs-xs); color: var(--muted); }
+.sa-bar {
   height: 6px;
   border-radius: 999px;
   background: var(--border);
   overflow: hidden;
 }
-.aspect-bar i {
+.sa-bar i {
   display: block;
   height: 100%;
   border-radius: 999px;
   background: var(--gold);
 }
-.aspect-row b { font-size: var(--fs-xs); color: var(--ink); text-align: right; }
+.sa-row b { font-size: var(--fs-xs); color: var(--ink); text-align: right; }
 
 .av-check {
   position: absolute;
@@ -3148,6 +3152,9 @@ details:not([open]) > *:not(summary) { display: none !important; }
 
 .space-y-1 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.25rem; }
 .space-y-1\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.375rem; }
+/* space-y-2 ถูกใช้ใน bookings.html แต่ไม่เคยมีกฎรองรับ
+   รายการในกล่องก๊วนจึงไม่มีระยะห่างระหว่างบรรทัดเลย */
+.space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.5rem; }
 .space-y-2\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.625rem; }
 .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem; }
 .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }

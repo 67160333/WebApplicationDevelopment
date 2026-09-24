@@ -12,11 +12,11 @@ Bookvice เป็น **modular monolith** — แอปพลิเคชัน
 
 | ตัวเลขจากโค้ดจริง | ค่า |
 |---|---|
-| REST endpoint | 83 |
+| REST endpoint | 86 |
 | ตารางฐานข้อมูล | 19 |
 | โมดูล (router) | 12 |
 | หน้าเว็บ | 20 |
-| ชุดทดสอบอัตโนมัติ | 129 ข้อ (API 107 · ตรรกะหน้าเว็บ 22) |
+| ชุดทดสอบอัตโนมัติ | 143 ข้อ (API 121 · ตรรกะหน้าเว็บ 22) |
 
 ---
 
@@ -30,7 +30,7 @@ graph TB
 
     subgraph docker["Docker Compose network: bookvice-net"]
         W["<b>web</b><br/>nginx:alpine<br/>เสิร์ฟไฟล์หน้าเว็บ<br/>พอร์ต 3000"]
-        A["<b>api</b><br/>FastAPI + Uvicorn<br/>83 endpoint<br/>พอร์ต 8000"]
+        A["<b>api</b><br/>FastAPI + Uvicorn<br/>86 endpoint<br/>พอร์ต 8000"]
         D[("<b>db</b><br/>PostgreSQL 16<br/>19 ตาราง")]
         P["<b>pgadmin</b><br/>เครื่องมือดูฐานข้อมูล<br/>พอร์ต 5050"]
     end
@@ -74,9 +74,9 @@ graph LR
             R4["bookings · 16"]
             R5["payments · 5"]
             R6["matches · 12"]
-            R7["images · 4"]
+            R7["images · 5"]
             R8["notifications · 4"]
-            R9["staff · 2"]
+            R9["staff · 5"]
             R10["watches · 3"]
             R11["gaps · 2"]
             R12["aliases"]
