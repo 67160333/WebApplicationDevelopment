@@ -1587,6 +1587,22 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
    ============================================================ */
 
 /* แจ้งเตือนลอยมุมล่าง ไม่ดันเนื้อหาให้กระโดด */
+/* ป้ายบอกว่าเซิร์ฟเวอร์ตอบช้า สร้างโดย _slowNote() ใน api.js
+   วางมุมล่างซ้าย ไม่ทับ toast ที่อยู่ตรงกลาง และไม่บังปุ่มจองทางขวา */
+.slow-note {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 90;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--navy-800);
+  color: #fff;
+  font-size: 13px;
+  animation: fadeIn .3s ease;
+}
+@media (max-width: 767px) { .slow-note { bottom: 78px; } }
+
 .toast-box {
   position: fixed;
   left: 50%;
@@ -1631,6 +1647,9 @@ body.no-scroll { overflow: hidden; }
 
 /* หน้าเว็บทั้งหน้าเลื่อนแบบนุ่ม ๆ เวลากดลิงก์ในหน้าเดียวกัน */
 html { scroll-behavior: smooth; }
+/* แถบเมนูติดค้างด้านบนสูง 64px เวลาเลื่อนไปหาส่วนไหน (scrollIntoView หรือลิงก์ #)
+   ต้องเผื่อระยะไว้ ไม่งั้นหัวข้อของส่วนนั้นจะถูกแถบเมนูบังพอดี */
+html { scroll-padding-top: 76px; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
 /* ============================================================
@@ -2884,8 +2903,19 @@ details:not([open]) > *:not(summary) { display: none !important; }
    กันด้วยการจองความสูงขั้นต่ำไว้ตั้งแต่เฟรมแรก เนื้อหาจึงเข้ามาแทนที่
    ช่องว่างเดิมพอดี ไม่ผลักอะไรให้ขยับ
    ============================================================ */
+/* ความสูงต้องเท่ากับแถบเมนูจริง (h-16 = 64px) พอดี
+   เดิมจองไว้ 111px ตั้งแต่สมัยแถบเมนูมี 8 ลิงก์และตัดเป็นสองบรรทัด
+   พอลดลิงก์เหลือ 3 อัน ค่านี้ไม่ได้แก้ตาม ทุกหน้าจึงมีแถบกรมท่าว่าง ๆ
+   สูง 47px ใต้เมนู
+
+   ต้องให้ #navbar เป็นตัว sticky เอง ไม่ใช่ header ข้างใน
+   sticky ติดได้แค่ภายในกล่องแม่ของมัน กล่องแม่สูงเท่าตัวมันเอง
+   header ข้างในจึงไม่เคยติดค้างด้านบนตอนเลื่อนจอเลย */
 #navbar {
-  min-height: 111px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  min-height: 64px;
   /* ใส่สีพื้นเดียวกับแถบเมนูจริง จะได้ไม่เห็นแถบขาววาบก่อนเมนูขึ้น */
   background: var(--navy-800);
 }

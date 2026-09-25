@@ -83,7 +83,7 @@ def reset_password_email(link: str, minutes: int) -> tuple[str, str, str]:
         f"เปิดลิงก์นี้เพื่อตั้งรหัสผ่านใหม่ (ใช้ได้ {minutes} นาที และใช้ได้ครั้งเดียว):\n"
         f"{link}\n\n"
         "ถ้าคุณไม่ได้เป็นคนขอ ไม่ต้องทำอะไร รหัสผ่านเดิมยังใช้ได้ตามปกติ\n\n"
-        "— Bookvice (โปรเจกต์รายวิชา 89033167)"
+        "Bookvice"
     )
     html = f"""<!DOCTYPE html><html lang="th"><body style="margin:0;padding:24px;background:#eef7ff;
 font-family:'Noto Sans Thai Looped','IBM Plex Sans Thai',Tahoma,sans-serif;color:#0f1b2d">
@@ -103,7 +103,7 @@ font-family:'Noto Sans Thai Looped','IBM Plex Sans Thai',Tahoma,sans-serif;color
     <b>ถ้าคุณไม่ได้เป็นคนขอ ไม่ต้องทำอะไร</b> รหัสผ่านเดิมยังใช้ได้ตามปกติ
   </p>
   <p style="margin:14px 0 0;font-size:12px;color:#96a2b4">
-    Bookvice · โปรเจกต์รายวิชา 89033167 Web Application Development
+    Bookvice
   </p>
 </div></body></html>"""
     return subject, html, text

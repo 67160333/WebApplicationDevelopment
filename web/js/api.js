@@ -125,16 +125,57 @@ function safeNext(next) {
   return /^[\w-]+\.html(\?[^#]*)?$/.test(next) ? next : null;
 }
 
+// ---------- บอกผู้ใช้เมื่อเซิร์ฟเวอร์ตอบช้า ----------
+// ปกติ API ตอบในไม่ถึงวินาที ถ้าเกิน 4 วินาทีมักเป็นเพราะฐานข้อมูลเพิ่งตื่น
+// หรือเซิร์ฟเวอร์ฟรีเพิ่งเปิดเครื่อง ผู้ใช้จะเห็นแค่โครงร่างสีเทาค้างไว้เฉย ๆ
+// แล้วคิดว่าเว็บค้าง จึงขึ้นป้ายเล็ก ๆ มุมล่างบอกว่ายังทำงานอยู่
+//
+// นับจำนวนคำขอที่ยังค้าง ป้ายจะหายเมื่อทุกคำขอเสร็จ ไม่ใช่แค่คำขอแรก
+const SLOW_MS = 4000;
+let _pending = 0;
+let _slowTimer = null;
+
+function _slowNote(show) {
+  let el = document.getElementById("slowNote");
+  if (!show) {
+    if (el) el.remove();
+    return;
+  }
+  if (el) return;
+  el = document.createElement("div");
+  el.id = "slowNote";
+  el.className = "slow-note";
+  el.setAttribute("role", "status");
+  el.textContent = "เซิร์ฟเวอร์ตอบช้ากว่าปกติ รออีกนิดนะ";
+  document.body.appendChild(el);
+}
+
+function _requestStart() {
+  _pending += 1;
+  if (!_slowTimer) _slowTimer = setTimeout(() => _slowNote(true), SLOW_MS);
+}
+
+function _requestEnd() {
+  _pending = Math.max(0, _pending - 1);
+  if (_pending > 0) return;
+  clearTimeout(_slowTimer);
+  _slowTimer = null;
+  _slowNote(false);
+}
+
 // ---------- เรียก API ----------
 async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (Auth.token) headers["Authorization"] = `Bearer ${Auth.token}`;
 
   let res;
+  _requestStart();
   try {
     res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   } catch {
     throw new Error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจสอบว่าระบบทำงานอยู่");
+  } finally {
+    _requestEnd();
   }
 
   // token หมดอายุหรือถูกยกเลิก → พาไปล็อกอิน แล้วกลับมาหน้าเดิม

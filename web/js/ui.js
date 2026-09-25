@@ -523,7 +523,7 @@ function renderNavbar(active = "") {
        </div>`;
 
   document.getElementById("navbar").innerHTML = `
-    <header style="background:var(--navy-800)" class="sticky top-0 z-40">
+    <header style="background:var(--navy-800)">
       <div class="max-w-6xl mx-auto px-5 h-16 flex items-center gap-6">
         ${/* ลิงก์กลับหน้าแรกใช้ "./" ไม่ใช่ "index.html"
               เซิร์ฟเวอร์เสิร์ฟ index.html ที่รากอยู่แล้ว (nginx: index index.html ·
