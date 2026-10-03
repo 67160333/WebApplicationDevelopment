@@ -1,0 +1,157 @@
+Timing is on.
+BEGIN
+Time: 0.170 ms
+DROP INDEX
+Time: 0.932 ms
+DROP INDEX
+Time: 0.219 ms
+DROP INDEX
+Time: 734.979 ms
+DROP INDEX
+Time: 90.384 ms
+CREATE INDEX
+Time: 281.302 ms
+CREATE INDEX
+Time: 335.001 ms
+CREATE INDEX
+Time: 369.208 ms
+CREATE INDEX
+Time: 38.197 ms
+CREATE INDEX
+Time: 208.234 ms
+CREATE INDEX
+Time: 265.720 ms
+ANALYZE
+Time: 6349.775 ms (00:06.350)
+
+===== [ชุดเดิม] Q1 หน้าจอง: ร้าน + วันที่ =====
+      ทั้งสองชุดใช้ ix_booking_held_slot เหมือนกัน (partial index ขึ้นต้นด้วย shop_id)
+                                                            QUERY PLAN                                                            
+----------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using ix_booking_held_slot on bookings  (cost=0.42..15.30 rows=1 width=84) (actual time=0.020..0.107 rows=24 loops=1)
+   Index Cond: ((shop_id = 1) AND (booking_date = '2026-10-10'::date))
+   Buffers: shared hit=24 read=13
+ Planning:
+   Buffers: shared hit=130 read=2
+ Planning Time: 0.294 ms
+ Execution Time: 0.119 ms
+(7 rows)
+
+Time: 0.941 ms
+
+===== [ชุดเดิม] Q3 หน้าจัดการร้าน: index shop_id อย่างเดียว ต้องดึงคิวทั้งร้าน (~22,000) มาเรียงก่อนตัด 100 =====
+                                                                            QUERY PLAN                                                                             
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=108.30..470.35 rows=100 width=84) (actual time=2.906..4.301 rows=100 loops=1)
+   Buffers: shared hit=3232 read=783
+   ->  Incremental Sort  (cost=108.30..79035.08 rows=21800 width=84) (actual time=2.905..4.295 rows=100 loops=1)
+         Sort Key: booking_date DESC, booking_time DESC
+         Presorted Key: booking_date
+         Full-sort Groups: 2  Sort Method: quicksort  Average Memory: 33kB  Peak Memory: 33kB
+         Pre-sorted Groups: 2  Sort Method: quicksort  Average Memory: 28kB  Peak Memory: 28kB
+         Buffers: shared hit=3232 read=783
+         ->  Index Scan Backward using ix_bookings_booking_date on bookings  (cost=0.42..78213.85 rows=21800 width=84) (actual time=0.045..4.237 rows=101 loops=1)
+               Filter: (shop_id = 1)
+               Rows Removed by Filter: 4108
+               Buffers: shared hit=3232 read=783
+ Planning:
+   Buffers: shared hit=20
+ Planning Time: 0.067 ms
+ Execution Time: 4.312 ms
+(16 rows)
+
+Time: 4.611 ms
+
+===== [ชุดเดิม] Q4 รีวิวร้าน =====
+                                                                  QUERY PLAN                                                                   
+-----------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=2633.43..2633.45 rows=10 width=124) (actual time=1.835..1.836 rows=10 loops=1)
+   Buffers: shared hit=1773 read=100
+   ->  Sort  (cost=2633.43..2642.17 rows=3499 width=124) (actual time=1.835..1.835 rows=10 loops=1)
+         Sort Key: created_at DESC
+         Sort Method: top-N heapsort  Memory: 27kB
+         Buffers: shared hit=1773 read=100
+         ->  Bitmap Heap Scan on reviews  (cost=43.41..2557.81 rows=3499 width=124) (actual time=0.253..1.611 rows=3613 loops=1)
+               Recheck Cond: (shop_id = 1)
+               Heap Blocks: exact=1868
+               Buffers: shared hit=1773 read=100
+               ->  Bitmap Index Scan on old_reviews_shop_id  (cost=0.00..42.54 rows=3499 width=0) (actual time=0.130..0.130 rows=3613 loops=1)
+                     Index Cond: (shop_id = 1)
+                     Buffers: shared read=5
+ Planning:
+   Buffers: shared hit=44 read=3
+ Planning Time: 0.091 ms
+ Execution Time: 1.845 ms
+(17 rows)
+
+Time: 2.113 ms
+
+===== [ชุดเดิม] Q5 ระบบพักเงิน: index status มีค่า paid เกือบทั้งตาราง ช่วยอะไรไม่ได้ =====
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=26169.75..53351.51 rows=65983 width=8) (actual time=87.612..90.668 rows=0 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=12057 read=19720
+   ->  Parallel Hash Semi Join  (cost=25169.75..45753.21 rows=27493 width=8) (actual time=85.260..85.262 rows=0 loops=3)
+         Hash Cond: (b.id = payments.booking_id)
+         Buffers: shared hit=12057 read=19720
+         ->  Parallel Seq Scan on bookings b  (cost=0.00..19494.33 rows=298389 width=8) (actual time=0.011..31.819 rows=239433 loops=3)
+               Filter: ((status)::text = 'completed'::text)
+               Rows Removed by Filter: 93900
+               Buffers: shared hit=11807 read=2479
+         ->  Parallel Hash  (cost=24689.86..24689.86 rows=38391 width=8) (actual time=34.165..34.165 rows=31479 loops=3)
+               Buckets: 131072  Batches: 1  Memory Usage: 4768kB
+               Buffers: shared hit=96 read=17241
+               ->  Parallel Seq Scan on payments  (cost=0.00..24689.86 rows=38391 width=8) (actual time=0.016..30.483 rows=31479 loops=3)
+                     Filter: ((released_at IS NULL) AND ((status)::text = 'paid'::text))
+                     Rows Removed by Filter: 439104
+                     Buffers: shared hit=96 read=17241
+ Planning:
+   Buffers: shared hit=71 read=3
+ Planning Time: 0.165 ms
+ Execution Time: 90.677 ms
+(22 rows)
+
+Time: 91.098 ms
+
+===== [ชุดเดิม] Q6 จุดแดงบนกระดิ่ง: index (user_id, is_read) ทั้งตาราง =====
+                                                                   QUERY PLAN                                                                   
+------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=4.45..4.46 rows=1 width=8) (actual time=0.019..0.020 rows=1 loops=1)
+   Buffers: shared read=3 written=2
+   ->  Index Only Scan using old_notif_user_unread on notifications  (cost=0.42..4.44 rows=1 width=0) (actual time=0.017..0.017 rows=0 loops=1)
+         Index Cond: ((user_id = 4242) AND (is_read = false))
+         Heap Fetches: 0
+         Buffers: shared read=3 written=2
+ Planning:
+   Buffers: shared hit=16 read=5 written=5
+ Planning Time: 0.163 ms
+ Execution Time: 0.032 ms
+(10 rows)
+
+Time: 0.446 ms
+
+===== ขนาดรวมของ index ชุดเดิม (ก่อน ROLLBACK) =====
+  table_name   | index_size 
+---------------+------------
+ bookings      | 64 MB
+ notifications | 53 MB
+ payments      | 68 MB
+ reviews       | 5832 kB
+(4 rows)
+
+Time: 1.475 ms
+ROLLBACK
+Time: 4.946 ms
+
+===== ขนาดรวมของ index ชุดใหม่ (หลัง ROLLBACK) =====
+  table_name   | index_size 
+---------------+------------
+ bookings      | 80 MB
+ notifications | 36 MB
+ payments      | 61 MB
+ reviews       | 9592 kB
+(4 rows)
+
+Time: 0.607 ms

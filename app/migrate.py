@@ -65,6 +65,23 @@ COLUMNS: list[tuple[str, str, str]] = [
     ("bookings", "match_note",  "VARCHAR(300)"),
     # กลุ่มใหญ่ของหมวด ใช้แยกทางเข้าในหน้าเว็บ — seed เป็นคนเติมค่าจริงให้
     ("categories", "group_key", "VARCHAR(10) NOT NULL DEFAULT 'care'"),
+    # token เก่าใช้ไม่ได้หลังเปลี่ยนรหัสผ่าน
+    ("users", "token_version", "INTEGER NOT NULL DEFAULT 0"),
+    # โปรไฟล์ช่าง + บัญชีพนักงาน
+    ("staff", "specialties", "VARCHAR(200)"),
+    ("staff", "experience_years", "INTEGER"),
+    ("staff", "user_id", "INTEGER"),
+    # ระบบพักเงิน
+    ("bookings", "service_done_at", "TIMESTAMPTZ"),
+    ("bookings", "customer_confirmed_at", "TIMESTAMPTZ"),
+    ("bookings", "disputed_at", "TIMESTAMPTZ"),
+    ("bookings", "dispute_note", "VARCHAR(500)"),
+    ("bookings", "dispute_result", "VARCHAR(10)"),
+    ("payments", "released_at", "TIMESTAMPTZ"),
+    ("payments", "payout_id", "INTEGER"),
+    ("shops", "bank_name", "VARCHAR(50)"),
+    ("shops", "bank_account_no", "VARCHAR(20)"),
+    ("shops", "bank_account_name", "VARCHAR(150)"),
 ]
 
 # ---------- กุญแจนอกและดัชนี : (ชื่อ, คำสั่งสร้าง) ----------
@@ -100,6 +117,17 @@ CONSTRAINTS: list[tuple[str, str]] = [
         "CHECK (rating_value IS NULL OR rating_value BETWEEN 1 AND 5)",
     ),
     (
+        "fk_staff_user",
+        "ALTER TABLE staff ADD CONSTRAINT fk_staff_user "
+        "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL",
+    ),
+    (
+        # ตาราง payouts ถูกสร้างโดย create_all ก่อนไฟล์นี้ทำงาน จึงอ้างถึงได้
+        "fk_payments_payout",
+        "ALTER TABLE payments ADD CONSTRAINT fk_payments_payout "
+        "FOREIGN KEY (payout_id) REFERENCES payouts(id) ON DELETE SET NULL",
+    ),
+    (
         "ck_services_mode",
         "ALTER TABLE services ADD CONSTRAINT ck_services_mode "
         "CHECK (booking_mode IN ('scheduled','instant'))",
@@ -127,6 +155,19 @@ DROP_INDEXES: list[str] = [
     # เดิมกันคิวซ้ำเวลาโดยดูแค่สถานะ ทำให้คิวที่ยังไม่จ่ายก็กันเวลาไว้ด้วย
     # ตัวใหม่ (uq_booking_held_slot) กันเฉพาะคิวที่ล็อกช่องเวลาแล้ว
     "DROP INDEX IF EXISTS uq_booking_active_slot",
+    # ---- ผลจาก indexing-lab (สรุปใน docs/INDEXING.md) ----
+    # index คอลัมน์เดียวที่ซ้ำกับคอลัมน์แรกของ index ผสมตัวใหม่ (กฎ leftmost ใช้แทนกันได้)
+    "DROP INDEX IF EXISTS ix_bookings_shop_id",
+    "DROP INDEX IF EXISTS ix_reviews_shop_id",
+    # ทดลองในรอบที่ 1 แล้วไม่คุ้ม (ไม่เร็วขึ้น แต่ใหญ่ขึ้น 4 เท่า) ลบออกจากฐานที่เคยสร้างไว้
+    "DROP INDEX IF EXISTS ix_bookings_user_date",
+    "DROP INDEX IF EXISTS ix_notif_user_created",
+    # คอลัมน์ที่มีค่าซ้ำเยอะ PostgreSQL ไม่เลือกใช้อยู่ดี มีไว้แค่ทำให้ INSERT ช้า
+    "DROP INDEX IF EXISTS ix_bookings_status",
+    "DROP INDEX IF EXISTS ix_payments_status",
+    "DROP INDEX IF EXISTS ix_notifications_is_read",
+    # แทนด้วย partial index ix_notif_unread ที่เล็กกว่า
+    "DROP INDEX IF EXISTS ix_notif_user_unread",
 ]
 
 INDEXES: list[str] = [
@@ -138,13 +179,21 @@ INDEXES: list[str] = [
     "WHERE holds_slot AND status IN ('pending','confirmed')",
     "CREATE INDEX IF NOT EXISTS ix_reviews_staff_id ON reviews (staff_id)",
     "CREATE INDEX IF NOT EXISTS ix_reviews_service_id ON reviews (service_id)",
-    "CREATE INDEX IF NOT EXISTS ix_notif_user_unread ON notifications (user_id, is_read)",
     # ร้านที่มีพิกัดเท่านั้นที่ต้องใช้ตอนค้นหาร้านใกล้ฉัน จึงทำ partial index ให้เล็กลง
     "CREATE INDEX IF NOT EXISTS ix_shops_geo ON shops (latitude, longitude) "
     "WHERE latitude IS NOT NULL AND longitude IS NOT NULL",
     "CREATE INDEX IF NOT EXISTS ix_shops_province ON shops (province)",
     # กดถูกใจร้านเดิมซ้ำต้องไม่ได้แถวใหม่ ให้ฐานข้อมูลกันอีกชั้นนอกเหนือจากโค้ด
     "CREATE UNIQUE INDEX IF NOT EXISTS uq_favorite_user_shop ON favorites (user_id, shop_id)",
+    "CREATE INDEX IF NOT EXISTS ix_staff_user_id ON staff (user_id)",
+    "CREATE INDEX IF NOT EXISTS ix_payments_payout_id ON payments (payout_id)",
+    # ---- index ชุดใหม่จาก indexing-lab — ต้องตรงกับที่ประกาศใน models.py ----
+    # create_all ไม่สร้าง index ให้ตารางที่มีอยู่แล้ว ฐานข้อมูลบนเว็บจริงจึงต้องสร้างตรงนี้
+    "CREATE INDEX IF NOT EXISTS ix_bookings_shop_date ON bookings (shop_id, booking_date, booking_time)",
+    "CREATE INDEX IF NOT EXISTS ix_reviews_shop_created ON reviews (shop_id, created_at)",
+    "CREATE INDEX IF NOT EXISTS ix_notif_unread ON notifications (user_id) WHERE is_read = false",
+    "CREATE INDEX IF NOT EXISTS ix_payments_held ON payments (booking_id) "
+    "WHERE status = 'paid' AND released_at IS NULL",
 ]
 
 
@@ -219,6 +268,30 @@ def run_migrations(engine: Engine) -> None:
         ).rowcount
         if held:
             added.append(f"ตั้งค่าล็อกช่องเวลาให้คิวเดิม {held} คิว")
+
+        # 3.3) ปล่อยเงินย้อนหลังให้รายการที่มีอยู่ก่อนจะมีระบบพักเงิน
+        #
+        # คอลัมน์ released_at ใหม่เป็น NULL ทุกแถว = "พักไว้" ทั้งหมด
+        # ถ้าไม่เติมย้อนหลัง งานที่ร้านทำเสร็จไปนานแล้วจะกลายเป็นเงินค้างพัก
+        #
+        # เกณฑ์ที่ปล่อยได้ทันที
+        #   - เงินสด (อยู่ในมือร้านตั้งแต่แรก)
+        #   - คิวที่ปิดงานไปก่อนมีระบบนี้ (service_done_at ว่าง)
+        #   - คิวที่ยกเลิกไปแล้ว ส่วนที่ยังไม่คืนคือค่ามัดจำที่ร้านได้ตามกติกาเดิม
+        # ต้องมีเงื่อนไข service_done_at ว่างเสมอ ไม่งั้นทุกครั้งที่ระบบเริ่มทำงาน
+        # งานที่ปิดใหม่ตามขั้นตอนปกติจะถูกปล่อยเงินทันทีโดยไม่รอ 24 ชั่วโมง
+        released = conn.execute(
+            text(
+                "UPDATE payments SET released_at = paid_at "
+                "WHERE released_at IS NULL AND status = 'paid' AND ("
+                "  method = 'cash' OR EXISTS ("
+                "    SELECT 1 FROM bookings b WHERE b.id = payments.booking_id AND ("
+                "      (b.status = 'completed' AND b.service_done_at IS NULL)"
+                "      OR b.status = 'cancelled')))"
+            )
+        ).rowcount
+        if released:
+            added.append(f"ปล่อยเงินย้อนหลังให้รายการเดิม {released} รายการ")
 
         # 3.5) เก็บชื่อแบรนด์เดิมที่ยังค้างอยู่ใน "ข้อมูล" ไม่ใช่ในโค้ด
         #

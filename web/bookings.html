@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609261200" />
+  <link rel="stylesheet" href="css/app.css?v=202610031200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -200,8 +200,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202609261200"></script>
-  <script src="js/ui.js?v=202609261200"></script>
+  <script src="js/api.js?v=202610031200"></script>
+  <script src="js/ui.js?v=202610031200"></script>
   <script>
     renderNavbar("bookings");
     renderFooter();
@@ -388,8 +388,46 @@
       return '<span class="badge badge-pending">ยังไม่ล็อกเวลา</span>';
     }
 
+    // ส่วนระบบพักเงินในการ์ด — บอกลูกค้าว่าเงินของเขาอยู่ตรงไหนและต้องทำอะไรต่อ
+    //
+    // ร้านกดให้บริการเสร็จแล้ว แต่เงินยังพักอยู่ = ลูกค้ามีสองทาง
+    //   ได้รับบริการแล้ว -> ปล่อยเงินให้ร้านทันที
+    //   แจ้งปัญหา       -> พักเงินไว้ให้ผู้ดูแลตัดสิน
+    // ถ้าไม่กดอะไร ระบบปล่อยเงินให้ร้านเองเมื่อครบเวลา (auto_release_at)
+    function escrowPanel(b) {
+      const box = (inner) =>
+        `<div class="mt-3 pt-3 text-sm" style="border-top:1px solid var(--border)">${inner}</div>`;
+
+      if (b.escrow_state === "disputed") {
+        return box(`<p style="margin:0;color:#a12a20">แจ้งปัญหาแล้ว · เงิน ฿${baht(b.held_amount)}
+          พักไว้ที่ระบบจนกว่าผู้ดูแลจะตัดสิน</p>`);
+      }
+      if (b.status === "completed" && b.escrow_state === "held") {
+        const when = b.auto_release_at
+          ? new Date(b.auto_release_at).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })
+          : "";
+        return box(`
+          <p style="margin:0">ร้านแจ้งว่าให้บริการเสร็จแล้ว · เงิน ฿${baht(b.held_amount)} ยังพักไว้ที่ระบบ
+            ${when ? `<span class="text-muted">· ถ้าไม่มีปัญหา ระบบจะโอนให้ร้านเอง ${when}</span>` : ""}</p>
+          <div class="flex gap-2 mt-2 flex-wrap">
+            <button data-okservice="${b.id}" class="btn btn-primary btn-sm">ได้รับบริการแล้ว</button>
+            <button data-dispute="${b.id}" class="btn btn-outline btn-sm">แจ้งปัญหา</button>
+          </div>`);
+      }
+      if (b.status === "completed" && b.dispute_result === "refund") {
+        return box(`<p style="margin:0;color:var(--success)">ผู้ดูแลตัดสินคืนเงินให้คุณแล้ว</p>`);
+      }
+      if (b.status === "cancelled" && b.cancelled_by !== "customer" && b.cancelled_by !== "no_show"
+          && b.escrow_state === "refunded") {
+        return box(`<p style="margin:0;color:var(--success)">ร้านยกเลิกคิวนี้ · คืนเงินให้คุณเต็มจำนวนแล้ว</p>`);
+      }
+      return "";
+    }
+
     function card(b) {
-      const canCancel = b.status === "pending" || b.status === "confirmed";
+      // ยกเลิกและเลื่อนนัดเองได้ก่อนถึงเวลานัดเท่านั้น (กติกาเดียวกับเซิร์ฟเวอร์)
+      // เลยเวลาแล้วถ้าไม่ได้ไป ร้านเป็นคนบันทึกว่าไม่มาตามนัด
+      const canCancel = (b.status === "pending" || b.status === "confirmed") && !isPast(b);
       const canReview = b.status === "completed";
       const canRebook = b.status === "completed" || b.status === "cancelled";
       // ยกเลิกแล้วจ่ายไม่ได้ และจ่ายครบแล้วก็ไม่ต้องมีปุ่มอีก
@@ -408,7 +446,7 @@
               <div>
                 <div class="flex items-center gap-2.5 flex-wrap">
                   <h3 class="h3">${esc(svName || nameOf(b.shop_id))}</h3>
-                  ${statusBadge(b.status)}
+                  ${bookingStatusBadge(b)}
                   ${holdBadge(b)}
                   ${countdown(b)}
                 </div>
@@ -421,6 +459,7 @@
                 <div class="h2 num">฿${baht(b.total_price)}</div>
                 <div class="text-xs text-muted num mt-0.5">มัดจำ ฿${baht(b.deposit_amount)}</div>
                 <div class="mt-1.5">${payBadge(b)}</div>
+                ${escrowBadge(b)}
               </div>
             </div>
 
@@ -455,23 +494,24 @@
                 </div>
               </div>` : ""}
 
-            ${b.requirements || b.health_note || b.reference_url || b.note ? `
+            ${b.requirements || b.health_note || safeHttpUrl(b.reference_url) || b.note ? `
               <div class="mt-3 pt-3 text-sm space-y-1" style="border-top:1px solid var(--border)">
                 ${b.requirements ? `<div><span class="text-muted">สิ่งที่แจ้งไว้:</span> ${esc(b.requirements)}</div>` : ""}
                 ${b.health_note ? `<div><span class="text-muted">ข้อมูลสุขภาพ:</span> ${esc(b.health_note)}</div>` : ""}
-                ${b.reference_url ? `<div><a href="${esc(b.reference_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--blue-600)">ดูรูปตัวอย่างที่แนบไว้</a></div>` : ""}
+                ${safeHttpUrl(b.reference_url) ? `<div><a href="${esc(safeHttpUrl(b.reference_url))}" target="_blank" rel="noopener noreferrer" style="color:var(--blue-600)">ดูรูปตัวอย่างที่แนบไว้</a></div>` : ""}
                 ${b.note ? `<div><span class="text-muted">หมายเหตุ:</span> ${esc(b.note)}</div>` : ""}
               </div>` : ""}
 
             ${b.status === "cancelled" && Number(b.cancellation_fee) > 0 ? `
               <div class="mt-3 pt-3" style="border-top:1px solid var(--border)">
                 <p class="text-sm" style="margin:0;color:var(--warn)">
-                  ยกเลิกโดยคุณเอง · ถูกหักค่ามัดจำ ฿${baht(b.cancellation_fee)} ตามนโยบายยกเลิก
-                  ${Number(b.paid_amount) > Number(b.cancellation_fee)
-                    ? `· ร้านจะคืนส่วนที่เหลือ ฿${baht(Number(b.paid_amount) - Number(b.cancellation_fee))}`
-                    : ""}
+                  ${b.cancelled_by === "no_show" ? "ร้านบันทึกว่าไม่ได้มาตามนัด" : "ยกเลิกโดยคุณเอง"}
+                  · ไม่ได้รับค่ามัดจำ ฿${baht(b.cancellation_fee)} คืนตามนโยบายยกเลิก
+                  · ส่วนที่จ่ายเกินระบบคืนให้แล้ว
                 </p>
               </div>` : ""}
+
+            ${escrowPanel(b)}
 
             ${canPay ? `
               <div class="mt-3 pt-3" style="border-top:1px solid var(--border)">
@@ -732,6 +772,52 @@
         })
       );
 
+      // ---------- ระบบพักเงิน: ยืนยันว่าได้รับบริการ ----------
+      document.querySelectorAll("[data-okservice]").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const ok = await confirmDialog({
+            title: "ยืนยันว่าได้รับบริการแล้ว",
+            message: "ระบบจะโอนเงินที่พักไว้ให้ร้านทันที หลังจากนี้แจ้งปัญหาผ่านระบบไม่ได้แล้ว",
+            confirmText: "ได้รับบริการแล้ว",
+          });
+          if (!ok) return;
+          btnBusy(btn, true, "กำลังบันทึก");
+          try {
+            await apiPost(`/api/bookings/${btn.dataset.okservice}/confirm-service`, {});
+            toast("ขอบคุณครับ ระบบโอนเงินให้ร้านแล้ว");
+            load(1);
+          } catch (err) {
+            btnBusy(btn, false);
+            toast(err.message, "error", 5000);
+          }
+        })
+      );
+
+      // ---------- ระบบพักเงิน: แจ้งปัญหา ----------
+      document.querySelectorAll("[data-dispute]").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const note = await promptDialog({
+            title: "แจ้งปัญหากับคิวนี้",
+            message: "เงินจะถูกพักไว้ที่ระบบจนกว่าผู้ดูแลจะตรวจสอบและตัดสิน",
+            label: "เกิดอะไรขึ้น",
+            placeholder: "เช่น ร้านไม่ได้ให้บริการตามที่จอง หรือบริการไม่ตรงกับที่ตกลง",
+            maxlength: 500,
+            confirmText: "ส่งเรื่อง",
+          });
+          if (note === null) return;
+          if (note.length < 5) return toast("กรุณาเล่าปัญหาอย่างน้อย 5 ตัวอักษร", "error");
+          btnBusy(btn, true, "กำลังส่ง");
+          try {
+            await apiPost(`/api/bookings/${btn.dataset.dispute}/dispute`, { note });
+            toast("ส่งเรื่องแล้ว ผู้ดูแลจะตรวจสอบและแจ้งผลให้ทราบ", "success", 5000);
+            load(1);
+          } catch (err) {
+            btnBusy(btn, false);
+            toast(err.message, "error", 5000);
+          }
+        })
+      );
+
       document.querySelectorAll("[data-cancel]").forEach((btn) =>
         btn.addEventListener("click", async () => {
           const b = lastItems.find((x) => x.id === Number(btn.dataset.cancel));
@@ -751,7 +837,7 @@
             title = `ยกเลิกแล้วจะไม่ได้เงินมัดจำ ฿${baht(forfeit)} คืน`;
             lines.push(`ค่ามัดจำ ฿${baht(forfeit)} (20% ของค่าบริการ) จะถูกหักตามนโยบายยกเลิก`);
             const extra = Number(b.paid_amount) - forfeit;
-            if (extra > 0) lines.push(`ส่วนที่จ่ายเกินมา ฿${baht(extra)} ร้านจะคืนให้`);
+            if (extra > 0) lines.push(`ส่วนที่จ่ายเกินมา ฿${baht(extra)} ระบบคืนให้อัตโนมัติ`);
           } else {
             lines.push("คิวนี้ยังไม่ได้ชำระเงิน ยกเลิกได้โดยไม่เสียค่าใช้จ่าย");
           }

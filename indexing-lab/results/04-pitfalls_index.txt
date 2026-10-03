@@ -1,0 +1,240 @@
+Timing is on.
+
+===== 4.1 ❌ ครอบคอลัมน์ด้วยฟังก์ชัน: คิวของร้าน 1 ในเดือนสิงหาคม =====
+      ix_bookings_shop_date ใช้ได้แค่ shop_id ส่วนวันที่ต้องไล่คำนวณ to_char ทุกแถวของร้าน
+                                                                   QUERY PLAN                                                                    
+-------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=920.38..920.39 rows=1 width=8) (actual time=4.873..4.874 rows=1 loops=1)
+   Buffers: shared hit=1 read=64
+   ->  Index Only Scan using ix_bookings_shop_date on bookings  (cost=0.42..920.10 rows=114 width=0) (actual time=3.942..4.844 rows=950 loops=1)
+         Index Cond: (shop_id = 1)
+         Filter: (to_char((booking_date)::timestamp with time zone, 'YYYY-MM'::text) = '2026-08'::text)
+         Rows Removed by Filter: 21234
+         Heap Fetches: 0
+         Buffers: shared hit=1 read=64
+ Planning:
+   Buffers: shared hit=175 read=1
+ Planning Time: 0.438 ms
+ Execution Time: 4.924 ms
+(12 rows)
+
+Time: 6.173 ms
+
+===== 4.1 ✅ เขียนเป็นช่วงวันที่ตรง ๆ ใช้ index ได้ทั้งสองคอลัมน์ =====
+                                                                   QUERY PLAN                                                                   
+------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=39.42..39.43 rows=1 width=8) (actual time=0.094..0.094 rows=1 loops=1)
+   Buffers: shared hit=7
+   ->  Index Only Scan using ix_bookings_shop_date on bookings  (cost=0.42..37.12 rows=920 width=0) (actual time=0.005..0.060 rows=950 loops=1)
+         Index Cond: ((shop_id = 1) AND (booking_date >= '2026-08-01'::date) AND (booking_date < '2026-09-01'::date))
+         Heap Fetches: 0
+         Buffers: shared hit=7
+ Planning:
+   Buffers: shared hit=14
+ Planning Time: 0.063 ms
+ Execution Time: 0.102 ms
+(10 rows)
+
+Time: 0.334 ms
+
+===== 4.2 ค้นหาร้านด้วยคำ (shops.py :: list_shops ใช้ ILIKE '%คำ%') =====
+      ตาราง shops มีแค่ 2,000 แถว — ทำ index ชื่อร้านไปก็ไม่ช่วย
+      (1) % นำหน้า B-tree ใช้ไม่ได้อยู่แล้ว (2) ตารางเล็กมาก อ่านทั้งตารางเร็วกว่าเปิด index
+BEGIN
+Time: 0.073 ms
+CREATE INDEX
+Time: 119.625 ms
+ANALYZE
+Time: 123.132 ms
+                                             QUERY PLAN                                             
+----------------------------------------------------------------------------------------------------
+ Seq Scan on shops  (cost=0.00..54.00 rows=98 width=82) (actual time=0.013..0.748 rows=107 loops=1)
+   Filter: (is_active AND ((name)::text ~~* '%ทดสอบ 12%'::text))
+   Rows Removed by Filter: 1893
+   Buffers: shared hit=29
+ Planning:
+   Buffers: shared hit=26 read=6
+ Planning Time: 0.369 ms
+ Execution Time: 0.759 ms
+(8 rows)
+
+Time: 1.399 ms
+                                                      QUERY PLAN                                                       
+-----------------------------------------------------------------------------------------------------------------------
+ Index Scan using tmp_shops_name on shops  (cost=0.28..8.29 rows=1 width=82) (actual time=0.082..0.082 rows=1 loops=1)
+   Index Cond: ((name)::text = 'ร้านทดสอบ 1234'::text)
+   Buffers: shared hit=1 read=2
+ Planning Time: 0.027 ms
+ Execution Time: 0.087 ms
+(5 rows)
+
+Time: 0.451 ms
+ROLLBACK
+Time: 0.255 ms
+
+===== 4.3 คอลัมน์ค่าซ้ำเยอะ: index บน bookings.status (ชุดเดิมของโปรเจกต์มีตัวนี้) =====
+      รอบที่ 1 พบว่า count(*) ใช้ index นี้ได้จริง (Index Only Scan) แม้ค่า completed มี 70%
+      แต่ระบบไม่เคยค้นด้วย status ตัวเดียว — ดึงแถวจริงตามสถานะแล้วเทียบกับไม่มี index
+BEGIN
+Time: 0.070 ms
+CREATE INDEX
+Time: 309.779 ms
+ANALYZE
+Time: 119.698 ms
+      [มี index] count(*) status = completed
+                                                                                 QUERY PLAN                                                                                  
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=12587.24..12587.25 rows=1 width=8) (actual time=28.401..30.414 rows=1 loops=1)
+   Buffers: shared hit=3 read=618
+   ->  Gather  (cost=12587.03..12587.24 rows=2 width=8) (actual time=28.278..30.406 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=3 read=618
+         ->  Partial Aggregate  (cost=11587.03..11587.04 rows=1 width=8) (actual time=26.130..26.131 rows=1 loops=3)
+               Buffers: shared hit=3 read=618
+               ->  Parallel Index Only Scan using tmp_bookings_status on bookings  (cost=0.42..10840.26 rows=298708 width=0) (actual time=0.033..17.341 rows=239433 loops=3)
+                     Index Cond: (status = 'completed'::text)
+                     Heap Fetches: 0
+                     Buffers: shared hit=3 read=618
+ Planning:
+   Buffers: shared hit=13 read=1
+ Planning Time: 0.149 ms
+ Execution Time: 30.430 ms
+(16 rows)
+
+Time: 30.895 ms
+      [มี index] ดึงแถวทั้งหมดของ status = completed (ต้องไปอ่านแถวจริงทุกแถว)
+                                                                 QUERY PLAN                                                                 
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=21241.33..21241.34 rows=1 width=32) (actual time=47.347..50.693 rows=1 loops=1)
+   Buffers: shared hit=11999 read=2287
+   ->  Gather  (cost=21241.11..21241.32 rows=2 width=32) (actual time=47.257..50.686 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=11999 read=2287
+         ->  Partial Aggregate  (cost=20241.11..20241.12 rows=1 width=32) (actual time=45.192..45.193 rows=1 loops=3)
+               Buffers: shared hit=11999 read=2287
+               ->  Parallel Seq Scan on bookings  (cost=0.00..19494.33 rows=298708 width=5) (actual time=0.008..32.162 rows=239433 loops=3)
+                     Filter: ((status)::text = 'completed'::text)
+                     Rows Removed by Filter: 93900
+                     Buffers: shared hit=11999 read=2287
+ Planning:
+   Buffers: shared hit=18 read=3
+ Planning Time: 0.366 ms
+ Execution Time: 50.715 ms
+(16 rows)
+
+Time: 51.413 ms
+ROLLBACK
+Time: 1.270 ms
+      [ไม่มี index] ดึงแถวทั้งหมดของ status = completed
+                                                                 QUERY PLAN                                                                 
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=21242.79..21242.80 rows=1 width=32) (actual time=49.563..52.973 rows=1 loops=1)
+   Buffers: shared hit=12095 read=2191
+   ->  Gather  (cost=21242.57..21242.78 rows=2 width=32) (actual time=49.461..52.965 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=12095 read=2191
+         ->  Partial Aggregate  (cost=20242.57..20242.58 rows=1 width=32) (actual time=46.984..46.985 rows=1 loops=3)
+               Buffers: shared hit=12095 read=2191
+               ->  Parallel Seq Scan on bookings  (cost=0.00..19494.33 rows=299292 width=5) (actual time=0.009..33.505 rows=239433 loops=3)
+                     Filter: ((status)::text = 'completed'::text)
+                     Rows Removed by Filter: 93900
+                     Buffers: shared hit=12095 read=2191
+ Planning:
+   Buffers: shared hit=21
+ Planning Time: 0.202 ms
+ Execution Time: 52.994 ms
+(16 rows)
+
+Time: 53.510 ms
+
+===== 4.4 partial index ต้องเขียนเงื่อนไขให้ตรงกัน =====
+      ix_notif_unread สร้างด้วย WHERE is_read = false
+      แบบที่ 1: is_read = false (ตรงกับ index)
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=4.44..4.45 rows=1 width=8) (actual time=0.012..0.013 rows=1 loops=1)
+   Buffers: shared read=3
+   ->  Index Only Scan using ix_notif_unread on notifications  (cost=0.42..4.44 rows=1 width=0) (actual time=0.011..0.011 rows=0 loops=1)
+         Index Cond: (user_id = 4242)
+         Heap Fetches: 0
+         Buffers: shared read=3
+ Planning:
+   Buffers: shared hit=46 read=1
+ Planning Time: 0.165 ms
+ Execution Time: 0.023 ms
+(10 rows)
+
+Time: 0.432 ms
+      แบบที่ 2: is_read IS false (SQLAlchemy เขียน .is_(False) จะได้แบบนี้)
+                                                              QUERY PLAN                                                               
+---------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=28.18..28.19 rows=1 width=8) (actual time=0.087..0.087 rows=1 loops=1)
+   Buffers: shared read=5
+   ->  Bitmap Heap Scan on notifications  (cost=4.47..28.18 rows=1 width=0) (actual time=0.086..0.086 rows=0 loops=1)
+         Recheck Cond: (user_id = 4242)
+         Filter: (is_read IS FALSE)
+         Rows Removed by Filter: 2
+         Heap Blocks: exact=2
+         Buffers: shared read=5
+         ->  Bitmap Index Scan on ix_notifications_user_id  (cost=0.00..4.47 rows=6 width=0) (actual time=0.057..0.058 rows=2 loops=1)
+               Index Cond: (user_id = 4242)
+               Buffers: shared read=3
+ Planning Time: 0.057 ms
+ Execution Time: 0.101 ms
+(13 rows)
+
+Time: 0.335 ms
+      ตรวจกับผู้ใช้ที่มีแจ้งเตือนยังไม่อ่านจริง (ดูว่า IS false ต้องไปอ่านแถวมากกว่าแค่ไหน)
+                                                                   QUERY PLAN                                                                    
+-------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=47.70..47.71 rows=1 width=8) (actual time=0.159..0.159 rows=1 loops=1)
+   Buffers: shared hit=3 read=4
+   ->  Index Only Scan using ix_notif_unread on notifications  (cost=0.42..43.79 rows=1564 width=0) (actual time=0.020..0.107 rows=1489 loops=1)
+         Index Cond: (user_id < 2000)
+         Heap Fetches: 0
+         Buffers: shared hit=3 read=4
+ Planning Time: 0.036 ms
+ Execution Time: 0.166 ms
+(8 rows)
+
+Time: 0.365 ms
+                                                                   QUERY PLAN                                                                   
+------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=14381.95..14381.96 rows=1 width=8) (actual time=37.700..37.701 rows=1 loops=1)
+   Buffers: shared hit=3 read=7298 written=1071
+   ->  Bitmap Heap Scan on notifications  (cost=143.02..14378.04 rows=1564 width=0) (actual time=1.092..37.568 rows=1489 loops=1)
+         Recheck Cond: (user_id < 2000)
+         Filter: (is_read IS FALSE)
+         Rows Removed by Filter: 8500
+         Heap Blocks: exact=7284
+         Buffers: shared hit=3 read=7298 written=1071
+         ->  Bitmap Index Scan on ix_notifications_user_id  (cost=0.00..142.63 rows=10427 width=0) (actual time=0.541..0.541 rows=9989 loops=1)
+               Index Cond: (user_id < 2000)
+               Buffers: shared hit=2 read=15
+ Planning Time: 0.031 ms
+ Execution Time: 37.719 ms
+(13 rows)
+
+Time: 38.006 ms
+
+===== 4.5 ข้ามคอลัมน์ซ้ายสุดของ composite (leftmost rule) =====
+      ix_bookings_shop_date เริ่มที่ shop_id — ถามด้วยวันที่อย่างเดียว ใช้ตัวนี้ไม่ได้
+      (แต่ยังมี ix_bookings_booking_date แยกไว้ ซึ่ง matches.py ใช้หาก๊วนรายวัน)
+                                                                     QUERY PLAN                                                                      
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=35.72..35.73 rows=1 width=8) (actual time=0.513..0.514 rows=1 loops=1)
+   Buffers: shared hit=1 read=5
+   ->  Index Only Scan using ix_bookings_booking_date on bookings  (cost=0.42..32.31 rows=1365 width=0) (actual time=0.036..0.117 rows=1361 loops=1)
+         Index Cond: (booking_date = '2026-10-10'::date)
+         Heap Fetches: 0
+         Buffers: shared hit=1 read=5
+ Planning:
+   Buffers: shared hit=12
+ Planning Time: 0.184 ms
+ Execution Time: 0.529 ms
+(10 rows)
+
+Time: 1.116 ms

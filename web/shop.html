@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609261200" />
+  <link rel="stylesheet" href="css/app.css?v=202610031200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -166,8 +166,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202609261200"></script>
-  <script src="js/ui.js?v=202609261200"></script>
+  <script src="js/api.js?v=202610031200"></script>
+  <script src="js/ui.js?v=202610031200"></script>
   <script>
     renderNavbar("shops");
     renderFooter();
@@ -281,6 +281,13 @@
         }
         const wantDate = qp.get("date");
         if (wantDate && dateList().includes(wantDate)) state.date = wantDate;
+
+        // มาจากปุ่ม "จองกับคนนี้" ในหน้าโปรไฟล์ช่าง (staff.html) — เลือกช่างไว้ให้เลย
+        // รับเฉพาะคนที่อยู่ในร้านนี้และยังรับคิวอยู่ ค่าอื่นใน URL ไม่สนใจ
+        const wantStaff = Number(qp.get("staff"));
+        if (wantStaff && (shop.staff || []).some((x) => x.id === wantStaff && x.is_active)) {
+          state.staffId = wantStaff;
+        }
 
         render(shop);
         // บริการเรียกทันทีไม่มีตารางช่องเวลา จึงไม่ต้องโหลดคิวว่างล่วงหน้า 14 วัน
@@ -2222,7 +2229,10 @@
 
           <button class="btn btn-primary btn-block" style="margin-top:18px" data-bookstaff="${p.id}">
             จองกับ${esc(p.name)}
-          </button>`;
+          </button>
+          <a href="staff.html?id=${p.id}" class="btn btn-ghost btn-block" style="margin-top:8px">
+            ดูโปรไฟล์เต็มของ${esc(p.name)}
+          </a>`;
 
         body.querySelector("[data-bookstaff]").addEventListener("click", () => {
           closeStaff();
@@ -2378,6 +2388,13 @@
       pick("bRef", "reference_url");
       pick("bHealth", "health_note");
       pick("bNote", "note");
+
+      // บอกก่อนส่ง จะได้ไม่เจอข้อความ error ภาษาเทคนิคจากเซิร์ฟเวอร์
+      if (body.reference_url && !safeHttpUrl(body.reference_url)) {
+        btnBusy(btn, false);
+        showAlert(modalAlert, "ลิงก์รูปตัวอย่างต้องขึ้นต้นด้วย http:// หรือ https://");
+        return;
+      }
 
       try {
         const res = await apiPost("/api/bookings", body);

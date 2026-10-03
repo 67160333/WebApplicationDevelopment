@@ -18,6 +18,14 @@ router = APIRouter(prefix="/api/notifications", tags=["6. Notifications"])
 
 
 # ---------------- ตัวช่วยที่ router อื่นเรียกใช้ ----------------
+# เงื่อนไข "ยังไม่อ่าน" ใช้ร่วมกันทุกจุด
+#
+# เขียนเป็น is_read = false ให้ตรงกับเงื่อนไขของ partial index ix_notif_unread ทุกตัวอักษร
+# ถ้าเขียน .is_(False) จะได้ SQL "is_read IS false" ซึ่งเป็นเงื่อนไขคนละรูปกับของ index
+# วัดแล้วใน indexing-lab (labs/04-pitfalls.sql ข้อ 4.4): แบบ IS false PostgreSQL ไม่ใช้ index ตัวนี้
+UNREAD = Notification.is_read == False  # noqa: E712
+
+
 def notify(
     db: Session,
     user_id: int,
@@ -45,7 +53,7 @@ def list_notifications(
 ):
     stmt = select(Notification).where(Notification.user_id == current_user.id)
     if unread_only:
-        stmt = stmt.where(Notification.is_read.is_(False))
+        stmt = stmt.where(UNREAD)
 
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     rows = db.scalars(
@@ -70,7 +78,7 @@ def unread_count(
     """ใช้แสดงจุดแดงบนกระดิ่ง — ตอบเร็วเพราะนับอย่างเดียว"""
     n = db.scalar(
         select(func.count(Notification.id)).where(
-            Notification.user_id == current_user.id, Notification.is_read.is_(False)
+            Notification.user_id == current_user.id, UNREAD
         )
     )
     return UnreadCount(unread=int(n or 0))
@@ -98,7 +106,7 @@ def mark_all_read(
 ):
     db.execute(
         update(Notification)
-        .where(Notification.user_id == current_user.id, Notification.is_read.is_(False))
+        .where(Notification.user_id == current_user.id, UNREAD)
         .values(is_read=True)
     )
     db.commit()

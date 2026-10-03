@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User
 from app.schemas import Message, Page, UserOut, UsernameAvailable, UserUpdate
-from app.security import get_current_user, require_roles
+from app.security import get_current_user, require_roles, verify_password
 
 router = APIRouter(prefix="/api/users", tags=["2. User Management"])
 
@@ -110,6 +110,26 @@ def update_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ไม่พบผู้ใช้งานนี้")
 
     data = payload.model_dump(exclude_unset=True)
+    current_password = data.pop("current_password", None)
+
+    # เปลี่ยนอีเมลของตัวเองต้องยืนยันด้วยรหัสผ่านปัจจุบัน
+    #
+    # อีเมลคือทางกู้บัญชี (ลืมรหัสผ่าน) ถ้าคนที่ได้ token ไปชั่วคราว
+    # เช่นแอบใช้เครื่องที่ลืมออกจากระบบ เปลี่ยนอีเมลเป็นของตัวเองได้
+    # เขาจะกดลืมรหัสผ่านแล้วยึดบัญชีไปถาวร เจ้าของตัวจริงกู้คืนไม่ได้อีกเลย
+    # admin แก้ให้คนอื่นไม่ต้องใส่ (admin ไม่รู้รหัสของคนอื่นอยู่แล้ว)
+    if (
+        "email" in data
+        and user_id == current_user.id
+        and data["email"] != current_user.email
+    ):
+        if not current_password or not verify_password(current_password, current_user.password_hash):
+            # ใช้ 422 ไม่ใช่ 401 — หน้าเว็บตีความ 401 ว่า "เซสชันหมดอายุ"
+            # แล้วเตะออกจากระบบทันที ทั้งที่แค่พิมพ์รหัสผิด
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="กรุณาใส่รหัสผ่านปัจจุบันให้ถูกต้องเพื่อยืนยันการเปลี่ยนอีเมล",
+            )
 
     # role และ is_active เปลี่ยนได้เฉพาะ admin
     for admin_only in ("role", "is_active"):

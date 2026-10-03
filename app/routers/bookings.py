@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -34,8 +34,16 @@ from app.schemas import (
     ReviewSummary,
     Slot,
 )
+from app.routers.escrow import (
+    auto_release_at,
+    refund_rows,
+    release_due,
+    release_rows,
+    utcnow,
+)
 from app.routers.notifications import notify
 from app.security import get_current_user
+from app.seed_extra import DEMO_OWNER_USERNAMES
 
 router = APIRouter(prefix="/api", tags=["4. Bookings & Reviews"])
 
@@ -135,21 +143,42 @@ def _paid_total(db: Session, booking_id: int) -> Decimal:
     return Decimal(total or 0)
 
 
-def _apply_cancellation(db: Session, booking: Booking, by: str) -> tuple[Decimal, Decimal]:
-    """ปรับสถานะคิวเป็นยกเลิก คิดค่าปรับ แล้วคืนค่า (ยอดที่ถูกหัก, ยอดที่ต้องคืน)
+def _apply_cancellation(
+    db: Session, booking: Booking, by: str
+) -> tuple[Decimal, Decimal, Decimal]:
+    """ปรับสถานะคิวเป็นยกเลิก แล้วจัดการเงินที่พักไว้ให้เสร็จในจังหวะเดียว
 
-    **กติกาค่าปรับ** — ลูกค้ายกเลิกเองจะไม่ได้เงินมัดจำคืน (มัดจำ = 20% ของค่าบริการ)
+    by: customer (ลูกค้ายกเลิกเอง) · no_show (ลูกค้าไม่มา) · shop · admin
+
+    คืนค่า (ค่าปรับที่ร้านได้, ยอดที่คืนลูกค้าอัตโนมัติแล้ว, เงินสดที่ร้านต้องคืนเอง)
+
+    **กติกาค่าปรับ** — ลูกค้ายกเลิกเองหรือไม่มาตามนัด จะไม่ได้มัดจำคืน
     เหตุผลคือร้านกันเวลาไว้ให้แล้วและปฏิเสธลูกค้าคนอื่นไปแล้ว การยกเลิกกระชั้น
     ทำให้ช่องเวลานั้นขายไม่ทัน ค่ามัดจำจึงเป็นค่าชดเชยของฝั่งร้าน
+    ถ้าร้านหรือผู้ดูแลเป็นฝ่ายยกเลิก ลูกค้าไม่ผิด จึงคืนทุกบาท
 
-    ถ้าร้านเป็นฝ่ายยกเลิกเอง ลูกค้าไม่ผิด จึงไม่หักอะไรเลย ต้องคืนเต็มจำนวน
+    **ทำไมคืนเงินอัตโนมัติ** — เงินออนไลน์พักอยู่ที่ระบบ (ดู escrow.py) ระบบคืนเองได้ทันที
+    ของเดิมแค่บอกลูกค้าว่า "ร้านจะคืนเงินให้" แต่ไม่มีปุ่มให้ร้านกดคืนในหน้าเว็บเลย
+    เงินจึงค้างอยู่เงียบ ๆ ทั้งที่ระบบรับปากลูกค้าไปแล้ว
 
-    หักได้ไม่เกินเงินที่จ่ายมาจริง — คิวที่ยังไม่จ่ายจะถูกหัก 0 บาท
-    ซึ่งสอดคล้องกับกติกาการล็อกช่องเวลาพอดี: ไม่จ่าย = ไม่ได้กันเวลาให้ใคร
-    = ยกเลิกแล้วไม่มีใครเสียหาย
+    เงินสดเป็นข้อยกเว้นเดียว เพราะอยู่ในมือร้านจริง ระบบคืนแทนไม่ได้
+    จึงแจ้งร้านให้คืนเองหน้าร้าน
     """
-    paid = _paid_total(db, booking.id)
-    fee = min(paid, Decimal(booking.deposit_amount)) if by == "customer" else Decimal("0.00")
+    rows = list(db.scalars(
+        select(Payment).where(Payment.booking_id == booking.id, Payment.status == "paid")
+    ).all())
+
+    keep_deposit = by in ("customer", "no_show")
+    kept = [r for r in rows if keep_deposit and r.kind == "deposit"]
+    give_back = [r for r in rows if r not in kept]
+    online_back = [r for r in give_back if r.method != "cash"]
+    cash_back = [r for r in give_back if r.method == "cash"]
+
+    # มัดจำที่ร้านได้เป็นค่าชดเชย ปล่อยเข้ากระเป๋าร้านทันที ไม่ต้องรอปิดงาน
+    fee = sum((Decimal(r.amount) for r in kept), Decimal("0.00"))
+    release_rows(kept)
+    refunded = refund_rows(online_back)
+    cash_due = sum((Decimal(r.amount) for r in cash_back), Decimal("0.00"))
 
     booking.status = "cancelled"
     booking.cancelled_by = by
@@ -159,11 +188,13 @@ def _apply_cancellation(db: Session, booking: Booking, by: str) -> tuple[Decimal
 
     # แจ้งคนที่รอช่วงเวลานี้อยู่ — การยกเลิกไม่ใช่แค่คืนช่อง
     # แต่เป็นการส่งต่อโอกาสให้คนที่ลงชื่อรอไว้จริง
+    # ลูกค้าไม่มาตามนัด = เวลาผ่านไปแล้ว ไม่มีช่องให้ใครจองต่อ จึงไม่ต้องแจ้ง
     # นำเข้าตรงนี้เพื่อเลี่ยง circular import (watches.py อ้างถึง bookings.py)
-    from app.routers.watches import notify_slot_free
-    notify_slot_free(db, booking)
+    if by != "no_show":
+        from app.routers.watches import notify_slot_free
+        notify_slot_free(db, booking)
 
-    return fee, paid - fee
+    return fee, refunded, cash_due
 
 
 def _notify_cancellation(
@@ -172,54 +203,61 @@ def _notify_cancellation(
     shop: Shop | None,
     by: str,
     fee: Decimal,
-    refundable: Decimal,
+    refunded: Decimal,
+    cash_due: Decimal,
 ) -> None:
     """แจ้งเตือนทั้งสองฝ่ายหลังยกเลิกคิว
 
-    รวมไว้ที่เดียวเพราะยกเลิกได้สองทาง (ปุ่มยกเลิก กับการเปลี่ยนสถานะ)
-    ถ้าเขียนแยกกัน สองทางจะแจ้งเตือนไม่เหมือนกันเมื่อมีคนไปแก้ทางใดทางหนึ่งทีหลัง
+    รวมไว้ที่เดียวเพราะยกเลิกได้หลายทาง (ปุ่มยกเลิก การเปลี่ยนสถานะ ลูกค้าไม่มา)
+    ถ้าเขียนแยกกัน แต่ละทางจะแจ้งเตือนไม่เหมือนกันเมื่อมีคนไปแก้ทางใดทางหนึ่งทีหลัง
     """
     if shop is None:
         return
     service = db.get(Service, booking.service_id)
     when = f"{booking.booking_date} {shortstr(booking.booking_time)} น. · {booking.booking_code}"
+    svc = service.name if service else ""
 
-    if by == "customer":
-        # ร้านต้องรู้ว่าช่องเวลาหลุดกลับมาแล้ว และมีเงินค้างต้องจัดการไหม
+    if by in ("customer", "no_show"):
+        title = "ลูกค้ายกเลิกคิว" if by == "customer" else "บันทึกว่าลูกค้าไม่มาตามนัด"
         notify(
-            db, shop.owner_id, "booking_cancelled", "ลูกค้ายกเลิกคิว",
-            f"{when}" + (f" · หักค่ามัดจำ ฿{fee:,.0f} เข้าร้าน" if fee > 0 else ""),
+            db, shop.owner_id, "booking_cancelled", title,
+            f"{when}" + (f" · ได้ค่ามัดจำ ฿{fee:,.0f}" if fee > 0 else ""),
             "manage.html",
         )
-        # เงินส่วนที่เกินค่ามัดจำต้องคืน ถ้าไม่เตือนจะค้างในระบบเงียบ ๆ
-        if refundable > 0:
-            notify(
-                db, shop.owner_id, "refund_pending",
-                f"ค้างคืนเงินลูกค้า ฿{refundable:,.0f}",
-                f"{booking.booking_code} · กดคืนเงินที่หน้าจัดการร้าน",
-                "manage.html",
-            )
+        parts = []
         if fee > 0:
-            # ลูกค้าต้องเห็นเป็นลายลักษณ์อักษรว่าถูกหักเท่าไหร่ ไม่ใช่รู้จากยอดที่หายไป
-            notify(
-                db, booking.user_id, "booking_cancelled",
-                f"ยกเลิกคิวแล้ว · หักค่ามัดจำ ฿{fee:,.0f}",
-                f"{service.name if service else ''} · {when}",
-            )
+            parts.append(f"ไม่ได้รับค่ามัดจำ ฿{fee:,.0f} คืน")
+        if refunded > 0:
+            parts.append(f"คืนเงิน ฿{refunded:,.0f} ให้แล้ว")
+        if parts:
+            head = "ยกเลิกคิวแล้ว" if by == "customer" else "ร้านบันทึกว่าคุณไม่มาตามนัด"
+            notify(db, booking.user_id, "booking_cancelled", f"{head} · " + " · ".join(parts), f"{svc} · {when}")
     else:
-        # ร้านเป็นฝ่ายยกเลิก ลูกค้าไม่ผิด ต้องได้เงินคืนเต็มจำนวน
         notify(
             db, booking.user_id, "booking_cancelled", "ร้านยกเลิกคิวของคุณ",
-            f"{service.name if service else ''} · {when}"
-            + (f" · ร้านจะคืนเงิน ฿{refundable:,.0f} ให้เต็มจำนวน" if refundable > 0 else ""),
+            f"{svc} · {when}"
+            + (f" · คืนเงิน ฿{refunded:,.0f} ให้คุณแล้วเต็มจำนวน" if refunded > 0 else ""),
         )
-        if refundable > 0:
-            notify(
-                db, shop.owner_id, "refund_pending",
-                f"ต้องคืนเงินลูกค้า ฿{refundable:,.0f}",
-                f"{booking.booking_code} · ร้านเป็นฝ่ายยกเลิก ต้องคืนเต็มจำนวน",
-                "manage.html",
-            )
+
+    # เงินสดระบบคืนแทนไม่ได้ ต้องเตือนร้านเสมอ ไม่งั้นค้างเงียบ ๆ
+    if cash_due > 0:
+        notify(
+            db, shop.owner_id, "refund_pending",
+            f"ต้องคืนเงินสดลูกค้า ฿{cash_due:,.0f}",
+            f"{booking.booking_code} · คืนที่หน้าร้านแล้วกดบันทึกคืนเงิน",
+            "manage.html",
+        )
+
+
+def _cancel_message(fee: Decimal, refunded: Decimal, cash_due: Decimal) -> str:
+    parts = ["ยกเลิกการจองแล้ว"]
+    if fee > 0:
+        parts.append(f"หักค่ามัดจำ ฿{fee:,.2f} ตามนโยบายยกเลิก")
+    if refunded > 0:
+        parts.append(f"คืนเงิน ฿{refunded:,.2f} ให้ลูกค้าอัตโนมัติแล้ว")
+    if cash_due > 0:
+        parts.append(f"เงินสด ฿{cash_due:,.2f} ร้านจะคืนให้ที่หน้าร้าน")
+    return " · ".join(parts) if len(parts) > 1 else "ยกเลิกการจองสำเร็จ"
 
 
 def _with_payment(db: Session, rows: list[Booking]) -> list[BookingOut]:
@@ -232,13 +270,25 @@ def _with_payment(db: Session, rows: list[Booking]) -> list[BookingOut]:
         return []
 
     ids = [b.id for b in rows]
-    sums = dict(
-        db.execute(
-            select(Payment.booking_id, func.coalesce(func.sum(Payment.amount), 0))
-            .where(Payment.booking_id.in_(ids), Payment.status == "paid")
-            .group_by(Payment.booking_id)
-        ).all()
+    # ยอดเงินแยกตามสถานะในระบบพักเงิน: (จ่ายแล้วทั้งหมด, ยังพักอยู่, คืนไปแล้ว)
+    held_expr = case(
+        ((Payment.status == "paid") & Payment.released_at.is_(None), Payment.amount), else_=0
     )
+    paid_expr = case((Payment.status == "paid", Payment.amount), else_=0)
+    refunded_expr = case((Payment.status == "refunded", Payment.amount), else_=0)
+    money_rows = db.execute(
+        select(
+            Payment.booking_id,
+            func.coalesce(func.sum(paid_expr), 0),
+            func.coalesce(func.sum(held_expr), 0),
+            func.coalesce(func.sum(refunded_expr), 0),
+        )
+        .where(Payment.booking_id.in_(ids))
+        .group_by(Payment.booking_id)
+    ).all()
+    sums = {bid: Decimal(paid) for bid, paid, _h, _r in money_rows}
+    helds = {bid: Decimal(h) for bid, _p, h, _r in money_rows}
+    refundeds = {bid: Decimal(r) for bid, _p, _h, r in money_rows}
 
     # จำนวนคนในก๊วน — รวมทุกคิวในคำสั่งเดียวด้วยเหตุผลเดียวกับยอดเงินข้างบน
     joins = dict(
@@ -263,8 +313,65 @@ def _with_payment(db: Session, rows: list[Booking]) -> list[BookingOut]:
             item.payment_state = "deposit_paid"
         else:
             item.payment_state = "unpaid"
+
+        # สถานะเงินในระบบพักเงิน — เรียงตามความสำคัญที่ผู้ใช้ต้องรู้ก่อน
+        held = helds.get(booking.id, Decimal("0"))
+        item.held_amount = held
+        dispute_open = booking.disputed_at is not None and booking.dispute_result is None
+        if held > 0 and dispute_open:
+            item.escrow_state = "disputed"
+        elif held > 0:
+            item.escrow_state = "held"
+            item.auto_release_at = auto_release_at(booking)
+        elif paid > 0:
+            item.escrow_state = "released"
+        elif refundeds.get(booking.id, Decimal("0")) > 0:
+            item.escrow_state = "refunded"
+        else:
+            item.escrow_state = "none"
         out.append(item)
     return out
+
+
+def _is_demo_email(email: str | None) -> bool:
+    """บัญชีตัวอย่างทุกบัญชีใน seed ใช้อีเมล @example.com"""
+    return bool(email) and email.lower().endswith("@example.com")
+
+
+def _hide_real_customers_from_demo(
+    db: Session, viewer: User, items: list[BookingOut]
+) -> list[BookingOut]:
+    """ซ่อนข้อมูลส่วนตัวของลูกค้าจริง ไม่ให้บัญชีทดลองเห็น
+
+    ปัญหา: หน้าเข้าสู่ระบบประกาศรหัสของบัญชีเจ้าของร้านตัวอย่างไว้ให้ทดลองใช้
+    ใครก็ล็อกอินเป็น spaowner ได้ ถ้าผู้ใช้จริงไปจองร้านตัวอย่าง (ซึ่งเกิดขึ้นได้
+    เพราะหน้าตาเหมือนร้านจริง) คนแปลกหน้าจะเห็นความต้องการ ข้อมูลสุขภาพ
+    และที่อยู่ของเขา — ข้อมูลสุขภาพเป็นข้อมูลอ่อนไหวตาม PDPA
+
+    ทางแก้: ถ้าผู้ดูเป็นบัญชีทดลอง และคิวนั้นเป็นของลูกค้าจริง ให้เห็นแค่วันเวลา
+    และบริการ ส่วนข้อมูลส่วนตัวถูกแทนด้วยข้อความบอกเหตุผล
+    คิวของบัญชีตัวอย่างด้วยกันยังเห็นครบ ทดลองระบบได้ตามปกติ
+    """
+    if not items:
+        return items
+    viewer_is_demo = viewer.username in DEMO_OWNER_USERNAMES or _is_demo_email(viewer.email)
+    if not viewer_is_demo:
+        return items
+
+    emails = dict(db.execute(
+        select(User.id, User.email).where(User.id.in_({i.user_id for i in items}))
+    ).all())
+    for item in items:
+        if item.user_id == viewer.id or _is_demo_email(emails.get(item.user_id)):
+            continue
+        item.note = "ซ่อนข้อมูลลูกค้าจริงจากบัญชีทดลอง"
+        item.requirements = None
+        item.health_note = None
+        item.reference_url = None
+        item.pickup_address = None
+        item.dropoff_address = None
+        item.guest_phone = None
+    return items
 
 
 DAY = 1440   # จำนวนนาทีใน 1 วัน
@@ -409,6 +516,21 @@ def _assert_free(
     ถ้าตรวจแค่ชั้นเดียวจะรับคิวเกินความจุ เพราะคิวที่ระบุช่างกับคิวที่ไม่ระบุช่าง
     ถูกนับคนละถัง ร้านที่มีช่าง 2 คนจะรับเวลาเดียวกันได้ถึง 4 คิว
     """
+    # ล็อกตารางของร้านนี้ในวันนี้ไว้จนจบคำสั่ง (ปลดเองตอน commit / rollback)
+    #
+    # ทำไมต้องล็อก: การตรวจข้างล่างเป็นแบบ "อ่านก่อนแล้วค่อยเขียน" ถ้าสองคนกดจ่าย
+    # พร้อมกันในเวลาที่คาบเกี่ยวกัน (เช่น 10:00 กับ 10:30 ช่างคนเดียวกัน) ทั้งคู่
+    # จะอ่านเจอว่า "ยังว่าง" แล้วบันทึกผ่านทั้งคู่ unique index ในฐานข้อมูลกันได้
+    # แค่กรณีเวลาเริ่มตรงกันเป๊ะ กรณีคาบเกี่ยวจึงต้องให้คนที่สองรอคนแรกเสร็จก่อน
+    #
+    # ล็อกเป็นรายร้านรายวัน ร้านอื่นหรือวันอื่นไม่ต้องรอกัน
+    # SQLite (ชุดทดสอบ) ไม่มีคำสั่งนี้ และรันทีละคำขออยู่แล้ว จึงข้ามไป
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(
+            text("SELECT pg_advisory_xact_lock(:shop, :day)"),
+            {"shop": shop.id, "day": on_date.toordinal()},
+        )
+
     start, end = _span_minutes(start_at, duration)
 
     if staff_id:
@@ -921,8 +1043,11 @@ def list_bookings(
         .limit(limit)
     ).all()
 
+    # ปล่อยเงินของงานที่ครบเวลา เฉพาะคิวในหน้านี้ สถานะเงินที่ส่งออกไปจะได้เป็นปัจจุบันเสมอ
+    release_due(db, booking_ids=[b.id for b in rows])
+
     return Page[BookingOut](
-        items=_with_payment(db, list(rows)),
+        items=_hide_real_customers_from_demo(db, current_user, _with_payment(db, list(rows))),
         page=page,
         limit=limit,
         total=total,
@@ -947,7 +1072,9 @@ def get_booking(
     if not allowed:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="คุณไม่มีสิทธิ์ดูการจองนี้")
 
-    return _with_payment(db, [booking])[0]
+    release_due(db, booking_ids=[booking.id])
+    db.refresh(booking)
+    return _hide_real_customers_from_demo(db, current_user, _with_payment(db, [booking]))[0]
 
 
 @router.post(
@@ -1333,7 +1460,10 @@ def update_booking_status(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """ลูกค้ายกเลิกได้อย่างเดียว · เจ้าของร้านและ admin เปลี่ยนได้ทุกสถานะ"""
+    """เปลี่ยนสถานะคิวตามเส้นทางที่อนุญาตเท่านั้น (ดู ALLOWED_MOVES)
+
+    ลูกค้ายกเลิกได้อย่างเดียว · เจ้าของร้านและ admin ยืนยัน ปิดงาน และยกเลิกได้
+    """
     booking = _get_booking_or_404(db, booking_id)
     shop = db.get(Shop, booking.shop_id)
 
@@ -1348,60 +1478,71 @@ def update_booking_status(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ลูกค้าสามารถยกเลิกการจองได้เท่านั้น",
         )
-    if booking.status == "completed":
+
+    # เส้นทางที่สถานะเปลี่ยนไปได้ — นอกจากนี้ปฏิเสธหมด
+    #
+    # ของเดิมห้ามแค่ "เสร็จแล้วห้ามเปลี่ยน" ทำให้คิวที่ยกเลิกและคืนเงินไปแล้ว
+    # ถูกกดเป็น "เสร็จสิ้น" ได้ ผลคือนับเป็นรายได้ร้าน และลูกค้าเขียนรีวิวได้
+    # ทั้งที่ไม่เคยใช้บริการ ตอนนี้คิวที่ยกเลิกแล้วจบตรงนั้น ถ้าจะมาใหม่ให้จองใหม่
+    if payload.status != booking.status and payload.status not in ALLOWED_MOVES.get(booking.status, ()):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="การจองที่เสร็จสิ้นแล้วไม่สามารถเปลี่ยนสถานะได้",
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"เปลี่ยนคิวจากสถานะ {STATUS_TH.get(booking.status, booking.status)} "
+                   f"เป็น {STATUS_TH.get(payload.status, payload.status)} ไม่ได้",
+        )
+    if payload.status == booking.status:
+        return _with_payment(db, [booking])[0]
+
+    appointment = datetime.combine(booking.booking_date, booking.booking_time)
+
+    if payload.status == "completed":
+        # ปิดงานได้หลังถึงเวลานัดเท่านั้น
+        # ปิดงานแล้วเงินในระบบพักเงินจะเริ่มนับถอยหลังปล่อยให้ร้าน ถ้าปิดล่วงหน้าได้
+        # ร้านจะรับเงินไปได้ทั้งที่ยังไม่ได้ให้บริการ
+        if appointment > now_local():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="ยังไม่ถึงเวลานัด ปิดงานได้หลังเริ่มให้บริการแล้วเท่านั้น",
+            )
+        booking.status = "completed"
+        booking.service_done_at = utcnow()
+        service = db.get(Service, booking.service_id)
+        held = _held_total(db, booking.id)
+        notify(
+            db, booking.user_id, "booking_completed",
+            "ร้านแจ้งว่าให้บริการเสร็จแล้ว"
+            + (" · กดยืนยันหรือแจ้งปัญหาได้ภายใน 24 ชม." if held > 0 else " · เขียนรีวิวได้เลย"),
+            f"{service.name if service else ''} · {booking.booking_code}",
+            "bookings.html",
         )
 
-    # จะ "ล็อกช่องเวลา" ให้คิวนี้ในรอบนี้ไหม
-    #
-    # ร้านกดยืนยันคิว = ร้านรับปากลูกค้าแล้ว ต้องกันเวลาให้จริงแม้ยังไม่ได้เงิน
-    # (เช่นลูกค้าโทรมาคุยแล้วร้านตกลงรับ) ถ้าไม่ล็อก คนอื่นจะแย่งช่องนั้นไปได้
-    # ส่วนลูกค้าเองเปลี่ยนสถานะเป็น confirmed ไม่ได้อยู่แล้ว จึงล็อกเองไม่ได้
-    will_hold = (
-        payload.status in ("pending", "confirmed")
-        and not booking.holds_slot
-        and (is_owner or is_admin)
-        and payload.status == "confirmed"
-    )
-
-    # ต้องตรวจว่าช่องเวลายังว่างจริงก่อน "ทุกครั้งที่กำลังจะไปกันเวลาให้ใคร"
-    #
-    # สองกรณีที่ต้องตรวจ
-    #   1. ดึงคิวที่ยกเลิกไปแล้วกลับมา — ระหว่างที่ยกเลิก ช่องนั้นเปิดให้คนอื่นไปแล้ว
-    #   2. ร้านกดยืนยันคิวที่ยังไม่จ่าย — ระหว่างรอ อาจมีคนอื่นจ่ายเงินตัดหน้าไปแล้ว
-    reviving = booking.status == "cancelled" and payload.status in ("pending", "confirmed")
-    if reviving or will_hold:
-        service = db.get(Service, booking.service_id)
-        if service is not None and shop is not None:
-            _assert_free(
-                db, shop, booking.booking_date, booking.booking_time,
-                service.duration_minutes, booking.staff_id,
-                exclude_booking_id=booking.id,
-            )
-
-    if payload.status == "cancelled" and booking.status != "cancelled":
+    elif payload.status == "cancelled":
         who = "customer" if (is_customer and not is_owner and not is_admin) else (
             "shop" if is_owner else "admin"
         )
-        fee, refundable = _apply_cancellation(db, booking, who)
-        _notify_cancellation(db, booking, shop, who, fee, refundable)
-    else:
-        booking.status = payload.status
-        if will_hold:
-            booking.holds_slot = True
+        if who == "customer":
+            _assert_customer_can_cancel(booking)
+        fee, refunded, cash_due = _apply_cancellation(db, booking, who)
+        _notify_cancellation(db, booking, shop, who, fee, refunded, cash_due)
 
-        # แจ้งลูกค้าเมื่อร้านเปลี่ยนสถานะให้ (ถ้าลูกค้าเปลี่ยนเอง ไม่ต้องเตือนตัวเอง)
+    else:   # confirmed
+        # ร้านกดยืนยันคิว = ร้านรับปากลูกค้าแล้ว ต้องกันเวลาให้จริงแม้ยังไม่ได้เงิน
+        # (เช่นลูกค้าโทรมาคุยแล้วร้านตกลงรับ) ถ้าไม่ล็อก คนอื่นจะแย่งช่องนั้นไปได้
+        # ต้องตรวจก่อนว่ายังว่างอยู่ ระหว่างรอ อาจมีคนอื่นจ่ายเงินตัดหน้าไปแล้ว
+        if not booking.holds_slot:
+            service = db.get(Service, booking.service_id)
+            if service is not None and shop is not None:
+                _assert_free(
+                    db, shop, booking.booking_date, booking.booking_time,
+                    service.duration_minutes, booking.staff_id,
+                    exclude_booking_id=booking.id,
+                )
+            booking.holds_slot = True
+        booking.status = "confirmed"
         if booking.user_id != current_user.id:
             service = db.get(Service, booking.service_id)
-            label = {
-                "confirmed": "ร้านยืนยันคิวของคุณแล้ว",
-                "completed": "ใช้บริการเสร็จแล้ว เขียนรีวิวได้เลย",
-                "pending": "คิวของคุณกลับไปสถานะรอยืนยัน",
-            }.get(payload.status, "คิวของคุณมีการเปลี่ยนแปลง")
             notify(
-                db, booking.user_id, f"booking_{payload.status}", label,
+                db, booking.user_id, "booking_confirmed", "ร้านยืนยันคิวของคุณแล้ว",
                 f"{service.name if service else ''} · {booking.booking_date} "
                 f"{shortstr(booking.booking_time)} น. · {booking.booking_code}",
             )
@@ -1414,6 +1555,81 @@ def update_booking_status(
             status_code=status.HTTP_409_CONFLICT,
             detail="ช่วงเวลาเดิมถูกจองไปแล้ว กรุณาใช้การเลื่อนนัดแทน",
         )
+    db.refresh(booking)
+    return _with_payment(db, [booking])[0]
+
+
+# สถานะไหนเปลี่ยนไปเป็นอะไรได้บ้าง — completed และ cancelled เป็นสถานะสุดท้าย
+ALLOWED_MOVES: dict[str, tuple[str, ...]] = {
+    "pending": ("confirmed", "cancelled"),
+    "confirmed": ("completed", "cancelled"),
+}
+STATUS_TH = {
+    "pending": "รอยืนยัน", "confirmed": "ยืนยันแล้ว",
+    "completed": "เสร็จสิ้น", "cancelled": "ยกเลิก",
+}
+
+
+def _held_total(db: Session, booking_id: int) -> Decimal:
+    """เงินของคิวนี้ที่ยังพักอยู่ที่ระบบ"""
+    return Decimal(db.scalar(
+        select(func.coalesce(func.sum(Payment.amount), 0)).where(
+            Payment.booking_id == booking_id,
+            Payment.status == "paid",
+            Payment.released_at.is_(None),
+        )
+    ) or 0)
+
+
+def _assert_customer_can_cancel(booking: Booking) -> None:
+    """ลูกค้ายกเลิกเองได้ก่อนถึงเวลานัดเท่านั้น
+
+    ถ้าเลยเวลาแล้วยังยกเลิกได้ ลูกค้าที่ไม่มาตามนัดจะกดยกเลิกย้อนหลัง
+    ทำเหมือนเป็นการยกเลิกปกติ ทั้งที่ร้านเสียเวลารอไปแล้ว
+    กรณีนั้นเป็นหน้าที่ของร้านที่ต้องกด "ลูกค้าไม่มา"
+    """
+    appointment = datetime.combine(booking.booking_date, booking.booking_time)
+    if appointment <= now_local():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="เลยเวลานัดแล้ว ยกเลิกเองไม่ได้ กรุณาติดต่อร้านโดยตรง",
+        )
+
+
+@router.post(
+    "/bookings/{booking_id}/no-show",
+    response_model=BookingOut,
+    summary="ร้านบันทึกว่าลูกค้าไม่มาตามนัด",
+)
+def mark_no_show(
+    booking_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """ลูกค้าไม่มาตามนัด — ร้านได้ค่ามัดจำ ส่วนที่จ่ายเกินคืนลูกค้าอัตโนมัติ
+
+    ทำได้หลังเลยเวลานัดแล้วเท่านั้น ก่อนหน้านั้นยังไม่มีใครรู้ว่าลูกค้าจะมาหรือไม่
+    บันทึกเป็นการยกเลิกแบบหนึ่ง (cancelled_by = no_show) ไม่ได้เพิ่มสถานะใหม่
+    เพราะผลต่อระบบเหมือนการยกเลิกทุกอย่าง ต่างกันแค่ใครเป็นฝ่ายผิด
+    """
+    booking = _get_booking_or_404(db, booking_id)
+    shop = db.get(Shop, booking.shop_id)
+    if shop is None or (shop.owner_id != current_user.id and current_user.role != "admin"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="เฉพาะเจ้าของร้านเท่านั้น")
+    if booking.status not in ("pending", "confirmed"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="บันทึกว่าไม่มาได้เฉพาะคิวที่ยังไม่จบ",
+        )
+    if datetime.combine(booking.booking_date, booking.booking_time) > now_local():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="ยังไม่ถึงเวลานัด จะรู้ว่าลูกค้าไม่มาได้หลังเลยเวลานัดแล้ว",
+        )
+
+    fee, refunded, cash_due = _apply_cancellation(db, booking, "no_show")
+    _notify_cancellation(db, booking, shop, "no_show", fee, refunded, cash_due)
+    db.commit()
     db.refresh(booking)
     return _with_payment(db, [booking])[0]
 
@@ -1447,6 +1663,18 @@ def reschedule_booking(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="เลื่อนได้เฉพาะคิวที่ยังไม่ถูกยกเลิกและยังไม่ได้ใช้บริการ",
+        )
+
+    # ลูกค้าเลื่อนเองได้ก่อนถึงเวลานัดเท่านั้น
+    # ไม่งั้นคนที่ไม่มาตามนัดจะกดเลื่อนย้อนหลังหนีค่ามัดจำได้เรื่อย ๆ
+    # ร้านยังเลื่อนให้ได้เสมอ (เช่นลูกค้ามาสายแล้วร้านขยับคิวให้)
+    is_shop_side = current_user.role == "admin" or (
+        shop is not None and shop.owner_id == current_user.id
+    )
+    if not is_shop_side and datetime.combine(booking.booking_date, booking.booking_time) <= now_local():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="เลยเวลานัดแล้ว เลื่อนเองไม่ได้ กรุณาติดต่อร้านโดยตรง",
         )
 
     service = db.get(Service, booking.service_id)
@@ -1568,24 +1796,14 @@ def cancel_booking(
         who = "shop"
     elif booking.user_id == current_user.id:
         who = "customer"
+        _assert_customer_can_cancel(booking)
     else:
         who = "admin"
 
-    fee, refundable = _apply_cancellation(db, booking, who)
-    _notify_cancellation(db, booking, shop, who, fee, refundable)
-
+    fee, refunded, cash_due = _apply_cancellation(db, booking, who)
+    _notify_cancellation(db, booking, shop, who, fee, refunded, cash_due)
     db.commit()
-
-    if fee > 0:
-        return Message(
-            message=(
-                f"ยกเลิกการจองแล้ว · หักค่ามัดจำ ฿{fee:,.2f} ตามนโยบายยกเลิก"
-                + (f" · ร้านจะคืนส่วนที่เหลือ ฿{refundable:,.2f}" if refundable > 0 else "")
-            )
-        )
-    if refundable > 0:
-        return Message(message=f"ยกเลิกการจองแล้ว · ร้านจะคืนเงิน ฿{refundable:,.2f} เต็มจำนวน")
-    return Message(message="ยกเลิกการจองสำเร็จ")
+    return Message(message=_cancel_message(fee, refunded, cash_due))
 
 
 # ---------------- รีวิว ----------------

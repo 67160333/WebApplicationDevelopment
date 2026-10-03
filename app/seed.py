@@ -70,6 +70,8 @@ def sync_admin_password(db: Session) -> None:
         return
 
     admin.password_hash = hash_password(want)
+    # รหัสเดิมอาจหลุดไปแล้ว (เหตุผลที่ต้องเปลี่ยน) token ที่ออกด้วยรหัสเดิมต้องใช้ไม่ได้ด้วย
+    admin.token_version = (admin.token_version or 0) + 1
     db.commit()
     print("ตั้งรหัสผ่านบัญชี admin ใหม่ตามค่า ADMIN_PASSWORD แล้ว")
 

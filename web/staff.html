@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>โปรไฟล์ผู้ให้บริการ — Bookvice</title>
+  <meta name="description" content="ประวัติ ความถนัด คะแนน และรีวิวของผู้ให้บริการ พร้อมจองคิวกับคนนี้โดยตรง" />
+  <meta name="theme-color" content="#16233F" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><defs><linearGradient id='a' x1='11' y1='5' x2='36' y2='27' gradientUnits='userSpaceOnUse'><stop stop-color='%23F9AE8B'/><stop offset='1' stop-color='%23E8785A'/></linearGradient><linearGradient id='b' x1='11' y1='21' x2='38' y2='43' gradientUnits='userSpaceOnUse'><stop stop-color='%233FC0D6'/><stop offset='1' stop-color='%2322A898'/></linearGradient></defs><rect width='48' height='48' rx='11' fill='%23fff'/><path d='M11 5h16a11 11 0 0 1 0 22H11z' fill='url(%23a)'/><path d='M11 21h18a11 11 0 0 1 0 22H11z' fill='url(%23b)'/><path d='m16.5 32.5 4.5 4.5 9-9' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><rect x='5' y='5' width='6.5' height='38' rx='3.25' fill='%2316233F'/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css?v=202610031200" />
+</head>
+<body>
+  <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
+  <div id="navbar"></div>
+
+  <!-- หน้าโปรไฟล์ช่างแบบเต็มหน้า
+       ============================================================
+       เดิมดูโปรไฟล์ช่างได้แค่ในกล่องป๊อปอัปบนหน้าร้าน ซึ่งแชร์ลิงก์ไม่ได้
+       ลูกค้าที่ชอบช่างคนหนึ่งจึงบอกต่อได้แค่ชื่อร้าน ไม่ใช่ตัวช่าง
+       หน้านี้มีลิงก์ของตัวเอง (staff.html?id=12) ช่างเอาไปใส่ไบโอโซเชียลได้
+
+       ข้อมูลทั้งหมดมาจากสองเส้น
+         GET /api/staff/{id}          โปรไฟล์ สถิติจากงานจริง และบริการของร้าน
+         GET /api/staff/{id}/reviews  รีวิวที่ลูกค้าให้ดาวช่างคนนี้ -->
+  <main id="main" class="max-w-5xl mx-auto px-5 py-10">
+    <div id="content" style="min-height:420px"></div>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/api.js?v=202610031200"></script>
+  <script src="js/ui.js?v=202610031200"></script>
+  <script>
+    renderNavbar("");
+    renderFooter();
+
+    const content = document.getElementById("content");
+    const staffId = Number(new URLSearchParams(location.search).get("id"));
+    const REVIEW_PAGE = 5;
+    let profile = null;
+    let reviewPage = 1;
+
+    // สีพื้นรูปแทนตัวเมื่อยังไม่มีรูป — สูตรเดียวกับหน้าร้าน (avatarStyle ใน shop.html)
+    // ช่างคนเดิมจึงได้สีเดิมทั้งสองหน้า
+    const AV_COLORS = [
+      ["#1a63d8", "#4f8ff0"], ["#0f7b6c", "#2fae9c"], ["#8a4bd3", "#b183ea"],
+      ["#c2571f", "#e88b4d"], ["#0f294b", "#2f5f96"], ["#b3355f", "#e07a9d"],
+    ];
+    function avatarHTML(p) {
+      if (p.photo_url) {
+        return `<span class="av-2xl has-photo"><img src="${esc(fileUrl(p.photo_url))}" alt="${esc(p.name)}" /></span>`;
+      }
+      let h = 0;
+      for (const ch of p.name) h = (h * 31 + ch.charCodeAt(0)) % 9973;
+      const [a, b] = AV_COLORS[h % AV_COLORS.length];
+      return `<span class="av-2xl" style="background:linear-gradient(135deg,${a},${b})">${esc(p.name.trim().charAt(0))}</span>`;
+    }
+
+    function workText(p) {
+      let days = "ทุกวันที่ร้านเปิด";
+      if (p.work_days) {
+        const list = p.work_days.split(",").map(Number).sort((a, b) => a - b);
+        days = list.length === 7 ? "ทุกวัน" : list.map((d) => DOW_TH_FULL[d]).join(" ");
+      }
+      const time = p.work_start || p.work_end
+        ? `${p.work_start ? shortTime(p.work_start) : "เปิดร้าน"}–${p.work_end ? shortTime(p.work_end) : "ปิดร้าน"} น.`
+        : "ตามเวลาเปิดร้าน";
+      return `${days} · ${time}`;
+    }
+
+    function aspectsHTML(a) {
+      const rows = [
+        ["ฝีมือ", a && a.skill], ["ความสะอาด", a && a.cleanliness],
+        ["ตรงเวลา", a && a.punctuality], ["ความคุ้มค่า", a && a.value],
+      ].filter(([, v]) => v !== null && v !== undefined);
+      if (!rows.length) return "";
+      return `
+        <section class="card card-pad">
+          <h2 class="h3">คะแนนรายด้าน</h2>
+          <div class="sa-rows mt-3">
+            ${rows.map(([label, v]) => `
+              <div class="sa-row">
+                <span class="sa-name">${label}</span>
+                <span class="sa-bar"><i style="width:${(v / 5 * 100).toFixed(0)}%"></i></span>
+                <b class="num">${Number(v).toFixed(1)}</b>
+              </div>`).join("")}
+          </div>
+        </section>`;
+    }
+
+    // ตัวเลขทุกช่องคำนวณจากงานจริง ช่องที่ยังไม่มีข้อมูลพอให้ซ่อน
+    // ดีกว่าโชว์ 0 ซึ่งอ่านแล้วเหมือนช่างแย่ ทั้งที่จริงแค่ยังไม่มีใครมาใช้บริการ
+    function statsHTML(p) {
+      const cells = [[p.jobs_done, "งานที่ทำเสร็จ"]];
+      if (p.total_customers) cells.push([p.total_customers, "ลูกค้าที่เคยดูแล"]);
+      if (p.repeat_rate !== null && p.repeat_rate !== undefined) cells.push([`${p.repeat_rate}%`, "ลูกค้ากลับมาซ้ำ"]);
+      if (p.experience_years) cells.push([`${p.experience_years} ปี`, "ประสบการณ์"]);
+      else if (p.months_with_shop) {
+        cells.push([p.months_with_shop >= 12 ? `${Math.floor(p.months_with_shop / 12)} ปี` : `${p.months_with_shop} เดือน`, "อยู่กับร้านนี้"]);
+      }
+      return `<div class="stat-row">${cells.map(([v, t]) =>
+        `<div class="stat-cell"><b class="num">${v}</b><span>${t}</span></div>`).join("")}</div>`;
+    }
+
+    async function load() {
+      if (!staffId) {
+        content.innerHTML = emptyHTML("user", "ไม่พบผู้ให้บริการ", "ลิงก์นี้ไม่ถูกต้อง");
+        return;
+      }
+      content.innerHTML = loadingHTML();
+      try {
+        profile = await apiGet(`/api/staff/${staffId}`);
+      } catch (err) {
+        content.innerHTML = emptyHTML("user", "ไม่พบผู้ให้บริการ", err.message);
+        return;
+      }
+      const p = profile;
+      document.title = `${p.name} · ${p.shop_name} | Bookvice`;
+      const where = [p.shop_district, p.shop_province].filter(Boolean).join(" ");
+      const tags = (p.specialties || "").split(",").map((x) => x.trim()).filter(Boolean);
+      const bookUrl = `shop.html?id=${p.shop_id}&staff=${p.id}`;
+
+      content.innerHTML = `
+        <section class="card card-pad">
+          <div class="staff-hero">
+            ${avatarHTML(p)}
+            <div class="who">
+              ${p.position ? `<div class="pos">${esc(p.position)}</div>` : ""}
+              <h1 class="h1" style="margin-top:2px">${esc(p.name)}</h1>
+              <div class="where">
+                <a href="shop.html?id=${p.shop_id}">${esc(p.shop_name)}</a>${where ? ` · ${esc(where)}` : ""}
+              </div>
+              <div class="flex items-center gap-2 mt-2 flex-wrap">
+                ${p.rating_count
+                  ? `${starRow(p.rating_avg, 14)}
+                     <span class="text-sm num">${Number(p.rating_avg).toFixed(1)}</span>
+                     <span class="text-sm text-muted">· ${p.rating_count} รีวิว</span>`
+                  : `<span class="text-sm text-muted">ยังไม่มีรีวิว</span>`}
+              </div>
+              <div class="staff-actions">
+                ${p.is_active
+                  ? `<a href="${bookUrl}" class="btn btn-primary">จองกับ${esc(p.name)}</a>`
+                  : `<span class="badge badge-cancelled">พักงานอยู่ ยังไม่รับคิว</span>`}
+                <button id="shareBtn" class="btn btn-outline">คัดลอกลิงก์โปรไฟล์</button>
+              </div>
+            </div>
+          </div>
+          <div class="mt-5 pt-5" style="border-top:1px solid var(--border)">${statsHTML(p)}</div>
+        </section>
+
+        <div class="staff-cols">
+          <div class="space-y-4">
+            ${p.bio || tags.length ? `
+              <section class="card card-pad">
+                <h2 class="h3">เกี่ยวกับ${esc(p.name)}</h2>
+                ${p.bio ? `<p class="text-sm mt-2" style="white-space:pre-line">${esc(p.bio)}</p>` : ""}
+                ${tags.length ? `
+                  <p class="label mt-4">ความถนัด</p>
+                  <div class="svc-tags">${tags.map((t) => `<span class="svc-tag">${esc(t)}</span>`).join("")}</div>` : ""}
+              </section>` : ""}
+
+            ${p.top_services && p.top_services.length ? `
+              <section class="card card-pad">
+                <h2 class="h3">บริการที่ทำบ่อยที่สุด</h2>
+                <p class="hint">นับจากงานที่ทำเสร็จจริงในระบบ</p>
+                <div class="svc-tags">${p.top_services.map((s) =>
+                  `<span class="svc-tag">${esc(s.name)} <b class="num">${s.count}</b></span>`).join("")}</div>
+              </section>` : ""}
+
+            <section class="card card-pad">
+              <h2 class="h3">รีวิวถึง${esc(p.name)}</h2>
+              <div id="reviews" class="mt-2"></div>
+              <button id="moreReviews" class="btn btn-ghost btn-sm mt-2" hidden>ดูรีวิวเพิ่ม</button>
+            </section>
+          </div>
+
+          <aside class="space-y-4">
+            ${aspectsHTML(p.aspects)}
+            <section class="card card-pad">
+              <h2 class="h3">วันเวลาทำงาน</h2>
+              <p class="text-sm mt-2">${workText(p)}</p>
+            </section>
+            ${p.is_active && p.services && p.services.length ? `
+              <section class="card card-pad">
+                <h2 class="h3">จองบริการกับ${esc(p.name)}</h2>
+                <div class="mt-2">${p.services.map((s) => `
+                  <a class="svc-line" href="${bookUrl}&service=${s.id}">
+                    <span class="n text-sm">${esc(s.name)}
+                      <span class="text-xs text-muted">· ${durationText(s.duration_minutes)}</span></span>
+                    <span class="num text-sm font-medium">฿${baht(s.price)}</span>
+                  </a>`).join("")}</div>
+              </section>` : ""}
+          </aside>
+        </div>`;
+
+      document.getElementById("shareBtn").addEventListener("click", async (e) => {
+        const btn = e.currentTarget;
+        try {
+          await navigator.clipboard.writeText(location.href);
+          toast("คัดลอกลิงก์แล้ว ส่งให้เพื่อนหรือใส่ในโซเชียลได้เลย");
+        } catch {
+          toast("คัดลอกไม่สำเร็จ ลองคัดลอกจากแถบที่อยู่แทน", "error");
+        }
+        btn.blur();
+      });
+      document.getElementById("moreReviews").addEventListener("click", () => loadReviews(reviewPage + 1));
+      loadReviews(1);
+    }
+
+    async function loadReviews(page) {
+      const box = document.getElementById("reviews");
+      const more = document.getElementById("moreReviews");
+      if (page === 1) box.innerHTML = loadingHTML();
+      try {
+        const rv = await apiGet(`/api/staff/${staffId}/reviews?page=${page}&limit=${REVIEW_PAGE}`);
+        reviewPage = page;
+        const html = rv.items.map((r) => `
+          <div class="mini-review">
+            <div class="flex items-center justify-between gap-2">
+              <span class="flex items-center gap-2">
+                <span class="text-sm font-medium">${esc(r.user_name || "ผู้ใช้บริการ")}</span>
+                ${starRow(r.staff_rating, 12)}
+              </span>
+              <time class="text-xs text-muted" title="${thaiDate(r.created_at.slice(0, 10))}">${timeAgo(r.created_at)}</time>
+            </div>
+            ${r.comment ? `<p class="text-sm mt-1.5">${esc(r.comment)}</p>` : ""}
+            ${r.reply ? `<p class="text-xs text-muted mt-1">ร้านตอบ: ${esc(r.reply)}</p>` : ""}
+          </div>`).join("");
+        if (page === 1) box.innerHTML = html || `<p class="text-sm text-muted">ยังไม่มีรีวิว</p>`;
+        else box.insertAdjacentHTML("beforeend", html);
+        more.hidden = page >= rv.total_pages;
+      } catch (err) {
+        if (page === 1) box.innerHTML = `<p class="text-sm" style="color:var(--danger)">${esc(err.message)}</p>`;
+        else toast(err.message, "error");
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>

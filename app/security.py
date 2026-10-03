@@ -105,6 +105,8 @@ def create_access_token(user: User) -> str:
         "sub": str(user.id),
         "username": user.username,
         "role": user.role,
+        # เลขรุ่นของ token ตอนออกใบนี้ — ดูคำอธิบายที่ User.token_version
+        "tv": user.token_version or 0,
         "exp": expire,
     }
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
@@ -162,6 +164,14 @@ def get_current_user(
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="ไม่พบผู้ใช้งานนี้")
+
+    # token ที่ออกก่อนเปลี่ยนรหัสผ่านใช้ไม่ได้แล้ว
+    # token รุ่นเก่าที่ออกก่อนมีระบบนี้ไม่มี "tv" ถือเป็นรุ่น 0
+    if int(payload.get("tv", 0)) != (user.token_version or 0):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="มีการเปลี่ยนรหัสผ่านของบัญชีนี้ กรุณาเข้าสู่ระบบใหม่",
+        )
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="บัญชีนี้ถูกระงับการใช้งาน")
 

@@ -1,0 +1,284 @@
+Timing is on.
+Time: 21.142 ms
+Time: 29.330 ms
+Time: 24.480 ms
+Time: 20.910 ms
+
+===== Q1 หน้าจอง: ช่วงเวลาที่ถูกจองแล้วของร้านในวันหนึ่ง =====
+      (app/routers/bookings.py :: _busy_intervals — ยิงทุกครั้งที่ลูกค้าเปิดหน้าร้าน วันละ 14 ครั้งต่อการเปิด 1 ครั้ง)
+                                                                    QUERY PLAN                                                                     
+---------------------------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..22577.77 rows=1 width=84) (actual time=1.304..26.022 rows=24 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=102 read=14190
+   ->  Parallel Seq Scan on bookings  (cost=0.00..21577.67 rows=1 width=84) (actual time=1.934..22.567 rows=8 loops=3)
+         Filter: (holds_slot AND ((status)::text = ANY ('{pending,confirmed}'::text[])) AND (shop_id = 1) AND (booking_date = '2026-10-10'::date))
+         Rows Removed by Filter: 333325
+         Buffers: shared hit=102 read=14190
+ Planning:
+   Buffers: shared hit=99 read=15
+ Planning Time: 0.530 ms
+ Execution Time: 26.036 ms
+(12 rows)
+
+Time: 27.492 ms
+
+===== Q1b หน้าจอง: เลือกช่างคนเดียว =====
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..23619.43 rows=1 width=84) (actual time=3.778..27.151 rows=9 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=198 read=14094
+   ->  Parallel Seq Scan on bookings  (cost=0.00..22619.33 rows=1 width=84) (actual time=3.224..23.552 rows=3 loops=3)
+         Filter: (holds_slot AND ((status)::text = ANY ('{pending,confirmed}'::text[])) AND (shop_id = 1) AND (booking_date = '2026-10-10'::date) AND (staff_id = 2))
+         Rows Removed by Filter: 333330
+         Buffers: shared hit=198 read=14094
+ Planning Time: 0.064 ms
+ Execution Time: 27.161 ms
+(10 rows)
+
+Time: 27.460 ms
+
+===== Q2 หน้า "การจองของฉัน": 10 คิวล่าสุดของลูกค้า =====
+      (app/routers/bookings.py :: list_bookings — role customer)
+                                                             QUERY PLAN                                                             
+------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=20494.37..20494.83 rows=4 width=84) (actual time=23.478..25.160 rows=3 loops=1)
+   Buffers: shared hit=380 read=13998
+   ->  Gather Merge  (cost=20494.37..20494.83 rows=4 width=84) (actual time=23.477..25.158 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=380 read=13998
+         ->  Sort  (cost=19494.34..19494.35 rows=2 width=84) (actual time=21.774..21.774 rows=1 loops=3)
+               Sort Key: booking_date DESC, booking_time DESC
+               Sort Method: quicksort  Memory: 25kB
+               Buffers: shared hit=380 read=13998
+               Worker 0:  Sort Method: quicksort  Memory: 25kB
+               Worker 1:  Sort Method: quicksort  Memory: 25kB
+               ->  Parallel Seq Scan on bookings  (cost=0.00..19494.33 rows=2 width=84) (actual time=14.048..21.731 rows=1 loops=3)
+                     Filter: (user_id = 4242)
+                     Rows Removed by Filter: 333332
+                     Buffers: shared hit=288 read=13998
+ Planning:
+   Buffers: shared hit=23
+ Planning Time: 0.078 ms
+ Execution Time: 25.190 ms
+(20 rows)
+
+Time: 25.619 ms
+
+===== Q2b นับจำนวนคิวทั้งหมดของลูกค้า (ใช้ทำเลขหน้า) =====
+                                                            QUERY PLAN                                                             
+-----------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=20494.55..20494.56 rows=1 width=8) (actual time=21.096..22.502 rows=1 loops=1)
+   Buffers: shared hit=384 read=13902
+   ->  Gather  (cost=20494.34..20494.55 rows=2 width=8) (actual time=21.018..22.497 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=384 read=13902
+         ->  Partial Aggregate  (cost=19494.34..19494.35 rows=1 width=8) (actual time=19.206..19.206 rows=1 loops=3)
+               Buffers: shared hit=384 read=13902
+               ->  Parallel Seq Scan on bookings  (cost=0.00..19494.33 rows=2 width=0) (actual time=14.326..19.203 rows=1 loops=3)
+                     Filter: (user_id = 4242)
+                     Rows Removed by Filter: 333332
+                     Buffers: shared hit=384 read=13902
+ Planning Time: 0.053 ms
+ Execution Time: 22.518 ms
+(14 rows)
+
+Time: 22.832 ms
+
+===== Q3 หน้าจัดการร้าน: 100 คิวล่าสุดของร้านดัง =====
+      (app/routers/bookings.py :: list_bookings — role owner)
+                                                               QUERY PLAN                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=20843.11..20854.78 rows=100 width=84) (actual time=25.037..26.640 rows=100 loops=1)
+   Buffers: shared hit=572 read=13806
+   ->  Gather Merge  (cost=20843.11..22972.42 rows=18250 width=84) (actual time=25.036..26.630 rows=100 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=572 read=13806
+         ->  Sort  (cost=19843.08..19865.90 rows=9125 width=84) (actual time=23.163..23.178 rows=82 loops=3)
+               Sort Key: booking_date DESC, booking_time DESC
+               Sort Method: top-N heapsort  Memory: 47kB
+               Buffers: shared hit=572 read=13806
+               Worker 0:  Sort Method: top-N heapsort  Memory: 46kB
+               Worker 1:  Sort Method: top-N heapsort  Memory: 47kB
+               ->  Parallel Seq Scan on bookings  (cost=0.00..19494.33 rows=9125 width=84) (actual time=0.023..22.434 rows=7395 loops=3)
+                     Filter: (shop_id = 1)
+                     Rows Removed by Filter: 325939
+                     Buffers: shared hit=480 read=13806
+ Planning Time: 0.061 ms
+ Execution Time: 26.674 ms
+(18 rows)
+
+Time: 26.955 ms
+
+===== Q4 หน้าร้าน: รีวิวล่าสุด 10 รายการ =====
+      (app/routers/bookings.py :: list_reviews)
+                                                       QUERY PLAN                                                       
+------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=4412.78..4412.80 rows=10 width=124) (actual time=7.605..7.607 rows=10 loops=1)
+   Buffers: shared hit=2359
+   ->  Sort  (cost=4412.78..4421.42 rows=3457 width=124) (actual time=7.604..7.605 rows=10 loops=1)
+         Sort Key: created_at DESC
+         Sort Method: top-N heapsort  Memory: 27kB
+         Buffers: shared hit=2359
+         ->  Seq Scan on reviews  (cost=0.00..4338.07 rows=3457 width=124) (actual time=0.006..7.372 rows=3613 loops=1)
+               Filter: (shop_id = 1)
+               Rows Removed by Filter: 154953
+               Buffers: shared hit=2356
+ Planning:
+   Buffers: shared hit=30 read=2
+ Planning Time: 0.101 ms
+ Execution Time: 7.614 ms
+(14 rows)
+
+Time: 8.028 ms
+
+===== Q5 ระบบพักเงิน แบบรอบที่ 1: ตรวจทุกคิวในระบบ =====
+      (app/routers/escrow.py :: release_due รุ่นแรก — ยิงทุกครั้งที่มีคนเปิดรายการจอง)
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=26146.83..53002.29 rows=62861 width=8) (actual time=94.918..96.610 rows=0 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=826 read=30951
+   ->  Parallel Hash Semi Join  (cost=25146.83..45716.19 rows=26192 width=8) (actual time=92.545..92.546 rows=0 loops=3)
+         Hash Cond: (b.id = payments.booking_id)
+         Buffers: shared hit=826 read=30951
+         ->  Parallel Seq Scan on bookings b  (cost=0.00..19494.33 rows=298528 width=8) (actual time=0.031..33.720 rows=239433 loops=3)
+               Filter: ((status)::text = 'completed'::text)
+               Rows Removed by Filter: 93900
+               Buffers: shared hit=576 read=13710
+         ->  Parallel Hash  (cost=24689.86..24689.86 rows=36558 width=8) (actual time=37.790..37.791 rows=31479 loops=3)
+               Buckets: 131072  Batches: 1  Memory Usage: 4768kB
+               Buffers: shared hit=96 read=17241
+               ->  Parallel Seq Scan on payments  (cost=0.00..24689.86 rows=36558 width=8) (actual time=0.023..32.766 rows=31479 loops=3)
+                     Filter: ((released_at IS NULL) AND ((status)::text = 'paid'::text))
+                     Rows Removed by Filter: 439104
+                     Buffers: shared hit=96 read=17241
+ Planning:
+   Buffers: shared hit=92 read=6
+ Planning Time: 0.288 ms
+ Execution Time: 96.623 ms
+(22 rows)
+
+Time: 97.202 ms
+
+===== Q5b ระบบพักเงิน แบบที่แก้แล้ว: ตรวจเฉพาะร้านที่เปิดกระเป๋าเงิน =====
+      (release_due(db, shop_id=...) — index ช่วยได้เต็มที่เพราะขอบเขตแคบ)
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=26146.83..46844.08 rows=1377 width=8) (actual time=68.374..70.029 rows=0 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=1018 read=30759
+   ->  Parallel Hash Semi Join  (cost=25146.83..45706.38 rows=574 width=8) (actual time=66.359..66.360 rows=0 loops=3)
+         Hash Cond: (b.id = payments.booking_id)
+         Buffers: shared hit=1018 read=30759
+         ->  Parallel Seq Scan on bookings b  (cost=0.00..20536.00 rows=6538 width=8) (actual time=0.039..24.050 rows=5334 loops=3)
+               Filter: ((shop_id = 1) AND ((status)::text = 'completed'::text))
+               Rows Removed by Filter: 327999
+               Buffers: shared hit=672 read=13614
+         ->  Parallel Hash  (cost=24689.86..24689.86 rows=36558 width=8) (actual time=40.493..40.493 rows=31479 loops=3)
+               Buckets: 131072  Batches: 1  Memory Usage: 4768kB
+               Buffers: shared hit=192 read=17145
+               ->  Parallel Seq Scan on payments  (cost=0.00..24689.86 rows=36558 width=8) (actual time=0.022..36.374 rows=31479 loops=3)
+                     Filter: ((released_at IS NULL) AND ((status)::text = 'paid'::text))
+                     Rows Removed by Filter: 439104
+                     Buffers: shared hit=192 read=17145
+ Planning:
+   Buffers: shared hit=8
+ Planning Time: 0.157 ms
+ Execution Time: 70.043 ms
+(22 rows)
+
+Time: 70.485 ms
+
+===== Q5c ระบบพักเงิน แบบที่แก้แล้ว: ตรวจเฉพาะ 10 คิวในหน้าที่เปิดอยู่ =====
+      (release_due(db, booking_ids=[...]) — หน้ารายการจองของลูกค้า)
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Hash Join  (cost=34731.54..35902.91 rows=1 width=8) (actual time=51.979..52.043 rows=0 loops=1)
+   Hash Cond: (payments.booking_id = b.id)
+   Buffers: shared hit=321 read=17051
+   ->  HashAggregate  (cost=34683.00..35544.23 rows=86123 width=8) (actual time=39.827..48.384 rows=94438 loops=1)
+         Group Key: payments.booking_id
+         Batches: 1  Memory Usage: 6929kB
+         Buffers: shared hit=288 read=17049
+         ->  Gather  (cost=1000.00..34463.66 rows=87738 width=8) (actual time=0.209..22.943 rows=94438 loops=1)
+               Workers Planned: 2
+               Workers Launched: 2
+               Buffers: shared hit=288 read=17049
+               ->  Parallel Seq Scan on payments  (cost=0.00..24689.86 rows=36558 width=8) (actual time=0.025..29.292 rows=31479 loops=3)
+                     Filter: ((released_at IS NULL) AND ((status)::text = 'paid'::text))
+                     Rows Removed by Filter: 439104
+                     Buffers: shared hit=288 read=17049
+   ->  Hash  (cost=48.45..48.45 rows=7 width=8) (actual time=0.105..0.105 rows=6 loops=1)
+         Buckets: 1024  Batches: 1  Memory Usage: 9kB
+         Buffers: shared hit=33 read=2
+         ->  Index Scan using bookings_pkey on bookings b  (cost=0.42..48.45 rows=7 width=8) (actual time=0.075..0.096 rows=6 loops=1)
+               Index Cond: (id = ANY ('{11,22,33,44,55,66,77,88,99,110}'::bigint[]))
+               Filter: ((status)::text = 'completed'::text)
+               Rows Removed by Filter: 4
+               Buffers: shared hit=33 read=2
+ Planning:
+   Buffers: shared hit=10 read=1
+ Planning Time: 0.170 ms
+ Execution Time: 53.790 ms
+(27 rows)
+
+Time: 54.290 ms
+
+===== Q6 จุดแดงบนกระดิ่ง: นับแจ้งเตือนที่ยังไม่อ่าน =====
+      (app/routers/notifications.py :: unread_count — ยิงทุกหน้าที่ล็อกอินอยู่)
+                                                            QUERY PLAN                                                            
+----------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=20945.44..20945.45 rows=1 width=8) (actual time=22.172..23.641 rows=1 loops=1)
+   Buffers: shared hit=96 read=14641
+   ->  Gather  (cost=1000.00..20945.43 rows=1 width=0) (actual time=22.169..23.638 rows=0 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=96 read=14641
+         ->  Parallel Seq Scan on notifications  (cost=0.00..19945.33 rows=1 width=0) (actual time=20.282..20.283 rows=0 loops=3)
+               Filter: ((NOT is_read) AND (user_id = 4242))
+               Rows Removed by Filter: 333333
+               Buffers: shared hit=96 read=14641
+ Planning:
+   Buffers: shared hit=6
+ Planning Time: 0.061 ms
+ Execution Time: 23.654 ms
+(14 rows)
+
+Time: 23.956 ms
+
+===== Q7 กล่องแจ้งเตือน: 20 รายการล่าสุด =====
+      (app/routers/notifications.py :: list_notifications)
+                                                               QUERY PLAN                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=20945.37..20945.83 rows=4 width=86) (actual time=23.795..25.323 rows=2 loops=1)
+   Buffers: shared hit=280 read=14545
+   ->  Gather Merge  (cost=20945.37..20945.83 rows=4 width=86) (actual time=23.794..25.321 rows=2 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=280 read=14545
+         ->  Sort  (cost=19945.34..19945.35 rows=2 width=86) (actual time=22.094..22.095 rows=1 loops=3)
+               Sort Key: created_at DESC, id DESC
+               Sort Method: quicksort  Memory: 25kB
+               Buffers: shared hit=280 read=14545
+               Worker 0:  Sort Method: quicksort  Memory: 25kB
+               Worker 1:  Sort Method: quicksort  Memory: 25kB
+               ->  Parallel Seq Scan on notifications  (cost=0.00..19945.33 rows=2 width=86) (actual time=11.911..22.053 rows=1 loops=3)
+                     Filter: (user_id = 4242)
+                     Rows Removed by Filter: 333333
+                     Buffers: shared hit=192 read=14545
+ Planning:
+   Buffers: shared hit=13
+ Planning Time: 0.082 ms
+ Execution Time: 25.340 ms
+(20 rows)
+
+Time: 25.638 ms

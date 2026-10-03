@@ -67,6 +67,27 @@ def _sane_birth_date(v: date) -> date:
 
 BirthDate = Annotated[date, AfterValidator(_sane_birth_date)]
 
+def _http_url_only(v: str | None) -> str | None:
+    """รับเฉพาะลิงก์ที่ขึ้นต้นด้วย http:// หรือ https://
+
+    ลิงก์ที่ผู้ใช้กรอกถูกนำไปแสดงเป็นปุ่มให้อีกฝ่ายกด (เช่นลิงก์รูปตัวอย่าง
+    ที่ร้านกดดู) ถ้าปล่อยให้กรอก `javascript:...` ได้ พอเจ้าของร้านกดลิงก์
+    สคริปต์ของคนร้ายจะทำงานในเว็บเรา แล้วขโมยการล็อกอินของร้านไปได้ทั้งบัญชี
+    (ช่องโหว่ชนิด stored XSS) การหนีอักขระ HTML กันกรณีนี้ไม่ได้
+    เพราะ `javascript:` ไม่มีอักขระพิเศษให้หนีเลย ต้องตรวจที่ต้นลิงก์
+    """
+    if v is None:
+        return None
+    v = v.strip()
+    if not v:
+        return None
+    if not v.lower().startswith(("http://", "https://")):
+        raise ValueError("ลิงก์ต้องขึ้นต้นด้วย http:// หรือ https://")
+    return v
+
+
+HttpUrlText = Annotated[str, Field(max_length=500), AfterValidator(_http_url_only)]
+
 # วันหยุดประจำสัปดาห์ — เลขวันคั่นจุลภาค 0=อาทิตย์ ถึง 6=เสาร์ เช่น "1,2"
 ClosedWeekdays = Annotated[str, Field(pattern=r"^$|^[0-6](,[0-6])*$", max_length=20)]
 Rating = Annotated[int, Field(ge=1, le=5, description="คะแนน 1-5")]
@@ -156,6 +177,10 @@ class UserUpdate(BaseModel):
     birth_date: BirthDate | None = None
     role: Literal["customer", "owner", "admin"] | None = Field(None, description="เฉพาะ admin")
     is_active: bool | None = Field(None, description="เฉพาะ admin")
+    # ต้องใส่เมื่อเปลี่ยนอีเมลของตัวเอง — ดูเหตุผลใน users.py
+    current_password: str | None = Field(
+        None, max_length=100, description="รหัสผ่านปัจจุบัน (ต้องใส่เมื่อเปลี่ยนอีเมล)"
+    )
 
 
 class UsernameAvailable(BaseModel):
@@ -314,10 +339,16 @@ WORK_DAYS_DESC = (
 )
 
 
+Specialties = Annotated[str, Field(max_length=200, description="ความถนัด คั่นด้วยจุลภาค เช่น นวดไทย,กดจุด")]
+ExperienceYears = Annotated[int, Field(ge=0, le=60, description="ประสบการณ์กี่ปี")]
+
+
 class StaffCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100, examples=["ช่างมิ้น"])
     position: str | None = Field(None, max_length=100, examples=["ช่างนวดอาวุโส"])
     bio: str | None = Field(None, max_length=500, description="ประสบการณ์หรือความถนัด")
+    specialties: Specialties | None = None
+    experience_years: ExperienceYears | None = None
     work_days: str | None = Field(
         None, pattern=WORK_DAYS_PATTERN, description=WORK_DAYS_DESC, examples=["1,2,3,4,5"]
     )
@@ -329,6 +360,8 @@ class StaffUpdate(BaseModel):
     name: str | None = Field(None, min_length=2, max_length=100)
     position: str | None = Field(None, max_length=100)
     bio: str | None = Field(None, max_length=500)
+    specialties: Specialties | None = None
+    experience_years: ExperienceYears | None = None
     is_active: bool | None = None
     work_days: str | None = Field(None, pattern=WORK_DAYS_PATTERN, description=WORK_DAYS_DESC)
     work_start: TimeStr | None = None
@@ -349,8 +382,18 @@ class StaffOut(BaseModel):
     work_end: TimeStr | None = None
     rating_avg: Decimal = Decimal("0.00")
     rating_count: int = 0
+    specialties: str | None = None
+    experience_years: int | None = None
     # ชื่อไฟล์รูปโปรไฟล์ — ซ่อนจากผลลัพธ์ ใช้แค่ประกอบ photo_url ข้างล่าง
     photo_name: str | None = Field(None, exclude=True)
+    # บัญชีผู้ใช้ของช่าง — ซ่อนเลข id ไว้ บอกแค่ว่ามีบัญชีหรือยัง
+    # ข้อมูลนี้ออกไปกับหน้าร้านสาธารณะ จึงไม่ควรบอกว่าเป็นบัญชีไหน
+    user_id: int | None = Field(None, exclude=True)
+
+    @computed_field(description="ช่างคนนี้มีบัญชีผู้ใช้ของตัวเองแล้วหรือยัง")
+    @property
+    def has_account(self) -> bool:
+        return self.user_id is not None
 
     @computed_field(description="ที่อยู่รูปโปรไฟล์ — null เมื่อยังไม่ได้อัปรูป")
     @property
@@ -405,6 +448,60 @@ class StaffDetail(StaffOut):
         None, description="เปอร์เซ็นต์ลูกค้าที่กลับมาหาซ้ำ — null เมื่อยังมีลูกค้าไม่ถึง 5 คน"
     )
     months_with_shop: int | None = Field(None, description="อยู่กับร้านมากี่เดือน")
+    # ข้อมูลร้านสำหรับหน้าโปรไฟล์ช่างแบบเต็มหน้า (staff.html)
+    shop_district: str | None = None
+    shop_province: str | None = None
+    resource_label: str = "ช่าง"
+    services: list[ServiceOut] = Field(
+        default_factory=list, description="บริการของร้านที่จองกับช่างคนนี้ได้"
+    )
+
+
+class StaffLink(BaseModel):
+    """ร้านผูกโปรไฟล์ช่างเข้ากับบัญชีผู้ใช้ของตัวช่าง"""
+
+    login: str = Field(
+        ..., min_length=3, max_length=150, description="ชื่อผู้ใช้หรืออีเมลของช่าง",
+        examples=["mind"],
+    )
+
+
+class StaffAccountOut(BaseModel):
+    """บัญชีที่ผูกกับโปรไฟล์ช่าง — เจ้าของร้านเท่านั้นที่เห็น"""
+
+    staff_id: int
+    username: str | None = None
+    full_name: str | None = None
+
+
+class StaffSelfUpdate(BaseModel):
+    """สิ่งที่ช่างแก้เองได้ — ไม่รวมชื่อ ตำแหน่ง และเวลาทำงาน ซึ่งเป็นเรื่องของร้าน"""
+
+    bio: str | None = Field(None, max_length=500)
+    specialties: Specialties | None = None
+    experience_years: ExperienceYears | None = None
+
+
+class MyStaffProfile(StaffOut):
+    """โปรไฟล์ช่างของผู้ใช้ที่ล็อกอินอยู่ พร้อมชื่อร้าน"""
+
+    shop_name: str
+
+
+class StaffQueueItem(BaseModel):
+    """คิวหนึ่งรายการในมุมมองของช่าง — ไม่มีข้อมูลเงิน และเห็นแค่ชื่อย่อของลูกค้า"""
+
+    booking_id: int
+    booking_code: str
+    booking_date: date
+    booking_time: TimeStr
+    end_time: TimeStr
+    status: str
+    service_name: str
+    customer_name: str
+    requirements: str | None = None
+    health_note: str | None = None
+    note: str | None = None
 
 
 class ShopDetail(ShopOut):
@@ -436,8 +533,8 @@ class BookingCreate(BaseModel):
         description="ความต้องการเฉพาะ เช่น ความยาว สี แบบที่อยากได้",
         examples=["อยากได้สีน้ำตาลอ่อน ไม่เอาสว่างมาก"],
     )
-    reference_url: str | None = Field(
-        None, max_length=500, description="ลิงก์รูปตัวอย่างที่อยากได้"
+    reference_url: HttpUrlText | None = Field(
+        None, description="ลิงก์รูปตัวอย่างที่อยากได้ (http:// หรือ https:// เท่านั้น)"
     )
     health_note: str | None = Field(
         None, max_length=500,
@@ -537,6 +634,24 @@ class BookingOut(BaseModel):
     # ใส่มาให้พร้อมกับรายการจองเลย หน้าเว็บจะได้ไม่ต้องยิงถามทีละคิว
     payment_state: Literal["unpaid", "deposit_paid", "paid"] = "unpaid"
     paid_amount: Decimal = Decimal("0.00")
+
+    # ---- ระบบพักเงิน (ดู app/routers/escrow.py) ----
+    escrow_state: Literal["none", "held", "disputed", "released", "refunded"] = Field(
+        "none",
+        description=(
+            "none = ยังไม่มีเงินผ่านระบบ · held = พักไว้ที่ระบบ · disputed = ลูกค้าแจ้งปัญหา รอตัดสิน "
+            "· released = ปล่อยให้ร้านแล้ว · refunded = คืนลูกค้าแล้ว"
+        ),
+    )
+    held_amount: Decimal = Field(Decimal("0.00"), description="ยอดที่ยังพักอยู่ที่ระบบ")
+    service_done_at: datetime | None = None
+    customer_confirmed_at: datetime | None = None
+    disputed_at: datetime | None = None
+    dispute_note: str | None = None
+    dispute_result: str | None = None
+    auto_release_at: datetime | None = Field(
+        None, description="ถ้าลูกค้าไม่กดอะไร ระบบจะปล่อยเงินให้ร้านเองเมื่อถึงเวลานี้"
+    )
 
     # ---- ก๊วน ----
     open_slots: int = Field(0, description="เปิดรับคนไปด้วยกันทั้งหมดกี่คน (0 = ไม่ได้เปิดก๊วน)")
@@ -894,6 +1009,77 @@ class ReceiptOut(BaseModel):
 # รูปแบบผลลัพธ์แบบแบ่งหน้า (ใช้ร่วมกันทุก endpoint ที่มี pagination)
 # ============================================================
 T = TypeVar("T")
+
+
+# ============================================================
+# ระบบพักเงิน
+# ============================================================
+class DisputeCreate(BaseModel):
+    note: str = Field(..., min_length=5, max_length=500, description="เล่าปัญหาที่เกิดขึ้น")
+
+
+class DisputeResolve(BaseModel):
+    decision: Literal["release", "refund"] = Field(
+        ..., description="release = ปล่อยเงินให้ร้าน · refund = คืนเงินลูกค้า"
+    )
+    reason: str | None = Field(None, max_length=300, description="เหตุผลที่แจ้งทั้งสองฝ่าย")
+
+
+class DisputeOut(BaseModel):
+    booking_id: int
+    booking_code: str
+    shop_id: int
+    shop_name: str
+    customer_name: str
+    service_name: str
+    booking_date: date
+    held_amount: Decimal
+    dispute_note: str | None = None
+    disputed_at: datetime
+
+
+class BankAccountIn(BaseModel):
+    bank_name: str = Field(..., min_length=2, max_length=50, examples=["กสิกรไทย"])
+    bank_account_no: str = Field(..., pattern=r"^[0-9]{10,15}$", description="เลขบัญชี ตัวเลขล้วน")
+    bank_account_name: str = Field(..., min_length=2, max_length=150)
+
+
+class PayoutOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    gross: Decimal
+    fee: Decimal
+    net: Decimal
+    account_label: str
+    reference: str
+    created_at: datetime
+
+
+class UpcomingRelease(BaseModel):
+    booking_id: int
+    booking_code: str
+    amount: Decimal
+    release_at: datetime | None = Field(None, description="null = ยังไม่ปิดงาน หรือมีการแจ้งปัญหา")
+    state: str
+
+
+class WalletOut(BaseModel):
+    """กระเป๋าเงินของร้าน — ทุกตัวเลขคำนวณจากตาราง payments ไม่มีช่องให้แก้เอง"""
+
+    shop_id: int
+    held: Decimal = Field(..., description="เงินที่ลูกค้าจ่ายแล้วแต่ยังพักอยู่ที่ระบบ")
+    available_gross: Decimal = Field(..., description="ปล่อยแล้ว ยังไม่ได้โอน (ก่อนหักค่าธรรมเนียม)")
+    fee_rate: Decimal
+    available_fee: Decimal
+    available_net: Decimal = Field(..., description="ยอดที่จะได้จริงถ้ากดโอนตอนนี้")
+    paid_out_total: Decimal
+    cash_total: Decimal = Field(..., description="เงินสดที่ร้านรับเองหน้าร้าน ไม่ผ่านระบบ")
+    bank_name: str | None = None
+    bank_account_no_masked: str | None = None
+    bank_account_name: str | None = None
+    upcoming: list[UpcomingRelease] = []
+    payouts: list[PayoutOut] = []
 
 
 class Page(BaseModel, Generic[T]):

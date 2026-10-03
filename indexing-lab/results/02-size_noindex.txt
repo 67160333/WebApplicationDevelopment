@@ -1,0 +1,29 @@
+
+===== ขนาดตารางเทียบกับ index =====
+  table_name   | table_size | index_size | total_size 
+---------------+------------+------------+------------
+ payments      | 135 MB     | 30 MB      | 166 MB
+ notifications | 115 MB     | 21 MB      | 137 MB
+ bookings      | 112 MB     | 21 MB      | 133 MB
+ reviews       | 18 MB      | 3504 kB    | 22 MB
+(4 rows)
+
+
+===== ขนาดของแต่ละ index (สังเกต partial index ตัวที่ขึ้นต้น ix_payments_held / ix_notif_unread / ix_booking_held_slot) =====
+  table_name   |     index_name     |  size   
+---------------+--------------------+---------
+ bookings      | bookings_pkey      | 21 MB
+ notifications | notifications_pkey | 21 MB
+ payments      | payments_pkey      | 30 MB
+ reviews       | reviews_pkey       | 3504 kB
+(4 rows)
+
+
+===== partial index เก็บกี่แถว เทียบกับทั้งตาราง =====
+        what         | in_index | whole_table 
+---------------------+----------+-------------
+ แจ้งเตือนที่ยังไม่อ่าน     |   149742 |     1000000
+ คิวที่ยังกันเวลาอยู่       |   104918 |     1000000
+ payments ที่ยังพักเงินอยู่ |    94438 |     1411749
+(3 rows)
+

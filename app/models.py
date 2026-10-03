@@ -47,6 +47,13 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
+    # เลขรุ่นของ token — เพิ่มขึ้นทุกครั้งที่เปลี่ยนหรือตั้งรหัสผ่านใหม่
+    #
+    # token ทุกใบจำเลขนี้ไว้ตอนออก (claim "tv") ถ้าเลขในบัญชีขยับไปแล้ว
+    # token ใบเก่าทุกใบจะใช้ไม่ได้ทันที ทุกเครื่องที่ล็อกอินค้างไว้จึงหลุดหมด
+    # ซึ่งคือสิ่งที่คนเปลี่ยนรหัสต้องการ เพราะเหตุผลอันดับหนึ่งคือสงสัยว่าบัญชีโดนขโมย
+    token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
     shops: Mapped[list["Shop"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
     bookings: Mapped[list["Booking"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
@@ -170,6 +177,12 @@ class Shop(Base):
     # ไปจนถึงปีหน้า ซึ่งไม่มีใครทำ
     closed_weekdays: Mapped[str | None] = mapped_column(String(20), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # บัญชีรับเงินของร้าน — ใช้ตอนโอนเงินที่ปล่อยจากระบบพักเงิน
+    # **ห้ามใส่ใน ShopOut** เพราะ ShopOut เป็นข้อมูลสาธารณะที่ใครก็เห็น
+    # อ่านได้ทางเดียวคือหน้ากระเป๋าเงินของเจ้าของร้าน (escrow.py)
+    bank_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    bank_account_no: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    bank_account_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
     # พิกัดสำหรับแสดงบนแผนที่และคำนวณระยะทาง
     # Numeric(9,6) พอสำหรับความละเอียดระดับเมตร (ทศนิยม 6 ตำแหน่ง ≈ 0.11 เมตร)
     latitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6), nullable=True)
@@ -301,6 +314,20 @@ class Staff(Base):
     bio: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    # ---------- ข้อมูลโปรไฟล์ที่ช่างกรอกเองได้ ----------
+    # ความถนัด คั่นด้วยจุลภาค เช่น "นวดไทย,นวดน้ำมัน,กดจุด" หน้าเว็บแสดงเป็นป้าย
+    specialties: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    experience_years: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # ---------- บัญชีผู้ใช้ของช่างคนนี้ ----------
+    # ร้านผูกโปรไฟล์ช่างเข้ากับบัญชีผู้ใช้ของตัวช่างเอง ช่างจะล็อกอินมาแก้โปรไฟล์
+    # และดูคิวของตัวเองได้ โดยไม่ต้องให้เจ้าของร้านทำแทนทุกอย่าง
+    # ว่างไว้ = ช่างไม่มีบัญชี เจ้าของร้านดูแลโปรไฟล์ให้ (แบบเดิม)
+    # ไม่ตั้ง unique เพราะคนเดียวทำงานได้หลายร้าน
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+
     # ---------- รูปโปรไฟล์ ----------
     # ลูกค้าเลือกช่างจากหน้าคนก่อนเป็นอันดับแรก โดยเฉพาะงานที่ต้องอยู่ใกล้ตัว
     # อย่างนวด ทำผม หรือสัก ตัวอักษรแรกของชื่อในวงกลมไม่ได้ช่วยตัดสินใจอะไรเลย
@@ -345,14 +372,29 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # index เดี่ยวพอ — ทดลองทำ (user_id, created_at) แล้วไม่เร็วขึ้นเลย เพราะแต่ละคนมีแจ้งเตือน
+    # ไม่กี่รายการ แต่ index ใหญ่ขึ้น 4 เท่า (indexing-lab รอบที่ 1 · docs/INDEXING.md)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     kind: Mapped[str] = mapped_column(String(40))
     title: Mapped[str] = mapped_column(String(150))
     body: Mapped[str | None] = mapped_column(String(400), nullable=True)
     # ลิงก์ที่จะพาไปเมื่อกดการแจ้งเตือน เช่น bookings.html
     link: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    is_read: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # ไม่ทำ index บนคอลัมน์นี้ตัวเดียว — มีแค่สองค่า (อ่านแล้ว/ยังไม่อ่าน) ช่วยค้นหาไม่ได้
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+    # index ออกแบบจาก query จริง ทดลองและวัดผลแล้วใน indexing-lab (สรุปใน docs/INDEXING.md)
+    __table_args__ = (
+        # จุดแดงบนกระดิ่ง: นับเฉพาะที่ยังไม่อ่าน (partial index เก็บแค่ ~15% ของตาราง)
+        # query ต้องเขียน is_read = false ให้ตรงกับเงื่อนไขนี้ (ดู UNREAD ใน notifications.py)
+        # วัดแล้ว: เขียน "is_read IS false" PostgreSQL จะไม่ใช้ index ตัวนี้
+        Index(
+            "ix_notif_unread", "user_id",
+            postgresql_where=text("is_read = false"),
+            sqlite_where=text("is_read = 0"),
+        ),
+    )
 
 
 class ShopClosure(Base):
@@ -385,13 +427,17 @@ class Booking(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     booking_code: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    # index เดี่ยวพอ — ทดลองทำ (user_id, booking_date, booking_time) แล้วหน้า "การจองของฉัน"
+    # ไม่เร็วขึ้นเลย (ลูกค้าคนหนึ่งมีไม่กี่คิว) แต่ index ใหญ่ขึ้น 4 เท่า (docs/INDEXING.md)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     # ต้องมี ondelete="CASCADE" — ถ้าไม่มี ฐานข้อมูลจะห้ามลบบริการที่มีคิวผูกอยู่
     # และ SQLAlchemy จะพยายามเซ็ตคอลัมน์นี้เป็น NULL ทั้งที่ห้ามว่าง ทำให้ลบร้านไม่ได้เลย
     service_id: Mapped[int] = mapped_column(
         ForeignKey("services.id", ondelete="CASCADE"), index=True
     )
-    shop_id: Mapped[int] = mapped_column(ForeignKey("shops.id", ondelete="CASCADE"), index=True)
+    # ไม่มี index เดี่ยว — ix_bookings_shop_date ท้ายคลาสขึ้นต้นด้วย shop_id อยู่แล้ว
+    # (index ผสม (a, b) ใช้ค้นด้วย a อย่างเดียวได้ตามกฎ leftmost การมีทั้งสองตัวจึงซ้ำซ้อน)
+    shop_id: Mapped[int] = mapped_column(ForeignKey("shops.id", ondelete="CASCADE"))
     staff_id: Mapped[int | None] = mapped_column(
         ForeignKey("staff.id", ondelete="SET NULL"), index=True, nullable=True
     )
@@ -401,7 +447,9 @@ class Booking(Base):
     end_time: Mapped[time] = mapped_column(Time)
     total_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     deposit_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
-    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    # ไม่ทำ index บน status — ไม่มี query ไหนในระบบค้นด้วย status ตัวเดียว
+    # (ค้นคู่กับร้านหรือลูกค้าเสมอ ซึ่งมี index ของคอลัมน์นั้นอยู่แล้ว) มีไว้ก็แค่ทำให้ทุกการจองช้าลง
+    status: Mapped[str] = mapped_column(String(20), default="pending")
     note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     # ความต้องการเฉพาะของลูกค้า เช่น ความยาว/สี/แบบที่อยากได้
     requirements: Mapped[str | None] = mapped_column(String(1000), nullable=True)
@@ -455,6 +503,17 @@ class Booking(Base):
     distance_km: Mapped[Decimal | None] = mapped_column(Numeric(6, 2), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
+    # ---- ระบบพักเงิน (ดู app/routers/escrow.py) ----
+    # ร้านกด "ให้บริการเสร็จ" เมื่อไหร่ — เริ่มนับเวลา 24 ชั่วโมงก่อนปล่อยเงินให้ร้าน
+    service_done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # ลูกค้ากด "ได้รับบริการแล้ว" เมื่อไหร่ — ปล่อยเงินทันทีไม่ต้องรอครบ 24 ชั่วโมง
+    customer_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # ลูกค้าแจ้งปัญหา — เงินถูกพักต่อจนกว่าผู้ดูแลจะตัดสิน
+    disputed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    dispute_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # ผลการตัดสิน: release (ให้ร้าน) / refund (คืนลูกค้า)
+    dispute_result: Mapped[str | None] = mapped_column(String(10), nullable=True)
+
     user: Mapped["User"] = relationship(back_populates="bookings")
     service: Mapped["Service"] = relationship(back_populates="bookings")
     staff: Mapped["Staff | None"] = relationship(back_populates="bookings")
@@ -493,6 +552,12 @@ class Booking(Base):
             # ซึ่งตรงข้ามกับกติกาจริง แล้วผลทดสอบจะเชื่อถือไม่ได้
             sqlite_where=text("holds_slot = 1 AND status IN ('pending','confirmed')"),
         ),
+        # หน้าจัดการร้าน: WHERE shop_id = ? ORDER BY booking_date DESC, booking_time DESC LIMIT 100
+        # วัดแล้วร้านที่มี 22,000 คิว: 14.7 ms -> 0.7 ms เพราะได้ 100 แถวแรกตรงจาก index
+        # ไม่ต้องดึงทั้งร้านมาเรียงก่อน (PostgreSQL อ่าน index ย้อนกลับได้ จึงไม่ต้องประกาศ DESC)
+        # หมายเหตุ: หน้าจองดูช่องว่าง (_busy_intervals) ไม่ได้ใช้ตัวนี้ แต่ใช้ uq_booking_held_slot
+        # ข้างบน ซึ่งเป็น partial index ขนาดเล็กที่ขึ้นต้นด้วย shop_id เหมือนกัน
+        Index("ix_bookings_shop_date", "shop_id", "booking_date", "booking_time"),
     )
 
 
@@ -506,7 +571,8 @@ class Review(Base):
         ForeignKey("bookings.id", ondelete="CASCADE"), unique=True
     )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    shop_id: Mapped[int] = mapped_column(ForeignKey("shops.id", ondelete="CASCADE"), index=True)
+    # ไม่มี index เดี่ยว — ix_reviews_shop_created ขึ้นต้นด้วย shop_id อยู่แล้ว
+    shop_id: Mapped[int] = mapped_column(ForeignKey("shops.id", ondelete="CASCADE"))
 
     # บริการและช่างที่รีวิวถึง คัดลอกมาจากการจองตอนสร้างรีวิว
     # เก็บไว้ตรงนี้เพื่อให้กรองรีวิวตามช่างได้เร็ว ไม่ต้อง join ย้อนกลับไปที่ bookings
@@ -553,6 +619,9 @@ class Review(Base):
             "rating_value IS NULL OR rating_value BETWEEN 1 AND 5",
             name="ck_reviews_value",
         ),
+        # หน้าร้าน: WHERE shop_id = ? ORDER BY created_at DESC LIMIT 10
+        # ได้ 10 แถวแรกตรงจาก index ไม่ต้องดึงรีวิวทั้งร้านมาเรียงก่อน
+        Index("ix_reviews_shop_created", "shop_id", "created_at"),
     )
 
 
@@ -577,11 +646,24 @@ class Payment(Base):
     kind: Mapped[str] = mapped_column(String(10), default="deposit")
     amount: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     method: Mapped[str] = mapped_column(String(15), default="promptpay")
-    status: Mapped[str] = mapped_column(String(10), default="paid", index=True)
+    # ไม่ทำ index บน status — มีแค่ paid/refunded และเกือบทุกแถวเป็น paid
+    status: Mapped[str] = mapped_column(String(10), default="paid")
     # อ้างอิงจากผู้ให้บริการชำระเงิน — ระบบจำลองสร้างเลขสุ่มให้ดูเหมือนของจริง
     reference: Mapped[str | None] = mapped_column(String(40), nullable=True)
     paid_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # ---- ระบบพักเงิน ----
+    # เงินที่จ่ายออนไลน์ "ยังไม่ใช่ของร้าน" จนกว่าจะถูกปล่อย (released_at มีค่า)
+    #   status=paid,  released_at ว่าง   = พักไว้ที่ระบบ
+    #   status=paid,  released_at มีค่า  = ปล่อยให้ร้านแล้ว รอโอนหรือโอนแล้ว
+    #   status=refunded                  = คืนลูกค้าแล้ว
+    # เงินสดที่ร้านรับเองหน้าร้านอยู่ในมือร้านตั้งแต่แรก จึงถูกปล่อยทันทีตอนบันทึก
+    released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # โอนเข้าบัญชีร้านในรอบไหน — ว่าง = ยังไม่ได้โอน
+    payout_id: Mapped[int | None] = mapped_column(
+        ForeignKey("payouts.id", ondelete="SET NULL"), index=True, nullable=True
+    )
 
     booking: Mapped["Booking"] = relationship(back_populates="payments")
 
@@ -600,8 +682,40 @@ class Payment(Base):
             "booking_id",
             unique=True,
             postgresql_where=text("status = 'paid' AND kind = 'deposit'"),
+            # ต้องประกาศให้ SQLite ด้วย (เหตุผลเดียวกับ uq_booking_held_slot)
+            # ของเดิมลืมใส่ ชุดทดสอบบน SQLite จึงได้ดัชนีแบบไม่มีเงื่อนไข
+            # = คิวหนึ่งมีรายการเงินได้แถวเดียว จ่ายมัดจำแล้วจ่ายส่วนที่เหลือต่อไม่ได้
+            # ซึ่งตรงข้ามกับกติกาจริงบน PostgreSQL เทสต์เลยไม่เคยจับเรื่องนี้ได้
+            sqlite_where=text("status = 'paid' AND kind = 'deposit'"),
+        ),
+        # ระบบพักเงินถาม "เงินก้อนไหนยังพักอยู่" ทุกครั้งที่มีคนเปิดรายการจอง (release_due)
+        # เงินที่ยังพักมีไม่กี่เปอร์เซ็นต์ของทั้งตาราง partial index จึงเล็กและเร็ว
+        Index(
+            "ix_payments_held", "booking_id",
+            postgresql_where=text("status = 'paid' AND released_at IS NULL"),
+            sqlite_where=text("status = 'paid' AND released_at IS NULL"),
         ),
     )
+
+
+class Payout(Base):
+    """การโอนเงินเข้าบัญชีร้านหนึ่งรอบ — เป็นการจำลอง ไม่ได้โอนเงินจริง
+
+    หนึ่งรอบรวมเงินที่ถูกปล่อยแล้วแต่ยังไม่ได้โอนทั้งหมดของร้านนั้น
+    แล้วหักค่าธรรมเนียมเว็บก่อนโอน (ดู PLATFORM_FEE_RATE ใน escrow.py)
+    """
+
+    __tablename__ = "payouts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    shop_id: Mapped[int] = mapped_column(ForeignKey("shops.id", ondelete="CASCADE"), index=True)
+    gross: Mapped[Decimal] = mapped_column(Numeric(12, 2))     # ยอดก่อนหักค่าธรรมเนียม
+    fee: Mapped[Decimal] = mapped_column(Numeric(12, 2))       # ค่าธรรมเนียมเว็บ
+    net: Mapped[Decimal] = mapped_column(Numeric(12, 2))       # ยอดที่ร้านได้จริง
+    # บัญชีปลายทางตอนโอน เก็บแบบปิดเลขกลางไว้ ถ้าร้านเปลี่ยนบัญชีทีหลังประวัติจะไม่เพี้ยน
+    account_label: Mapped[str] = mapped_column(String(120))
+    reference: Mapped[str] = mapped_column(String(40))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
 
 class MatchJoin(Base):

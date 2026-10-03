@@ -206,10 +206,9 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
     # เพราะเหตุผลที่คนตั้งรหัสใหม่บ่อยที่สุดคือสงสัยว่าบัญชีถูกคนอื่นเข้าถึง
     # ถ้าโทเคนเดิมยังใช้ได้ต่อ คนนั้นก็ยังอยู่ในบัญชีเหมือนเดิม
     #
-    # ระบบเราเช็ก blacklist ทีละโทเคน จึงต้องกวาดโทเคนที่ยังไม่หมดอายุเข้าไปทั้งหมด
-    # ทำได้เพราะทุกใบถูกเก็บไว้ตอน logout อยู่แล้ว — ส่วนใบที่ยังไม่เคย logout
-    # จะหมดอายุเองภายใน JWT_EXPIRE_MINUTES
-    clear_login_fails(f"{user.username}|")
+    # ขยับเลขรุ่นของ token ทีเดียว token ทุกใบที่ออกก่อนหน้านี้ใช้ไม่ได้ทันที
+    # (ของเดิมพึ่ง blacklist ซึ่งมีแค่ใบที่เคยกด logout ใบอื่นยังใช้ได้อีก 24 ชั่วโมง)
+    user.token_version = (user.token_version or 0) + 1
     db.commit()
 
     return Message(message="ตั้งรหัสผ่านใหม่เรียบร้อย กรุณาเข้าสู่ระบบด้วยรหัสใหม่")
@@ -223,7 +222,11 @@ def change_password(
 ):
     """เปลี่ยนรหัสผ่าน แล้วยกเลิก token เดิมเพื่อความปลอดภัย"""
     if not verify_password(payload.old_password, current_user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="รหัสผ่านเดิมไม่ถูกต้อง")
+        # 422 ไม่ใช่ 401 — หน้าเว็บตีความ 401 ว่าเซสชันหมดอายุแล้วเตะออกจากระบบ
+        # ผู้ใช้แค่พิมพ์รหัสเดิมผิดครั้งเดียวก็หลุดไปหน้าล็อกอิน ต้องเริ่มใหม่หมด
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="รหัสผ่านเดิมไม่ถูกต้อง"
+        )
     if payload.old_password == payload.new_password:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -231,15 +234,8 @@ def change_password(
         )
 
     current_user.password_hash = hash_password(payload.new_password)
-
-    token = current_user._token  # type: ignore[attr-defined]
-    db.add(
-        TokenBlacklist(
-            token=token,
-            user_id=current_user.id,
-            expires_at=datetime.fromtimestamp(decode_token(token)["exp"], tz=timezone.utc),
-        )
-    )
+    # token ทุกใบของบัญชีนี้ใช้ไม่ได้ทันที รวมถึงเครื่องอื่นที่ล็อกอินค้างไว้
+    current_user.token_version = (current_user.token_version or 0) + 1
     db.commit()
 
     return Message(message="เปลี่ยนรหัสผ่านสำเร็จ กรุณาเข้าสู่ระบบใหม่")

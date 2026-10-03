@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609261200" />
+  <link rel="stylesheet" href="css/app.css?v=202610031200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -42,6 +42,7 @@
       <button class="tab" data-tab="photos">รูปภาพ</button>
       <button class="tab" data-tab="closures">วันหยุดร้าน</button>
       <button class="tab" data-tab="report">รายงานยอดขาย</button>
+      <button class="tab" data-tab="wallet">การเงิน</button>
       <button class="tab" data-tab="info">ข้อมูลร้าน</button>
     </div>
 
@@ -108,6 +109,28 @@
             <label class="label" for="stfBio">ประวัติโดยย่อ</label>
             <textarea id="stfBio" class="textarea" rows="2" maxlength="500"
                       placeholder="ประสบการณ์หรือความเชี่ยวชาญ ให้ลูกค้าตัดสินใจเลือกได้ง่ายขึ้น"></textarea>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div style="grid-column:span 2">
+              <label class="label" for="stfSpec">ความถนัด</label>
+              <input id="stfSpec" class="input" maxlength="200" placeholder="คั่นด้วยจุลภาค เช่น นวดไทย,กดจุด" />
+            </div>
+            <div>
+              <label class="label" for="stfExp">ประสบการณ์ (ปี)</label>
+              <input id="stfExp" type="number" class="input num" min="0" max="60" />
+            </div>
+          </div>
+
+          <!-- ผูกกับบัญชีของตัวช่าง — โผล่เฉพาะตอนแก้ไขคนที่มีอยู่แล้ว -->
+          <div id="stfAcct" class="pt-4" style="border-top:1px solid var(--border)" hidden>
+            <label class="label" for="stfLogin">บัญชีของช่างคนนี้</label>
+            <p id="stfAcctNow" class="hint" style="margin:0 0 8px"></p>
+            <div class="flex gap-2">
+              <input id="stfLogin" class="input" maxlength="150" placeholder="ชื่อผู้ใช้หรืออีเมลของช่าง" />
+              <button type="button" id="stfLink" class="btn btn-outline">ผูกบัญชี</button>
+              <button type="button" id="stfUnlink" class="btn btn-ghost" hidden>ยกเลิกการผูก</button>
+            </div>
+            <p class="hint">ผูกแล้วช่างล็อกอินมาแก้ประวัติ ความถนัด รูป และดูคิวของตัวเองได้</p>
           </div>
 
           <div class="pt-4" style="border-top:1px solid var(--border)">
@@ -190,8 +213,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202609261200"></script>
-  <script src="js/ui.js?v=202609261200"></script>
+  <script src="js/api.js?v=202610031200"></script>
+  <script src="js/ui.js?v=202610031200"></script>
   <script>
     renderNavbar("manage");
     renderFooter();
@@ -439,6 +462,7 @@
       else if (currentTab === "photos") renderPhotos();
       else if (currentTab === "closures") renderClosures();
       else if (currentTab === "report") renderReport();
+      else if (currentTab === "wallet") renderWallet();
       else renderInfo();
     }
 
@@ -750,16 +774,21 @@
     }
 
     function bookingRow(b) {
+      // ถึงเวลานัดแล้วหรือยัง — ปิดงานและบันทึกว่าลูกค้าไม่มาได้หลังเวลานัดเท่านั้น
+      // (เซิร์ฟเวอร์ตรวจซ้ำอยู่แล้ว ตรงนี้แค่ไม่โชว์ปุ่มที่กดแล้วจะโดนปฏิเสธ)
+      const started = new Date(`${b.booking_date}T${b.booking_time}`) <= new Date();
+      const open = b.status === "pending" || b.status === "confirmed";
       const actions = [];
       if (b.status === "pending") actions.push(["confirmed", "ยืนยันคิว", "btn-primary"]);
-      if (b.status === "confirmed") actions.push(["completed", "ปิดงาน", "btn-primary"]);
-      if (b.status === "pending" || b.status === "confirmed") actions.push(["cancelled", "ยกเลิก", "btn-danger"]);
+      if (b.status === "confirmed" && started) actions.push(["completed", "ให้บริการเสร็จ", "btn-primary"]);
+      if (open) actions.push(["cancelled", "ยกเลิก", "btn-danger"]);
+      const link = safeHttpUrl(b.reference_url);
 
       // แสดงสิ่งที่ลูกค้าแจ้งไว้ ร้านจะได้เตรียมตัวถูก
       const detail = [
         b.requirements ? `<div class="text-xs mt-1"><span class="text-muted">ต้องการ:</span> ${esc(b.requirements)}</div>` : "",
         b.health_note ? `<div class="text-xs mt-0.5" style="color:var(--warn)">ข้อควรระวัง: ${esc(b.health_note)}</div>` : "",
-        b.reference_url ? `<div class="text-xs mt-0.5"><a href="${esc(b.reference_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--blue-600)">ดูรูปตัวอย่าง</a></div>` : "",
+        link ? `<div class="text-xs mt-0.5"><a href="${esc(link)}" target="_blank" rel="noopener noreferrer" style="color:var(--blue-600)">ดูรูปตัวอย่าง</a></div>` : "",
         b.note ? `<div class="text-xs text-muted mt-0.5">หมายเหตุ: ${esc(b.note)}</div>` : "",
       ].join("");
 
@@ -775,15 +804,18 @@
           <td class="num">฿${baht(b.total_price)}
             <div class="text-xs text-muted">มัดจำ ฿${baht(b.deposit_amount)}</div>
             ${b.status !== "cancelled" ? `<div class="mt-1">${payBadge(b)}</div>` : ""}
+            ${escrowBadge(b)}
             ${b.status === "cancelled" && Number(b.cancellation_fee) > 0
               ? `<div class="text-xs mt-1" style="color:var(--success)">ได้ค่ามัดจำ ฿${baht(b.cancellation_fee)}</div>` : ""}</td>
-          <td>${statusBadge(b.status)}
+          <td>${bookingStatusBadge(b)}
             ${b.status !== "cancelled" && b.status !== "completed" && !b.holds_slot
               ? '<div class="text-xs mt-1" style="color:var(--warn)">ยังไม่ล็อกเวลา</div>' : ""}</td>
           <td>
             <div class="flex gap-1.5 flex-wrap">
               ${actions.map(([st, label, cls]) =>
                 `<button data-set="${b.id}" data-status="${st}" class="btn ${cls} btn-sm">${label}</button>`).join("")}
+              ${open && started
+                ? `<button data-noshow="${b.id}" class="btn btn-outline btn-sm">ลูกค้าไม่มา</button>` : ""}
               ${b.status !== "cancelled" && b.payment_state !== "paid"
                 ? `<button data-cash="${b.id}" class="btn btn-outline btn-sm">รับเงินสด</button>` : ""}
               ${b.payment_state !== "unpaid"
@@ -891,6 +923,32 @@
           });
         })
       );
+      // ---------- ลูกค้าไม่มาตามนัด ----------
+      panel.querySelectorAll("[data-noshow]").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const b = allBookings.find((x) => x.id === Number(btn.dataset.noshow));
+          if (!b) return;
+          const ok = await confirmDialog({
+            title: "บันทึกว่าลูกค้าไม่มาตามนัด",
+            message:
+              `${b.booking_code} · ร้านได้ค่ามัดจำที่ลูกค้าจ่ายไว้` +
+              "\nส่วนที่จ่ายเกินมัดจำ ระบบจะคืนลูกค้าอัตโนมัติ",
+            confirmText: "บันทึก",
+            tone: "danger",
+          });
+          if (!ok) return;
+          btnBusy(btn, true, "กำลังบันทึก");
+          try {
+            await apiPost(`/api/bookings/${b.id}/no-show`, {});
+            toast("บันทึกแล้วว่าลูกค้าไม่มาตามนัด");
+            renderBookings();
+          } catch (err) {
+            toast(err.message, "error", 5000);
+            btnBusy(btn, false);
+          }
+        })
+      );
+
       document.querySelectorAll("[data-set]").forEach((btn) =>
         btn.addEventListener("click", async () => {
           const label = btn.textContent.trim();
@@ -905,9 +963,12 @@
             const paid = b ? Number(b.paid_amount) : 0;
             message = "ลูกค้าจะได้รับแจ้งเตือนทันที และช่องเวลานี้จะกลับไปเปิดให้คนอื่นจอง";
             if (paid > 0) {
-              message += `\n\nร้านเป็นฝ่ายยกเลิก จึงต้องคืนเงินลูกค้า ฿${baht(paid)} เต็มจำนวน` +
-                         "\n(ไม่หักค่ามัดจำ เพราะลูกค้าไม่ได้เป็นฝ่ายยกเลิก)";
+              message += `\n\nร้านเป็นฝ่ายยกเลิก ระบบจะคืนเงิน ฿${baht(paid)} ให้ลูกค้าเต็มจำนวนอัตโนมัติ` +
+                         "\n(ถ้ามีส่วนที่รับเป็นเงินสด ร้านต้องคืนเองที่หน้าร้าน)";
             }
+          } else if (btn.dataset.status === "completed") {
+            message = "ลูกค้าจะมีเวลา 24 ชั่วโมงกดยืนยันหรือแจ้งปัญหา" +
+                      "\nถ้าไม่มีปัญหา เงินที่พักไว้จะเข้ากระเป๋าร้านเองเมื่อครบเวลา";
           } else if (btn.dataset.status === "confirmed" && b && !b.holds_slot) {
             // ยืนยันคิวที่ยังไม่จ่าย = ร้านรับปากกันเวลาให้เอง ต้องรู้ตัวว่ากำลังทำแบบนั้น
             message = "คิวนี้ยังไม่ได้ชำระเงิน · การยืนยันจะกันช่วงเวลานี้ไว้ให้ลูกค้ารายนี้" +
@@ -1226,6 +1287,158 @@
     document.getElementById("wiClose").addEventListener("click", closeWi);
     wiModal.addEventListener("click", (e) => { if (e.target === wiModal) closeWi(); });
 
+    // ================= การเงิน (ระบบพักเงิน) =================
+    // ตัวเลขทุกตัวมาจาก GET /api/shops/{id}/wallet ซึ่งคำนวณจากตาราง payments
+    // หน้านี้ไม่คำนวณเงินเอง จะได้ไม่มีทางแสดงไม่ตรงกับหลังบ้าน
+    const BANKS = ["กสิกรไทย", "ไทยพาณิชย์", "กรุงเทพ", "กรุงไทย", "กรุงศรีอยุธยา", "ทหารไทยธนชาต", "ออมสิน"];
+    const WAIT_TEXT = {
+      not_done: "รอให้บริการ",
+      waiting_customer: "รอลูกค้ายืนยัน",
+      disputed: "ลูกค้าแจ้งปัญหา",
+    };
+
+    async function renderWallet() {
+      panel.innerHTML = loadingHTML();
+      let w;
+      try {
+        w = await apiGet(`/api/shops/${shop.id}/wallet`);
+      } catch (err) {
+        panel.innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`;
+        return;
+      }
+      const pct = Math.round(Number(w.fee_rate) * 100);
+      const hasBank = !!w.bank_account_no_masked;
+
+      panel.innerHTML = `
+        <div class="alert alert-info">
+          เงินที่ลูกค้าจ่ายออนไลน์จะพักไว้ที่ระบบก่อน ร้านได้รับเมื่อลูกค้ายืนยันว่าได้รับบริการ
+          หรือครบ 24 ชั่วโมงหลังร้านกด "ให้บริการเสร็จ" โดยไม่มีการแจ้งปัญหา
+          · ตอนนี้เป็นระบบจำลอง ยังไม่ได้โอนเงินจริง
+        </div>
+
+        <div class="wallet-stats mt-5">
+          <div class="wallet-stat card"><div class="text-xs text-muted">พักไว้ที่ระบบ</div>
+            <div class="h2 num">฿${baht(w.held)}</div></div>
+          <div class="wallet-stat card"><div class="text-xs text-muted">พร้อมโอน (หลังหัก ${pct}%)</div>
+            <div class="h2 num" style="color:var(--success)">฿${baht(w.available_net)}</div></div>
+          <div class="wallet-stat card"><div class="text-xs text-muted">โอนแล้วทั้งหมด</div>
+            <div class="h2 num">฿${baht(w.paid_out_total)}</div></div>
+        </div>
+        <p class="hint">เงินสดที่รับเองหน้าร้าน ฿${baht(w.cash_total)} ไม่ผ่านระบบ จึงไม่ถูกหักค่าธรรมเนียม</p>
+
+        <section class="card card-pad mt-6">
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h3 class="h3">โอนเข้าบัญชีร้าน</h3>
+              <p class="text-sm text-muted" style="margin:4px 0 0">
+                ${hasBank
+                  ? `${esc(w.bank_name)} ${esc(w.bank_account_no_masked)} · ${esc(w.bank_account_name)}`
+                  : "ยังไม่ได้ตั้งบัญชีรับเงิน"}
+              </p>
+            </div>
+            <button id="payoutBtn" class="btn btn-primary"
+                    ${!hasBank || Number(w.available_gross) <= 0 ? "disabled" : ""}>
+              โอน ฿${baht(w.available_net)}
+            </button>
+          </div>
+          ${Number(w.available_gross) > 0 ? `
+            <p class="hint">ยอดก่อนหัก ฿${baht(w.available_gross)} · ค่าธรรมเนียมเว็บ ${pct}% ฿${baht(w.available_fee)}</p>` : ""}
+
+          <details class="mt-4" ${hasBank ? "" : "open"}>
+            <summary class="text-sm font-medium" style="cursor:pointer">${hasBank ? "เปลี่ยนบัญชีรับเงิน" : "ตั้งบัญชีรับเงิน"}</summary>
+            <form id="bankForm" class="mt-3 grid sm:grid-cols-3 gap-3">
+              <div>
+                <label class="label" for="bkName">ธนาคาร</label>
+                <select id="bkName" class="select" required>
+                  ${BANKS.map((x) => `<option ${x === w.bank_name ? "selected" : ""}>${x}</option>`).join("")}
+                </select>
+              </div>
+              <div>
+                <label class="label" for="bkNo">เลขบัญชี</label>
+                <input id="bkNo" class="input num" inputmode="numeric" pattern="[0-9]{10,15}"
+                       required placeholder="ตัวเลขล้วน 10-15 หลัก" />
+              </div>
+              <div>
+                <label class="label" for="bkOwner">ชื่อบัญชี</label>
+                <input id="bkOwner" class="input" required minlength="2" maxlength="150"
+                       value="${esc(w.bank_account_name || "")}" />
+              </div>
+              <div><button id="bkSave" class="btn btn-outline">บันทึกบัญชี</button></div>
+            </form>
+          </details>
+        </section>
+
+        <section class="mt-6">
+          <h3 class="h3">เงินที่ยังพักอยู่</h3>
+          ${w.upcoming.length ? `
+            <div class="card mt-3 overflow-x-auto"><table class="table">
+              <thead><tr><th>รหัสการจอง</th><th>ยอด</th><th>สถานะ</th><th>เงินเข้าร้าน</th></tr></thead>
+              <tbody>${w.upcoming.map((u) => `
+                <tr>
+                  <td class="num">${esc(u.booking_code)}</td>
+                  <td class="num">฿${baht(u.amount)}</td>
+                  <td>${WAIT_TEXT[u.state] || esc(u.state)}</td>
+                  <td class="text-sm">${u.release_at
+                    ? new Date(u.release_at).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })
+                    : "-"}</td>
+                </tr>`).join("")}</tbody>
+            </table></div>` : `<p class="text-sm text-muted mt-2">ไม่มีเงินพักอยู่</p>`}
+        </section>
+
+        <section class="mt-6">
+          <h3 class="h3">ประวัติการโอน</h3>
+          ${w.payouts.length ? `
+            <div class="card mt-3 overflow-x-auto"><table class="table">
+              <thead><tr><th>วันที่</th><th>ยอดก่อนหัก</th><th>ค่าธรรมเนียม</th><th>ได้รับ</th><th>บัญชี</th></tr></thead>
+              <tbody>${w.payouts.map((p) => `
+                <tr>
+                  <td class="text-sm">${new Date(p.created_at).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}</td>
+                  <td class="num">฿${baht(p.gross)}</td>
+                  <td class="num">฿${baht(p.fee)}</td>
+                  <td class="num font-medium">฿${baht(p.net)}</td>
+                  <td class="text-sm">${esc(p.account_label)}<div class="text-xs text-muted num">${esc(p.reference)}</div></td>
+                </tr>`).join("")}</tbody>
+            </table></div>` : `<p class="text-sm text-muted mt-2">ยังไม่เคยโอน</p>`}
+        </section>`;
+
+      document.getElementById("bankForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("bkSave");
+        btnBusy(btn, true, "กำลังบันทึก");
+        try {
+          const r = await apiPut(`/api/shops/${shop.id}/bank`, {
+            bank_name: document.getElementById("bkName").value,
+            bank_account_no: document.getElementById("bkNo").value.trim(),
+            bank_account_name: document.getElementById("bkOwner").value.trim(),
+          });
+          toast(r.message);
+          renderWallet();
+        } catch (err) {
+          toast(err.message, "error", 5000);
+          btnBusy(btn, false);
+        }
+      });
+
+      const payBtn = document.getElementById("payoutBtn");
+      payBtn.addEventListener("click", async () => {
+        const ok = await confirmDialog({
+          title: `โอน ฿${baht(w.available_net)} เข้าบัญชีร้าน`,
+          message: `${w.bank_name} ${w.bank_account_no_masked}\nหักค่าธรรมเนียมเว็บ ฿${baht(w.available_fee)} แล้ว`,
+          confirmText: "โอนเงิน",
+        });
+        if (!ok) return;
+        btnBusy(payBtn, true, "กำลังโอน");
+        try {
+          const p = await apiPost(`/api/shops/${shop.id}/payouts`, {});
+          toast(`โอน ฿${baht(p.net)} เรียบร้อย · ${p.reference}`, "success", 5000);
+          renderWallet();
+        } catch (err) {
+          toast(err.message, "error", 5000);
+          btnBusy(payBtn, false);
+        }
+      });
+    }
+
     async function openWalkin() {
       document.getElementById("wiForm").reset();
       hideAlert(wiAlert);
@@ -1463,7 +1676,10 @@
                             ? `<span class="staff-avatar has-photo"><img src="${esc(fileUrl(st.photo_url))}" alt="${esc(st.name)}" /></span>`
                             : `<span class="staff-avatar">${esc(st.name.trim().charAt(0))}</span>`}
                           <div>
-                            <div class="font-medium">${esc(st.name)}</div>
+                            <div class="font-medium">
+                              <a href="staff.html?id=${st.id}" target="_blank" rel="noopener">${esc(st.name)}</a>
+                              ${st.has_account ? '<span class="badge badge-confirmed" title="ช่างมีบัญชีของตัวเอง">มีบัญชี</span>' : ""}
+                            </div>
                             ${st.bio ? `<div class="text-xs text-muted mt-0.5">${esc(st.bio)}</div>` : ""}
                           </div>
                         </div>
@@ -1577,6 +1793,8 @@
         document.getElementById("stfName").value = st.name;
         document.getElementById("stfPos").value = st.position || "";
         document.getElementById("stfBio").value = st.bio || "";
+        document.getElementById("stfSpec").value = st.specialties || "";
+        document.getElementById("stfExp").value = st.experience_years ?? "";
         document.getElementById("stfStart").value = st.work_start ? shortTime(st.work_start) : "";
         document.getElementById("stfEnd").value = st.work_end ? shortTime(st.work_end) : "";
       } else {
@@ -1584,8 +1802,67 @@
         document.getElementById("stfEnd").value = "";
       }
       renderDayPicker(st && st.work_days ? st.work_days.split(",").map(Number) : []);
+
+      // บัญชีช่างมีความหมายเฉพาะทรัพยากรที่เป็น "คน" คอร์ทหรือห้องไม่มีบัญชี
+      const acct = document.getElementById("stfAcct");
+      acct.hidden = !(st && isPerson());
+      if (!acct.hidden) loadStaffAccount(st.id);
       openModal(stfModal);
     }
+
+    async function loadStaffAccount(staffId) {
+      const now = document.getElementById("stfAcctNow");
+      const unlink = document.getElementById("stfUnlink");
+      now.textContent = "กำลังโหลด";
+      try {
+        const a = await apiGet(`/api/staff/${staffId}/account`);
+        now.textContent = a.username
+          ? `ผูกกับ @${a.username} (${a.full_name}) อยู่`
+          : "ยังไม่ได้ผูกบัญชี ร้านเป็นคนดูแลโปรไฟล์ให้";
+        unlink.hidden = !a.username;
+      } catch (err) {
+        now.textContent = err.message;
+      }
+    }
+
+    document.getElementById("stfLink").addEventListener("click", async (e) => {
+      // เก็บปุ่มไว้ก่อน — หลัง await แล้ว e.currentTarget จะกลายเป็น null
+      const btn = e.currentTarget;
+      const id = document.getElementById("stfId").value;
+      const login = document.getElementById("stfLogin").value.trim();
+      if (!id || !login) return showAlert(stfAlert, "กรอกชื่อผู้ใช้หรืออีเมลของช่างก่อน");
+      btnBusy(btn, true, "กำลังผูก");
+      try {
+        const a = await apiPut(`/api/staff/${id}/account`, { login });
+        toast(`ผูกกับ @${a.username} แล้ว · ช่างจะได้รับแจ้งเตือน`);
+        document.getElementById("stfLogin").value = "";
+        loadStaffAccount(id);
+        renderStaff();
+      } catch (err) {
+        showAlert(stfAlert, err.message);
+      } finally {
+        btnBusy(btn, false);
+      }
+    });
+
+    document.getElementById("stfUnlink").addEventListener("click", async (e) => {
+      const id = document.getElementById("stfId").value;
+      const ok = await confirmDialog({
+        title: "ยกเลิกการผูกบัญชี",
+        message: "ช่างจะแก้โปรไฟล์และดูคิวของร้านนี้จากบัญชีตัวเองไม่ได้อีก โปรไฟล์และรีวิวยังอยู่ครบ",
+        confirmText: "ยกเลิกการผูก",
+        tone: "danger",
+      });
+      if (!ok) return;
+      try {
+        await apiDelete(`/api/staff/${id}/account`);
+        toast("ยกเลิกการผูกบัญชีแล้ว");
+        loadStaffAccount(id);
+        renderStaff();
+      } catch (err) {
+        showAlert(stfAlert, err.message);
+      }
+    });
     const closeStf = () => closeModalEl(stfModal);
     document.getElementById("stfClose").addEventListener("click", closeStf);
     stfModal.addEventListener("click", (e) => { if (e.target === stfModal) closeStf(); });
@@ -1602,6 +1879,10 @@
       const bio = document.getElementById("stfBio").value.trim();
       if (pos) body.position = pos;
       if (bio) body.bio = bio;
+      const spec = document.getElementById("stfSpec").value.trim();
+      const exp = document.getElementById("stfExp").value;
+      if (spec || id) body.specialties = spec || null;
+      if (exp !== "" || id) body.experience_years = exp === "" ? null : Number(exp);
 
       // ตารางเวลา — ส่ง null เพื่อล้างค่าเดิม (ไม่ส่งเลยแปลว่า "ไม่แก้")
       const days = [...document.querySelectorAll("#stfDays [data-day].is-on")]

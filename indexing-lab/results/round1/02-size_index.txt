@@ -1,0 +1,40 @@
+
+===== ขนาดตารางเทียบกับ index =====
+  table_name   | table_size | index_size | total_size 
+---------------+------------+------------+------------
+ payments      | 135 MB     | 61 MB      | 196 MB
+ notifications | 115 MB     | 54 MB      | 170 MB
+ bookings      | 112 MB     | 99 MB      | 210 MB
+ reviews       | 18 MB      | 9592 kB    | 28 MB
+(4 rows)
+
+
+===== ขนาดของแต่ละ index (สังเกต partial index ตัวที่ขึ้นต้น ix_payments_held / ix_notif_unread / ix_booking_held_slot) =====
+  table_name   |        index_name        |  size   
+---------------+--------------------------+---------
+ bookings      | ix_bookings_user_date    | 30 MB
+ bookings      | ix_bookings_shop_date    | 29 MB
+ bookings      | bookings_pkey            | 21 MB
+ bookings      | ix_bookings_booking_date | 7144 kB
+ bookings      | ix_bookings_staff_id     | 6952 kB
+ bookings      | ix_booking_held_slot     | 4144 kB
+ notifications | ix_notif_user_created    | 30 MB
+ notifications | notifications_pkey       | 21 MB
+ notifications | ix_notif_unread          | 3016 kB
+ payments      | payments_pkey            | 30 MB
+ payments      | ix_payments_booking_id   | 28 MB
+ payments      | ix_payments_held         | 2088 kB
+ reviews       | ix_reviews_shop_created  | 4880 kB
+ reviews       | reviews_pkey             | 3504 kB
+ reviews       | ix_reviews_staff_id      | 1208 kB
+(15 rows)
+
+
+===== partial index เก็บกี่แถว เทียบกับทั้งตาราง =====
+        what         | in_index | whole_table 
+---------------------+----------+-------------
+ แจ้งเตือนที่ยังไม่อ่าน     |   149742 |     1000000
+ คิวที่ยังกันเวลาอยู่       |   104918 |     1000000
+ payments ที่ยังพักเงินอยู่ |    94438 |     1411749
+(3 rows)
+

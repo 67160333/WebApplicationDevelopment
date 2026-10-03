@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609261200" />
+  <link rel="stylesheet" href="css/app.css?v=202610031200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -30,6 +30,13 @@
     <p class="text-sm text-muted mt-1.5">ค้นหา แก้ไขสิทธิ์ ระงับการใช้งาน และลบบัญชีผู้ใช้</p>
 
     <div id="alert" class="alert mt-5" style="display:none"></div>
+
+    <!-- เรื่องแจ้งปัญหาจากระบบพักเงิน — อยู่บนสุดเพราะมีเงินลูกค้าค้างรออยู่ -->
+    <section id="disputeBox" class="mt-6" hidden>
+      <h2 class="h2">เรื่องแจ้งปัญหารอตัดสิน</h2>
+      <p class="hint">เงินของคิวเหล่านี้ถูกพักไว้ที่ระบบ จนกว่าจะตัดสินว่าให้ร้านหรือคืนลูกค้า</p>
+      <div id="disputes" class="card mt-3 overflow-x-auto"></div>
+    </section>
 
     <!-- สรุปจำนวนผู้ใช้ตามบทบาท -->
     <div id="stats" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6"></div>
@@ -103,8 +110,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202609261200"></script>
-  <script src="js/ui.js?v=202609261200"></script>
+  <script src="js/api.js?v=202610031200"></script>
+  <script src="js/ui.js?v=202610031200"></script>
   <script>
     renderNavbar("admin");
     renderFooter();
@@ -326,6 +333,65 @@
       load(1);
     });
 
+    // ---------- เรื่องแจ้งปัญหา ----------
+    async function loadDisputes() {
+      const box = document.getElementById("disputeBox");
+      let rows = [];
+      try {
+        rows = await apiGet("/api/admin/disputes");
+      } catch {
+        return;   // โหลดไม่ได้ก็ซ่อนไว้ ไม่บล็อกส่วนจัดการผู้ใช้ข้างล่าง
+      }
+      box.hidden = !rows.length;
+      if (!rows.length) return;
+
+      document.getElementById("disputes").innerHTML = `
+        <table class="table">
+          <thead><tr><th>คิว</th><th>ร้าน / ลูกค้า</th><th>ปัญหาที่แจ้ง</th><th>เงินที่พัก</th><th>ตัดสิน</th></tr></thead>
+          <tbody>${rows.map((d) => `
+            <tr>
+              <td class="num">${esc(d.booking_code)}
+                <div class="text-xs text-muted">${thaiDate(d.booking_date)} · ${esc(d.service_name)}</div></td>
+              <td>${esc(d.shop_name)}<div class="text-xs text-muted">${esc(d.customer_name)}</div></td>
+              <td class="text-sm" style="max-width:320px">${esc(d.dispute_note || "-")}</td>
+              <td class="num">฿${baht(d.held_amount)}</td>
+              <td>
+                <div class="flex gap-1.5 flex-wrap">
+                  <button data-resolve="${d.booking_id}" data-decision="release" class="btn btn-outline btn-sm">ให้ร้าน</button>
+                  <button data-resolve="${d.booking_id}" data-decision="refund" class="btn btn-danger btn-sm">คืนลูกค้า</button>
+                </div>
+              </td>
+            </tr>`).join("")}</tbody>
+        </table>`;
+
+      document.querySelectorAll("[data-resolve]").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const refund = btn.dataset.decision === "refund";
+          const reason = await promptDialog({
+            title: refund ? "คืนเงินให้ลูกค้า" : "ปล่อยเงินให้ร้าน",
+            message: "เหตุผลนี้จะถูกส่งให้ทั้งร้านและลูกค้า",
+            label: "เหตุผล (ไม่บังคับ)",
+            maxlength: 300,
+            confirmText: refund ? "คืนเงิน" : "ปล่อยเงิน",
+          });
+          if (reason === null) return;
+          btnBusy(btn, true, "กำลังบันทึก");
+          try {
+            await apiPost(`/api/bookings/${btn.dataset.resolve}/resolve-dispute`, {
+              decision: btn.dataset.decision,
+              reason: reason || null,
+            });
+            toast("ตัดสินเรียบร้อย แจ้งทั้งสองฝ่ายแล้ว");
+            loadDisputes();
+          } catch (err) {
+            btnBusy(btn, false);
+            toast(err.message, "error", 5000);
+          }
+        })
+      );
+    }
+
+    loadDisputes();
     loadStats();
     load(1);
   </script>

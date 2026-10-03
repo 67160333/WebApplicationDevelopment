@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202609261200" />
+  <link rel="stylesheet" href="css/app.css?v=202610031200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -35,6 +35,14 @@
       <h2 class="h2">ข้อมูลส่วนตัว</h2>
       <p class="hint">ข้อมูลนี้จะแสดงกับร้านที่คุณจองบริการ</p>
       <div id="profileBox" class="mt-5" style="min-height:339px"></div>
+    </section>
+
+    <!-- โปรไฟล์ช่าง — โผล่เฉพาะบัญชีที่ร้านผูกเป็นช่างไว้ (ดู app/routers/staff.py) -->
+    <section id="staffSection" class="mt-5" hidden>
+      <h2 class="h2">โปรไฟล์ผู้ให้บริการของฉัน</h2>
+      <p class="hint">ร้านผูกบัญชีนี้ไว้กับโปรไฟล์ช่างของร้าน แก้ประวัติ ความถนัด และรูปของตัวเองได้ที่นี่
+        ส่วนชื่อ ตำแหน่ง และเวลาทำงาน ร้านเป็นคนกำหนด</p>
+      <div id="staffBox" class="space-y-4 mt-4"></div>
     </section>
 
     <!-- ความปลอดภัย -->
@@ -74,8 +82,8 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202609261200"></script>
-  <script src="js/ui.js?v=202609261200"></script>
+  <script src="js/api.js?v=202610031200"></script>
+  <script src="js/ui.js?v=202610031200"></script>
   <script>
     renderNavbar();
     renderFooter();
@@ -118,6 +126,12 @@
               <label class="label" for="pEmail">อีเมล</label>
               <input id="pEmail" type="email" class="input" value="${esc(me.email)}" required />
             </div>
+            <!-- โผล่เฉพาะตอนแก้อีเมล — อีเมลคือทางกู้บัญชี จึงต้องยืนยันด้วยรหัสผ่าน -->
+            <div id="pPwWrap" hidden>
+              <label class="label" for="pCurPw">รหัสผ่านปัจจุบัน</label>
+              <input id="pCurPw" type="password" class="input" autocomplete="current-password" />
+              <p class="hint">เปลี่ยนอีเมลต้องยืนยันด้วยรหัสผ่าน เพราะอีเมลใช้กู้บัญชีตอนลืมรหัส</p>
+            </div>
             <div>
               <label class="label" for="pPhone">เบอร์โทรศัพท์</label>
               <input id="pPhone" class="input" value="${esc(me.phone || "")}" pattern="[0-9]{9,15}" />
@@ -134,6 +148,12 @@
             <button id="saveBtn" type="submit" class="btn btn-primary">บันทึกการเปลี่ยนแปลง</button>
           </form>`;
 
+        const emailInput = document.getElementById("pEmail");
+        const pwWrap = document.getElementById("pPwWrap");
+        emailInput.addEventListener("input", () => {
+          pwWrap.hidden = emailInput.value.trim() === me.email;
+        });
+
         // ---------- บันทึกด้วย PUT /users/{id} ----------
         document.getElementById("profileForm").addEventListener("submit", async (e) => {
           e.preventDefault();
@@ -149,10 +169,14 @@
           if (phone) body.phone = phone;
           const birth = document.getElementById("pBirth").value;
           if (birth) body.birth_date = birth;
+          if (body.email !== me.email) body.current_password = document.getElementById("pCurPw").value;
 
           try {
             const updated = await apiPut(`/api/users/${me.id}`, body);
             Auth.save(Auth.token, updated);
+            me.email = updated.email;
+            pwWrap.hidden = true;
+            document.getElementById("pCurPw").value = "";
             renderNavbar();
             toast("บันทึกข้อมูลเรียบร้อยแล้ว");
           } catch (err) {
@@ -197,7 +221,168 @@
       location.href = "index.html";
     });
 
+    // ---------- โปรไฟล์ช่างของฉัน ----------
+    async function loadMyStaff() {
+      let list = [];
+      try {
+        list = await apiGet("/api/me/staff");
+      } catch {
+        return;   // โหลดไม่ได้ก็ไม่ต้องโชว์ส่วนนี้ ส่วนอื่นของหน้ายังใช้ได้
+      }
+      const sec = document.getElementById("staffSection");
+      sec.hidden = !list.length;
+      if (!list.length) return;
+
+      const box = document.getElementById("staffBox");
+      box.innerHTML = list.map((m) => `
+        <div class="card card-pad" data-staff="${m.id}">
+          <div class="flex items-center gap-3 flex-wrap">
+            ${m.photo_url
+              ? `<span class="av-xl has-photo"><img src="${esc(fileUrl(m.photo_url))}" alt="${esc(m.name)}" /></span>`
+              : `<span class="av-xl" style="background:var(--navy-700)">${esc(m.name.trim().charAt(0))}</span>`}
+            <div style="flex:1;min-width:0">
+              <div class="font-semibold">${esc(m.name)}</div>
+              <div class="text-sm text-muted">${esc(m.position || "ผู้ให้บริการ")} · ${esc(m.shop_name)}</div>
+            </div>
+            <a href="staff.html?id=${m.id}" class="btn btn-outline btn-sm">ดูหน้าโปรไฟล์</a>
+          </div>
+
+          <div class="flex gap-2 mt-4 flex-wrap">
+            <button type="button" data-photo="${m.id}" class="btn btn-outline btn-sm">${m.photo_url ? "เปลี่ยนรูป" : "ใส่รูป"}</button>
+            ${m.photo_url ? `<button type="button" data-nophoto="${m.id}" class="btn btn-ghost btn-sm">ลบรูป</button>` : ""}
+          </div>
+
+          <form data-form="${m.id}" class="space-y-3 mt-4">
+            <div>
+              <label class="label" for="sb${m.id}">ประวัติโดยย่อ</label>
+              <textarea id="sb${m.id}" class="textarea" rows="3" maxlength="500"
+                        placeholder="เล่าประสบการณ์หรือสิ่งที่ถนัด ลูกค้าจะเลือกได้ง่ายขึ้น">${esc(m.bio || "")}</textarea>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+              <div style="grid-column:span 2">
+                <label class="label" for="ss${m.id}">ความถนัด</label>
+                <input id="ss${m.id}" class="input" maxlength="200" value="${esc(m.specialties || "")}"
+                       placeholder="คั่นด้วยจุลภาค เช่น นวดไทย,กดจุด" />
+              </div>
+              <div>
+                <label class="label" for="se${m.id}">ประสบการณ์ (ปี)</label>
+                <input id="se${m.id}" type="number" class="input num" min="0" max="60" value="${m.experience_years ?? ""}" />
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">บันทึกโปรไฟล์</button>
+          </form>
+
+          <div class="mt-5 pt-4" style="border-top:1px solid var(--border)">
+            <div class="flex items-center justify-between gap-2">
+              <h3 class="h3">คิวของฉันที่กำลังจะมาถึง</h3>
+              <button type="button" data-leave="${m.id}" class="btn btn-ghost btn-sm">ออกจากร้านนี้</button>
+            </div>
+            <div data-queue="${m.id}" class="mt-2">${loadingHTML()}</div>
+          </div>
+        </div>`).join("");
+
+      list.forEach((m) => loadQueue(m.id));
+
+      box.querySelectorAll("[data-form]").forEach((form) =>
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const id = form.dataset.form;
+          const btn = form.querySelector('button[type="submit"]');
+          const exp = document.getElementById(`se${id}`).value;
+          btnBusy(btn, true, "กำลังบันทึก");
+          try {
+            await apiPut(`/api/me/staff/${id}`, {
+              bio: document.getElementById(`sb${id}`).value,
+              specialties: document.getElementById(`ss${id}`).value,
+              experience_years: exp === "" ? null : Number(exp),
+            });
+            toast("บันทึกโปรไฟล์แล้ว");
+          } catch (err) {
+            toast(err.message, "error", 5000);
+          } finally {
+            btnBusy(btn, false);
+          }
+        })
+      );
+
+      // เลือกรูปแล้วอัปทันที ไม่มีหน้าจอกลาง — ขั้นตอนยิ่งน้อยยิ่งมีคนทำ
+      box.querySelectorAll("[data-photo]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          const input = document.createElement("input");
+          input.type = "file";
+          input.accept = "image/jpeg,image/png,image/webp,image/gif";
+          input.addEventListener("change", async () => {
+            const file = input.files[0];
+            if (!file) return;
+            btnBusy(btn, true, "กำลังอัปโหลด");
+            try {
+              await apiUpload(`/api/staff/${btn.dataset.photo}/photo`, file);
+              toast("อัปรูปแล้ว");
+              loadMyStaff();
+            } catch (err) {
+              toast(err.message, "error", 5000);
+              btnBusy(btn, false);
+            }
+          });
+          input.click();
+        })
+      );
+      box.querySelectorAll("[data-nophoto]").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          try {
+            await apiDelete(`/api/staff/${btn.dataset.nophoto}/photo`);
+            toast("ลบรูปแล้ว");
+            loadMyStaff();
+          } catch (err) {
+            toast(err.message, "error");
+          }
+        })
+      );
+      box.querySelectorAll("[data-leave]").forEach((btn) =>
+        btn.addEventListener("click", async () => {
+          const ok = await confirmDialog({
+            title: "ออกจากร้านนี้ใช่หรือไม่",
+            message: "บัญชีของคุณจะไม่ผูกกับโปรไฟล์ช่างของร้านนี้อีก โปรไฟล์และรีวิวยังอยู่กับร้าน",
+            confirmText: "ออกจากร้าน",
+            tone: "danger",
+          });
+          if (!ok) return;
+          try {
+            await apiDelete(`/api/staff/${btn.dataset.leave}/account`);
+            toast("ออกจากร้านแล้ว");
+            loadMyStaff();
+          } catch (err) {
+            toast(err.message, "error");
+          }
+        })
+      );
+    }
+
+    async function loadQueue(staffId) {
+      const box = document.querySelector(`[data-queue="${staffId}"]`);
+      try {
+        const rows = await apiGet(`/api/me/staff/${staffId}/queue`);
+        box.innerHTML = rows.length
+          ? rows.map((q) => `
+              <div class="queue-item">
+                <div class="flex justify-between gap-2 flex-wrap">
+                  <span class="text-sm font-medium">${thaiDate(q.booking_date)}
+                    <span class="num">${shortTime(q.booking_time)}–${shortTime(q.end_time)} น.</span></span>
+                  ${statusBadge(q.status)}
+                </div>
+                <div class="text-sm text-muted">${esc(q.service_name)} · ${esc(q.customer_name)}</div>
+                ${q.requirements ? `<div class="text-xs mt-1">ต้องการ: ${esc(q.requirements)}</div>` : ""}
+                ${q.health_note ? `<div class="text-xs mt-0.5" style="color:var(--warn)">ข้อควรระวัง: ${esc(q.health_note)}</div>` : ""}
+                ${q.note ? `<div class="text-xs text-muted mt-0.5">หมายเหตุ: ${esc(q.note)}</div>` : ""}
+              </div>`).join("")
+          : `<p class="text-sm text-muted">ยังไม่มีคิวที่ลูกค้าเลือกคุณ</p>`;
+      } catch (err) {
+        box.innerHTML = `<p class="text-sm" style="color:var(--danger)">${esc(err.message)}</p>`;
+      }
+    }
+
     loadProfile();
+    loadMyStaff();
   </script>
 </body>
 </html>

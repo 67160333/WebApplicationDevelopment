@@ -1,0 +1,19 @@
+  table_name   |        index_name        | times_used |  size   
+---------------+--------------------------+------------+---------
+ notifications | notifications_pkey       |          0 | 21 MB
+ payments      | payments_pkey            |          0 | 30 MB
+ reviews       | reviews_pkey             |          0 | 3504 kB
+ reviews       | ix_reviews_staff_id      |          1 | 1208 kB
+ reviews       | ix_reviews_shop_created  |          1 | 4880 kB
+ bookings      | ix_bookings_user_id      |          2 | 11 MB
+ bookings      | ix_bookings_booking_date |          2 | 8384 kB
+ bookings      | ix_bookings_staff_id     |          3 | 9480 kB
+ bookings      | ix_booking_held_slot     |          3 | 11 MB
+ notifications | ix_notif_unread          |          3 | 3016 kB
+ notifications | ix_notifications_user_id |          3 | 11 MB
+ bookings      | ix_bookings_shop_date    |          4 | 44 MB
+ payments      | ix_payments_booking_id   |          8 | 28 MB
+ payments      | ix_payments_held         |         12 | 2088 kB
+ bookings      | bookings_pkey            |         18 | 24 MB
+(15 rows)
+

@@ -1,7 +1,19 @@
-"""5) Staff Profiles — โปรไฟล์ช่างและรีวิวของช่างแต่ละคน
+"""5) Staff Profiles — โปรไฟล์ช่าง รีวิวของช่าง และบัญชีของตัวช่างเอง
 
 แยกออกมาจาก shops.py เพราะฝั่งลูกค้าจะ "เลือกช่างก่อน แล้วค่อยเลือกร้าน" ก็ได้
 เช่น เคยทำกับช่างมิ้นแล้วชอบ ก็อยากดูว่าช่างมิ้นว่างวันไหน คะแนนเท่าไร
+
+บัญชีพนักงาน
+------------------------------------------------------------------
+เจ้าของร้านผูกโปรไฟล์ช่างเข้ากับบัญชีผู้ใช้ของตัวช่าง (กรอกชื่อผู้ใช้หรืออีเมล)
+พอผูกแล้วช่างล็อกอินด้วยบัญชีตัวเองได้ และทำได้ 3 อย่าง
+    1. แก้ประวัติ ความถนัด และจำนวนปีประสบการณ์ของตัวเอง
+    2. เปลี่ยนรูปโปรไฟล์ของตัวเอง
+    3. ดูคิวที่ลูกค้าจองกับตัวเอง (ไม่เห็นเรื่องเงิน)
+ส่วนชื่อ ตำแหน่ง และเวลาทำงานยังเป็นเรื่องของร้าน ช่างแก้เองไม่ได้
+
+ไม่ได้เพิ่ม role ใหม่ — ใครจะเป็นช่างดูจาก staff.user_id ล้วน ๆ
+ลูกค้าคนหนึ่งจึงเป็นช่างที่ร้านหนึ่งไปพร้อมกับจองบริการร้านอื่นได้ตามปกติ
 """
 
 from datetime import datetime, timezone
@@ -20,10 +32,29 @@ from fastapi import (
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, undefer
 
+from datetime import date
+
+from sqlalchemy import or_
+
 from app.database import get_db
-from app.models import Booking, Review, Service, Shop, Staff, User
-from app.schemas import Page, ReviewOut, StaffAspects, StaffDetail, StaffOut, StaffService
-from app.security import require_roles
+from app.models import Booking, Category, Review, Service, Shop, Staff, User
+from app.routers.notifications import notify
+from app.schemas import (
+    Message,
+    MyStaffProfile,
+    Page,
+    ReviewOut,
+    ServiceOut,
+    StaffAccountOut,
+    StaffAspects,
+    StaffDetail,
+    StaffLink,
+    StaffOut,
+    StaffQueueItem,
+    StaffSelfUpdate,
+    StaffService,
+)
+from app.security import get_current_user
 from app.storage import UploadError, process_shop_image
 
 router = APIRouter(prefix="/api", tags=["5. Staff Profiles"])
@@ -34,6 +65,34 @@ def _get_staff_or_404(db: Session, staff_id: int) -> Staff:
     if member is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ไม่พบช่างคนนี้")
     return member
+
+
+def _staff_fields(member: Staff) -> dict:
+    """ค่าของทุกช่องใน StaffOut อ่านตรงจากแถวในฐานข้อมูล
+
+    ห้ามใช้ StaffOut.model_validate(member).model_dump() แทน
+    เพราะ model_dump ตัดช่องที่ตั้ง exclude=True ทิ้ง (photo_name, user_id)
+    พอเอาไปสร้าง StaffDetail ต่อ photo_url จะเป็น null เสมอ ทั้งที่ช่างมีรูป
+    — เคยเป็นบักจริง โปรไฟล์ช่างไม่เคยแสดงรูปเลยสักครั้ง
+    """
+    return {name: getattr(member, name) for name in StaffOut.model_fields}
+
+
+def _is_shop_owner(db: Session, member: Staff, user: User) -> bool:
+    shop = db.get(Shop, member.shop_id)
+    return user.role == "admin" or (shop is not None and shop.owner_id == user.id)
+
+
+def _ensure_shop_owner(db: Session, member: Staff, user: User) -> None:
+    if not _is_shop_owner(db, member, user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="คุณไม่ใช่เจ้าของร้านนี้")
+
+
+def _ensure_can_edit_profile(db: Session, member: Staff, user: User) -> None:
+    """แก้โปรไฟล์ได้สามคน: เจ้าของร้าน ผู้ดูแลระบบ และตัวช่างเองที่ผูกบัญชีไว้"""
+    if member.user_id == user.id:
+        return
+    _ensure_shop_owner(db, member, user)
 
 
 # ============================================================
@@ -52,13 +111,11 @@ def _get_staff_or_404(db: Session, staff_id: int) -> Staff:
 async def upload_staff_photo(
     staff_id: int = Path(..., ge=1),
     file: UploadFile = File(..., description="ไฟล์ภาพ"),
-    current_user: User = Depends(require_roles("owner", "admin")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     member = _get_staff_or_404(db, staff_id)
-    shop = db.get(Shop, member.shop_id)
-    if current_user.role != "admin" and (shop is None or shop.owner_id != current_user.id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="คุณไม่ใช่เจ้าของร้านนี้")
+    _ensure_can_edit_profile(db, member, current_user)
 
     raw = await file.read()
     try:
@@ -78,13 +135,11 @@ async def upload_staff_photo(
 @router.delete("/staff/{staff_id}/photo", response_model=StaffOut, summary="ลบรูปโปรไฟล์ช่าง")
 def delete_staff_photo(
     staff_id: int = Path(..., ge=1),
-    current_user: User = Depends(require_roles("owner", "admin")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     member = _get_staff_or_404(db, staff_id)
-    shop = db.get(Shop, member.shop_id)
-    if current_user.role != "admin" and (shop is None or shop.owner_id != current_user.id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="คุณไม่ใช่เจ้าของร้านนี้")
+    _ensure_can_edit_profile(db, member, current_user)
 
     member.photo_name = None
     member.photo = None
@@ -235,9 +290,28 @@ def get_staff(staff_id: int = Path(..., ge=1), db: Session = Depends(get_db)):
         days = (datetime.now(timezone.utc) - created).days
         months = max(days // 30, 0)
 
+    # บริการของร้านที่จองกับช่างคนนี้ได้ — ให้หน้าโปรไฟล์มีปุ่มจองตรงจากหน้านั้นเลย
+    services = []
+    label = "ช่าง"
+    if shop is not None:
+        services = [
+            ServiceOut.model_validate(x)
+            for x in db.scalars(
+                select(Service)
+                .where(Service.shop_id == shop.id, Service.is_active.is_(True))
+                .order_by(Service.price)
+            ).all()
+        ]
+        category = db.get(Category, shop.category_id) if shop.category_id else None
+        label = (category.resource_label if category else None) or "ช่าง"
+
     return StaffDetail(
-        **StaffOut.model_validate(member).model_dump(),
-        shop_name=shop.name if shop else "—",
+        **_staff_fields(member),
+        shop_name=shop.name if shop else "-",
+        shop_district=shop.district if shop else None,
+        shop_province=shop.province if shop else None,
+        resource_label=label,
+        services=services,
         jobs_done=jobs_done,
         top_services=top_services,
         aspects=aspects,
@@ -283,3 +357,195 @@ def list_staff_reviews(
         total=total,
         total_pages=(total + limit - 1) // limit,
     )
+
+
+# ============================================================
+# บัญชีพนักงาน — ฝั่งเจ้าของร้าน
+# ============================================================
+@router.get(
+    "/staff/{staff_id}/account",
+    response_model=StaffAccountOut,
+    summary="ดูว่าโปรไฟล์ช่างผูกกับบัญชีไหน (เจ้าของร้าน)",
+)
+def get_staff_account(
+    staff_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    member = _get_staff_or_404(db, staff_id)
+    _ensure_shop_owner(db, member, current_user)
+    user = db.get(User, member.user_id) if member.user_id else None
+    return StaffAccountOut(
+        staff_id=member.id,
+        username=user.username if user else None,
+        full_name=user.full_name if user else None,
+    )
+
+
+@router.put(
+    "/staff/{staff_id}/account",
+    response_model=StaffAccountOut,
+    summary="ผูกโปรไฟล์ช่างกับบัญชีผู้ใช้ของตัวช่าง (เจ้าของร้าน)",
+)
+def link_staff_account(
+    payload: StaffLink,
+    staff_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    member = _get_staff_or_404(db, staff_id)
+    _ensure_shop_owner(db, member, current_user)
+
+    login = payload.login.strip()
+    user = db.scalar(select(User).where(or_(User.username == login, User.email == login)))
+    # ข้อความเดียวกันทั้ง "ไม่มีบัญชีนี้" และ "บัญชีถูกระงับ" กันการไล่เดาว่าใครมีบัญชีบ้าง
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="ไม่พบบัญชีนี้ ให้ช่างสมัครสมาชิกก่อน แล้วส่งชื่อผู้ใช้มาให้ร้าน",
+        )
+    # ผู้ดูแลระบบห้ามเป็นช่าง — บัญชีที่มีสิทธิ์สูงสุดไม่ควรถูกผูกกับร้านใดร้านหนึ่ง
+    if user.role == "admin":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="ผูกกับบัญชีผู้ดูแลระบบไม่ได้")
+    # คนเดียวมีโปรไฟล์ช่างในร้านเดียวกันได้ใบเดียว ไม่งั้นคิวของตัวเองจะแยกเป็นสองชุด
+    dup = db.scalar(
+        select(Staff.id).where(
+            Staff.shop_id == member.shop_id, Staff.user_id == user.id, Staff.id != member.id
+        )
+    )
+    if dup is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="บัญชีนี้ผูกกับช่างอีกคนในร้านนี้อยู่แล้ว",
+        )
+
+    member.user_id = user.id
+    shop = db.get(Shop, member.shop_id)
+    notify(
+        db, user.id, "staff_linked",
+        f"ร้าน {shop.name if shop else ''} เพิ่มคุณเป็น{member.position or 'ผู้ให้บริการ'}",
+        "แก้โปรไฟล์และดูคิวของตัวเองได้ที่หน้าบัญชีของฉัน",
+        "profile.html",
+    )
+    db.commit()
+    return StaffAccountOut(staff_id=member.id, username=user.username, full_name=user.full_name)
+
+
+@router.delete(
+    "/staff/{staff_id}/account",
+    response_model=Message,
+    summary="ยกเลิกการผูกบัญชี (เจ้าของร้าน หรือตัวช่างเอง)",
+)
+def unlink_staff_account(
+    staff_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    member = _get_staff_or_404(db, staff_id)
+    # ช่างถอนตัวเองได้ — เช่นลาออกแล้วร้านลืมถอดออก ไม่ควรต้องรอร้าน
+    if member.user_id != current_user.id:
+        _ensure_shop_owner(db, member, current_user)
+    if member.user_id is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="โปรไฟล์นี้ยังไม่ได้ผูกบัญชี")
+    member.user_id = None
+    db.commit()
+    return Message(message="ยกเลิกการผูกบัญชีแล้ว")
+
+
+# ============================================================
+# บัญชีพนักงาน — ฝั่งตัวช่างเอง
+# ============================================================
+def _my_member(db: Session, staff_id: int, user: User) -> Staff:
+    member = _get_staff_or_404(db, staff_id)
+    if member.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="นี่ไม่ใช่โปรไฟล์ของคุณ")
+    return member
+
+
+@router.get("/me/staff", response_model=list[MyStaffProfile], summary="โปรไฟล์ช่างของฉัน")
+def my_staff_profiles(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    rows = db.scalars(select(Staff).where(Staff.user_id == current_user.id).order_by(Staff.id)).all()
+    out = []
+    for m in rows:
+        shop = db.get(Shop, m.shop_id)
+        out.append(MyStaffProfile(**_staff_fields(m), shop_name=shop.name if shop else "-"))
+    return out
+
+
+@router.put("/me/staff/{staff_id}", response_model=StaffOut, summary="แก้โปรไฟล์ช่างของฉัน")
+def update_my_staff_profile(
+    payload: StaffSelfUpdate,
+    staff_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    member = _my_member(db, staff_id, current_user)
+    data = payload.model_dump(exclude_unset=True)
+    for key, value in data.items():
+        # ส่งข้อความว่างมา = ต้องการลบช่องนั้นทิ้ง
+        if isinstance(value, str):
+            value = value.strip() or None
+        setattr(member, key, value)
+    db.commit()
+    db.refresh(member)
+    return member
+
+
+@router.get(
+    "/me/staff/{staff_id}/queue",
+    response_model=list[StaffQueueItem],
+    summary="คิวของฉันที่ยังมาไม่ถึง",
+)
+def my_staff_queue(
+    staff_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """คิวที่ลูกค้าเลือกช่างคนนี้ ตั้งแต่วันนี้เป็นต้นไป
+
+    ช่างต้องเห็นสิ่งที่ลูกค้าแจ้ง (ความต้องการ ข้อมูลสุขภาพ) เพื่อเตรียมงานได้ถูก
+    แต่ไม่ต้องเห็นเบอร์โทร นามสกุลเต็ม หรือยอดเงิน ซึ่งเป็นเรื่องของร้าน
+    """
+    member = _my_member(db, staff_id, current_user)
+    from app.routers.bookings import _is_demo_email, _short_name
+    from app.seed_extra import DEMO_OWNER_USERNAMES
+
+    rows = db.scalars(
+        select(Booking)
+        .where(
+            Booking.staff_id == member.id,
+            Booking.booking_date >= date.today(),
+            Booking.status.in_(["pending", "confirmed"]),
+        )
+        .order_by(Booking.booking_date, Booking.booking_time)
+        .limit(50)
+    ).all()
+
+    # ร้านตัวอย่างประกาศรหัสไว้ให้ทดลอง ใครก็ผูกบัญชีตัวเองเป็นช่างของร้านตัวอย่างได้
+    # จึงต้องซ่อนข้อมูลของลูกค้าจริงแบบเดียวกับหน้าจัดการร้าน
+    shop = db.get(Shop, member.shop_id)
+    owner = db.get(User, shop.owner_id) if shop else None
+    demo_shop = owner is not None and owner.username in DEMO_OWNER_USERNAMES
+
+    out = []
+    for b in rows:
+        customer = db.get(User, b.user_id)
+        hide = demo_shop and not _is_demo_email(customer.email if customer else None)
+        service = db.get(Service, b.service_id)
+        out.append(StaffQueueItem(
+            booking_id=b.id,
+            booking_code=b.booking_code,
+            booking_date=b.booking_date,
+            booking_time=b.booking_time,
+            end_time=b.end_time,
+            status=b.status,
+            service_name=service.name if service else "-",
+            customer_name=b.guest_name or _short_name(customer.full_name if customer else None),
+            requirements=None if hide else b.requirements,
+            health_note=None if hide else b.health_note,
+            note="ซ่อนข้อมูลลูกค้าจริงจากบัญชีทดลอง" if hide else b.note,
+        ))
+    return out

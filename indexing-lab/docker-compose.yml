@@ -1,0 +1,56 @@
+# Indexing Lab ของ Bookvice
+#
+# PostgreSQL 2 ตัว ข้อมูลเหมือนกันทุกแถว (คิว 1,000,000 รายการ) ต่างกันแค่ index
+#   bv_lab_index   : port 55432  มี index ชุดใหม่ที่ใช้ในโปรเจกต์จริง
+#   bv_lab_noindex : port 55433  มีแค่ Primary Key
+#
+# แยกจาก docker-compose.yml หลักของโปรเจกต์โดยตั้งใจ
+#   - ไม่ไปแตะฐานข้อมูลที่ใช้พัฒนาอยู่ (bookvice-db)
+#   - ใช้ port 55432/55433 จะได้ไม่ชนกับ 5432 ของโปรเจกต์หลัก
+#   - ลบทิ้งได้ทั้งชุดด้วย docker compose down -v โดยไม่กระทบอะไร
+#
+# ตั้งตามโครงของแล็บตัวอย่างจากอาจารย์ (indexing-lab_02) แต่เปลี่ยนจากตาราง
+# transactions สมมติ เป็นตารางและ query ที่ Bookvice ใช้จริง
+
+x-pg-common: &pg-common
+  image: postgres:16
+  environment:
+    POSTGRES_DB: appdb
+    POSTGRES_USER: student
+    POSTGRES_PASSWORD: student
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U student -d appdb"]
+    interval: 5s
+    timeout: 5s
+    retries: 60
+  shm_size: 256mb
+
+services:
+  bv_lab_index:
+    <<: *pg-common
+    container_name: bv_lab_index
+    ports:
+      - "55432:5432"
+    volumes:
+      - bv_lab_index_data:/var/lib/postgresql/data
+      - ./sql/init/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./sql/init/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./sql/init/03-create-index.sql:/docker-entrypoint-initdb.d/03-create-index.sql:ro
+      - ./sql/init/04-done.sql:/docker-entrypoint-initdb.d/04-done.sql:ro
+      - ./labs:/labs:ro
+
+  bv_lab_noindex:
+    <<: *pg-common
+    container_name: bv_lab_noindex
+    ports:
+      - "55433:5432"
+    volumes:
+      - bv_lab_noindex_data:/var/lib/postgresql/data
+      - ./sql/init/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./sql/init/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./sql/init/04-done.sql:/docker-entrypoint-initdb.d/04-done.sql:ro
+      - ./labs:/labs:ro
+
+volumes:
+  bv_lab_index_data:
+  bv_lab_noindex_data:

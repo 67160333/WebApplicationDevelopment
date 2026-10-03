@@ -1359,7 +1359,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 /* รูปแทนตัวช่าง — สามขนาด ใช้กฎฐานร่วมกันทั้งหมด
    ถ้าเพิ่มขนาดใหม่ต้องใส่ชื่อในบรรทัดนี้ด้วย ไม่งั้นจะได้กล่องสี่เหลี่ยมตัวอักษรไม่อยู่กลาง
    (เคยพลาดมาแล้วตอนเพิ่ม av-xl) */
-.av-lg, .av-sm, .av-xl {
+.av-lg, .av-sm, .av-xl, .av-2xl {
   position: relative;
   display: grid;
   place-items: center;
@@ -1372,15 +1372,16 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
 .av-lg { width: 46px; height: 46px; font-size: var(--fs-md); }
 .av-sm { width: 24px; height: 24px; font-size: var(--fs-2xs); }
 .av-xl { width: 60px; height: 60px; font-size: var(--fs-lg); }
+.av-2xl { width: 104px; height: 104px; font-size: 40px; }
 
 /* มีรูปจริง — ไม่ต้องมีพื้นไล่สีแล้ว
    overflow:hidden ทำให้รูปสี่เหลี่ยมถูกตัดเป็นวงกลมตามกรอบ
    object-fit:cover กันรูปที่ไม่ได้สัดส่วนถูกบีบจนหน้าเบี้ยว */
-.av-lg.has-photo, .av-sm.has-photo, .av-xl.has-photo {
+.av-lg.has-photo, .av-sm.has-photo, .av-xl.has-photo, .av-2xl.has-photo {
   background: var(--navy-50);
   overflow: hidden;
 }
-.av-lg.has-photo img, .av-sm.has-photo img, .av-xl.has-photo img {
+.av-lg.has-photo img, .av-sm.has-photo img, .av-xl.has-photo img, .av-2xl.has-photo img {
   width: 100%; height: 100%; object-fit: cover; display: block;
 }
 
@@ -2297,6 +2298,19 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .pay-unpaid { background: #fff4e5; color: #8a5300; }
 .pay-deposit_paid { background: var(--blue-50); color: var(--blue-700); }
 .pay-paid { background: #e6f6ec; color: #1a7340; }
+
+/* สถานะเงินในระบบพักเงิน — ใช้รูปทรงเดียวกับ .pay-state ข้างบน */
+.esc-state {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+.esc-held { background: #eef2f8; color: var(--navy-700); }
+.esc-disputed { background: #fdecea; color: #a12a20; }
+.esc-released { background: #e6f6ec; color: #1a7340; }
+.esc-refunded { background: #f1f3f6; color: var(--muted); }
 
 /* ============================================================
    จังหวะหน้าเว็บ — ปรับให้ดูเป็นงานที่ตั้งใจจัด
@@ -3803,3 +3817,53 @@ details:not([open]) > *:not(summary) { display: none !important; }
 .pledge-more > summary::-webkit-details-marker { display: none; }
 .pledge-more > summary:hover { color: var(--ink); border-color: var(--border-strong); }
 .pledge-more[open] > summary { color: var(--ink); }
+
+/* ============================================================
+   กระเป๋าเงินร้าน (แท็บการเงินในหน้าจัดการร้าน)
+   ============================================================ */
+.wallet-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--s-3);
+}
+.wallet-stat { padding: var(--s-4) var(--s-5); }
+.wallet-stat .h2 { margin-top: 4px; }
+
+/* ============================================================
+   หน้าโปรไฟล์ช่าง (staff.html) และส่วนช่างในหน้าบัญชีของฉัน
+   ============================================================ */
+.staff-hero {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--s-5);
+  align-items: center;
+}
+.staff-hero .who { min-width: 0; }
+.staff-hero .pos { color: var(--blue-600); font-size: var(--fs-sm); }
+.staff-hero .where { font-size: var(--fs-sm); color: var(--muted); margin-top: 4px; }
+.staff-actions { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-top: var(--s-4); }
+.staff-cols {
+  display: grid;
+  gap: var(--s-5);
+  margin-top: var(--s-5);
+}
+@media (min-width: 900px) {
+  .staff-cols { grid-template-columns: 1fr 320px; align-items: start; }
+}
+.svc-line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+}
+.svc-line:first-of-type { border-top: 0; }
+.svc-line:hover .n { color: var(--blue-600); }
+.queue-item { padding: 12px 0; border-top: 1px solid var(--border); }
+.queue-item:first-child { border-top: 0; }
+@media (max-width: 560px) {
+  .staff-hero { grid-template-columns: 1fr; text-align: center; justify-items: center; }
+  .staff-actions { justify-content: center; }
+}

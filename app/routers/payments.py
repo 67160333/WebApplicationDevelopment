@@ -276,6 +276,7 @@ def pay_booking(
                 status_code=status.HTTP_409_CONFLICT, detail="คิวนี้ชำระครบแล้ว ไม่มียอดค้าง"
             )
 
+    now = _now()
     payment = Payment(
         booking_id=booking.id,
         kind=payload.kind,
@@ -283,7 +284,10 @@ def pay_booking(
         method=payload.method,
         status="paid",
         reference=_mock_charge(payload.method),
-        paid_at=_now(),
+        paid_at=now,
+        # เงินออนไลน์พักไว้ที่ระบบก่อน (ดู escrow.py) ส่วนเงินสดอยู่ในมือร้านตั้งแต่แรก
+        # จึงถือว่าปล่อยแล้วทันที ระบบพักเงินที่ตัวเองไม่ได้ถือไม่ได้
+        released_at=now if payload.method == "cash" else None,
     )
     db.add(payment)
 
@@ -316,7 +320,7 @@ def pay_booking(
         service = db.get(Service, booking.service_id)
         notify(
             db, owner_id, "payment_received",
-            f"ได้รับเงิน ฿{amount:,.0f}",
+            f"ลูกค้าจ่าย ฿{amount:,.0f} · พักไว้ที่ระบบจนปิดงาน",
             f"{service.name if service else 'บริการ'} · {booking.booking_code}",
             "manage.html",
         )
@@ -365,6 +369,12 @@ def refund_payment(
     if payment.status == "refunded":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="รายการนี้คืนเงินไปแล้ว"
+        )
+    # โอนเข้าบัญชีร้านไปแล้ว ระบบไม่ได้ถือเงินก้อนนี้อีก จึงคืนแทนไม่ได้
+    if payment.payout_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="เงินก้อนนี้โอนเข้าบัญชีร้านไปแล้ว ร้านต้องคืนลูกค้าเองนอกระบบ",
         )
 
     # คืนเงินได้เฉพาะคิวที่จบแล้ว — ยกเลิกไปแล้ว หรือใช้บริการเสร็จแล้ว

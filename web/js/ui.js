@@ -186,6 +186,38 @@ function statusBadge(status) {
   return `<span class="badge badge-${status}">${STATUS_TEXT[status] || status}</span>`;
 }
 
+// ป้ายสถานะที่รู้ว่า "ยกเลิกเพราะลูกค้าไม่มา" ต่างจากการยกเลิกทั่วไป
+// (หลังบ้านเก็บเป็น cancelled + cancelled_by = no_show ไม่ได้แยกเป็นสถานะใหม่)
+function bookingStatusBadge(b) {
+  if (b.status === "cancelled" && b.cancelled_by === "no_show") {
+    return `<span class="badge badge-cancelled">ลูกค้าไม่มา</span>`;
+  }
+  return statusBadge(b.status);
+}
+
+// ---------- ป้ายสถานะเงินในระบบพักเงิน (ดู app/routers/escrow.py) ----------
+const ESCROW_TEXT = {
+  held: ["พักไว้ที่ระบบ", "esc-held"],
+  disputed: ["แจ้งปัญหา รอตัดสิน", "esc-disputed"],
+  released: ["เงินเข้าร้านแล้ว", "esc-released"],
+  refunded: ["คืนเงินแล้ว", "esc-refunded"],
+};
+
+function escrowBadge(b) {
+  const hit = ESCROW_TEXT[b.escrow_state];
+  if (!hit) return "";
+  return `<div class="mt-1"><span class="esc-state ${hit[1]}">${hit[0]}</span></div>`;
+}
+
+// ลิงก์ที่ผู้ใช้กรอกเอง ต้องเป็น http/https เท่านั้นถึงจะทำเป็นลิงก์ให้กด
+// esc() กันแท็ก HTML ได้ แต่กัน "javascript:..." ไม่ได้ เพราะไม่มีอักขระพิเศษให้หนี
+// พอใส่ใน href แล้วคนอื่นกด สคริปต์ของคนกรอกจะทำงานในเว็บเรา
+// (เซิร์ฟเวอร์ปฏิเสธลิงก์แบบนี้ตั้งแต่ตอนบันทึกแล้ว ตรงนี้กันข้อมูลเก่าที่หลุดเข้ามาก่อน)
+function safeHttpUrl(url) {
+  const v = String(url || "").trim();
+  return /^https?:\/\//i.test(v) ? v : "";
+}
+
 // ============================================================
 // ภาพประกอบร้าน — สร้างลายกราฟิกเฉพาะตัวจากเลขที่ร้าน
 // ทำให้ทุกร้านมีภาพต่างกันโดยไม่ต้องใช้รูปจริง และไม่ต้องพึ่งไฟล์ภายนอก

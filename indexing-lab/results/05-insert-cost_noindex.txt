@@ -1,0 +1,17 @@
+Timing is on.
+
+===== INSERT คิวใหม่ 100,000 รายการ =====
+BEGIN
+Time: 0.167 ms
+INSERT 0 100000
+Time: 200.029 ms
+ROLLBACK
+Time: 0.144 ms
+
+===== จำนวน index บนตาราง bookings ของ database นี้ =====
+ indexes_on_bookings 
+---------------------
+                   1
+(1 row)
+
+Time: 1.402 ms

@@ -16,6 +16,7 @@
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | สถาปัตยกรรมระบบที่ใช้จริง และแผนแยกเป็น microservices |
 | [docs/TECH_STACK.md](docs/TECH_STACK.md) | Technology stack diagram พร้อมเวอร์ชันทุกตัว |
 | [docs/PROGRESS.md](docs/PROGRESS.md) | ประเมินความคืบหน้าตนเอง — ส่วนไหนเสร็จ ส่วนไหนยังไม่เสร็จ |
+| [docs/INDEXING.md](docs/INDEXING.md) | ทดลองทำ index บนข้อมูล 1 ล้านคิว แล้วนำผลมาปรับฐานข้อมูลจริง (แล็บอยู่ใน `indexing-lab/`) |
 
 ---
 
@@ -59,7 +60,7 @@
 
 ### นอกเหนือจากที่ใบงานขอ
 
-ระบบนี้มี **86 เส้นทางภายใต้ `/api`** ไม่ใช่แค่ 10 เส้นตามตัวอย่าง เพราะทำเป็นระบบจองคิวที่ใช้งานได้จริง
+ระบบนี้มี **100 เส้นทางภายใต้ `/api`** ไม่ใช่แค่ 10 เส้นตามตัวอย่าง เพราะทำเป็นระบบจองคิวที่ใช้งานได้จริง
 ส่วนที่เพิ่มมาคือ ร้านและบริการ · ผู้ให้บริการ · การจองและช่วงเวลาว่าง · รีวิว · แจ้งเตือน · รูปภาพ · การชำระเงิน
 
 ---
@@ -158,7 +159,7 @@ docker compose down -v         # ลบข้อมูลฐานข้อม�
 > ทุกเส้นทางเรียกได้ **2 แบบ** — ตามโจทย์ (`POST /register`) และแบบจัดกลุ่ม (`POST /api/auth/register`)
 > ทั้งสองแบบใช้โค้ดชุดเดียวกัน ไม่ได้เขียนซ้ำ (ดู `app/routers/aliases.py`)
 
-นอกจาก 10 ข้อนี้ ยังมีเอนด์พอยต์ของระบบจริงอีก 76 เส้น รวมทั้งหมด **86 เส้น**
+นอกจาก 10 ข้อนี้ ยังมีเอนด์พอยต์ของระบบจริงอีก 90 เส้น รวมทั้งหมด **100 เส้น**
 
 ---
 
@@ -302,7 +303,7 @@ bookvice/
 
 ---
 
-## รายการ API ทั้งหมด (86 เส้น)
+## รายการ API ทั้งหมด (100 เส้น)
 
 🔒 = ต้องล็อกอินก่อน
 
@@ -348,7 +349,7 @@ bookvice/
 | POST | `/api/shops/{shop_id}/closures` | 🔒 ประกาศวันหยุด |
 | DELETE | `/api/closures/{closure_id}` | 🔒 ยกเลิกวันหยุดที่ประกาศไว้ |
 
-### 4. Bookings & Reviews — 14
+### 4. Bookings & Reviews — 15
 
 | Method | Endpoint | คำอธิบาย |
 |---|---|---|
@@ -357,7 +358,8 @@ bookvice/
 | GET | `/api/bookings/{booking_id}` | 🔒 รายละเอียดการจอง |
 | POST | `/api/bookings` | 🔒 จองคิว |
 | POST | `/api/bookings/instant` | 🔒 **เรียกใช้บริการทันที** (ส่งของด่วน) |
-| PATCH | `/api/bookings/{booking_id}/status` | 🔒 เปลี่ยนสถานะ |
+| PATCH | `/api/bookings/{booking_id}/status` | 🔒 เปลี่ยนสถานะ (รอยืนยัน → ยืนยัน → เสร็จ · ปิดงานได้หลังถึงเวลานัด) |
+| POST | `/api/bookings/{booking_id}/no-show` | 🔒 ร้านบันทึกว่าลูกค้าไม่มา (ร้านได้มัดจำ ส่วนเกินคืนอัตโนมัติ) |
 | PATCH | `/api/bookings/{booking_id}/reschedule` | 🔒 **เลื่อนนัด** โดยรหัสการจองไม่เปลี่ยน |
 | DELETE | `/api/bookings/{booking_id}` | 🔒 ยกเลิกการจอง |
 | GET | `/api/shops/{shop_id}/reviews` | รีวิวของร้าน — กรองตามผู้ให้บริการ คะแนน และเรียงลำดับได้ |
@@ -367,12 +369,23 @@ bookvice/
 | DELETE | `/api/reviews/{review_id}/reply` | 🔒 ลบคำตอบกลับ |
 | DELETE | `/api/reviews/{review_id}` | 🔒 ลบรีวิวของตัวเอง (เจ้าของร้านลบไม่ได้) |
 
-### 5. Staff Profiles — 2
+### 5. Staff Profiles และบัญชีพนักงาน — 11
+
+หน้าโปรไฟล์เต็มของช่างแต่ละคนอยู่ที่ `staff.html?id=` แชร์ลิงก์ได้
+ร้านผูกโปรไฟล์ช่างกับบัญชีผู้ใช้ของตัวช่าง แล้วช่างล็อกอินมาแก้โปรไฟล์และดูคิวของตัวเองได้ที่หน้าบัญชีของฉัน
 
 | Method | Endpoint | คำอธิบาย |
 |---|---|---|
-| GET | `/api/staff/{staff_id}` | โปรไฟล์ คะแนน และจำนวนงานที่ทำเสร็จ |
+| GET | `/api/staff/{staff_id}` | โปรไฟล์ สถิติจากงานจริง และบริการที่จองได้ |
 | GET | `/api/staff/{staff_id}/reviews` | รีวิวที่กล่าวถึงผู้ให้บริการคนนี้ |
+| POST | `/api/staff/{staff_id}/photo` | 🔒 อัปรูปโปรไฟล์ (ร้าน หรือตัวช่างเอง) |
+| DELETE | `/api/staff/{staff_id}/photo` | 🔒 ลบรูปโปรไฟล์ |
+| GET | `/api/staff/{staff_id}/account` | 🔒 ดูว่าผูกกับบัญชีไหน — เจ้าของร้าน |
+| PUT | `/api/staff/{staff_id}/account` | 🔒 ผูกกับบัญชีของช่าง — เจ้าของร้าน |
+| DELETE | `/api/staff/{staff_id}/account` | 🔒 ยกเลิกการผูก (ร้าน หรือช่างออกเอง) |
+| GET | `/api/me/staff` | 🔒 โปรไฟล์ช่างของฉัน |
+| PUT | `/api/me/staff/{staff_id}` | 🔒 แก้ประวัติ ความถนัด ประสบการณ์ของตัวเอง |
+| GET | `/api/me/staff/{staff_id}/queue` | 🔒 คิวที่ลูกค้าเลือกฉัน (ไม่มีข้อมูลเงิน) |
 
 ### 6. Notifications — 4
 
@@ -401,6 +414,21 @@ bookvice/
 | POST | `/api/payments/{payment_id}/refund` | 🔒 คืนเงิน — เจ้าของร้าน |
 | GET | `/api/payments/{payment_id}/receipt` | 🔒 ข้อมูลใบเสร็จ |
 | GET | `/api/shops/{shop_id}/revenue` | 🔒 สรุปรายรับที่รับชำระจริง |
+
+### 9. Escrow — ระบบพักเงินแบบ Shopee (จำลอง) — 7
+
+เงินที่ลูกค้าจ่ายออนไลน์พักไว้ที่ระบบก่อน ร้านได้รับเมื่อลูกค้ายืนยันว่าได้รับบริการ
+หรือครบ 24 ชั่วโมงหลังร้านกดให้บริการเสร็จโดยไม่มีการแจ้งปัญหา รายละเอียดเต็มอยู่หัวไฟล์ `app/routers/escrow.py`
+
+| Method | Endpoint | คำอธิบาย |
+|---|---|---|
+| POST | `/api/bookings/{booking_id}/confirm-service` | 🔒 ลูกค้ายืนยันว่าได้รับบริการ (ปล่อยเงินให้ร้านทันที) |
+| POST | `/api/bookings/{booking_id}/dispute` | 🔒 ลูกค้าแจ้งปัญหา (พักเงินไว้รอผู้ดูแล) |
+| GET | `/api/admin/disputes` | 🔒 เรื่องแจ้งปัญหาที่รอตัดสิน — admin |
+| POST | `/api/bookings/{booking_id}/resolve-dispute` | 🔒 ตัดสินให้ร้านหรือคืนลูกค้า — admin |
+| GET | `/api/shops/{shop_id}/wallet` | 🔒 กระเป๋าเงินร้าน: เงินพัก ยอดพร้อมโอน ประวัติการโอน |
+| PUT | `/api/shops/{shop_id}/bank` | 🔒 ตั้งบัญชีรับเงินของร้าน |
+| POST | `/api/shops/{shop_id}/payouts` | 🔒 โอนเงินที่ปล่อยแล้วเข้าบัญชีร้าน (หักค่าธรรมเนียม 5%) |
 
 ---
 

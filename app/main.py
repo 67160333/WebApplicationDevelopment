@@ -20,6 +20,7 @@ from app.routers import (
     aliases,
     auth,
     bookings,
+    escrow,
     gaps,
     images,
     matches,
@@ -136,11 +137,44 @@ _SECURITY_HEADERS = {
 }
 
 
+# Content-Security-Policy — บอกเบราว์เซอร์ว่าหน้านี้โหลดอะไรจากที่ไหนได้บ้าง
+# ------------------------------------------------------------------
+# เป็นด่านสุดท้ายถ้าวันหนึ่งมี XSS หลุดเข้ามา (มีสคริปต์แปลกปลอมทำงานในหน้าเรา)
+#   - connect-src / img-src จำกัดโดเมน  -> สคริปต์ส่ง token ที่ขโมยได้ออกไปเว็บคนร้ายไม่ได้
+#   - script-src จำกัดโดเมน            -> ดึงสคริปต์จากเว็บคนร้ายมารันไม่ได้
+#   - frame-ancestors 'none'           -> เว็บอื่นเอาหน้าเราไปซ้อนใน iframe ไม่ได้
+#
+# ข้อจำกัดที่ต้องรู้: ยังต้องเปิด 'unsafe-inline' ให้สคริปต์
+# เพราะทุกหน้าเขียน <script> ไว้ในไฟล์ HTML เอง ถ้าจะปิดได้ต้องย้ายสคริปต์
+# ทุกหน้าออกเป็นไฟล์ .js แยก ซึ่งเป็นงานใหญ่ ถึงอย่างนั้นข้อบนสามข้อก็ยังทำงานอยู่
+#
+# ถ้าเพิ่มบริการภายนอกใหม่ (CDN ฟอนต์ แผนที่) ต้องมาเพิ่มโดเมนตรงนี้
+# และใน web/nginx.conf ด้วย ไม่งั้นเบราว์เซอร์จะบล็อกเงียบ ๆ (ดูได้ใน Console)
+_CSP = "; ".join([
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://cdnjs.cloudflare.com",
+    "connect-src 'self' https://overpass-api.de https://overpass.kumi.systems",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+])
+
+# หน้าเอกสาร API (Swagger / ReDoc) ดึงสคริปต์จาก CDN ของมันเอง ถ้าใส่ CSP ชุดเดียวกัน
+# หน้าเอกสารจะขาวทั้งหน้า จึงยกเว้นไว้ หน้าพวกนี้ไม่มี token ของผู้ใช้อยู่แล้ว
+_NO_CSP_PREFIXES = ("/docs", "/redoc", "/openapi.json")
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
     for name, value in _SECURITY_HEADERS.items():
         response.headers.setdefault(name, value)
+    if not request.url.path.startswith(_NO_CSP_PREFIXES):
+        response.headers.setdefault("Content-Security-Policy", _CSP)
 
     # HSTS — บอกเบราว์เซอร์ว่า "ต่อไปนี้ให้เข้าเว็บนี้ด้วย https เท่านั้น"
     #
@@ -170,6 +204,7 @@ app.include_router(images.router)
 app.include_router(image_files_router)
 app.include_router(staff_files_router)
 app.include_router(payments.router)
+app.include_router(escrow.router)
 app.include_router(matches.router)
 app.include_router(gaps.router)
 app.include_router(watches.router)
