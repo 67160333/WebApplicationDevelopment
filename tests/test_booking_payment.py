@@ -297,6 +297,8 @@ def main():
             return next((s["available"] for s in rows if s["time"].startswith(at[:5])), None)
 
         check("หน้าจองยังโชว์ว่าช่องนี้ว่างอยู่", slot_open(slot_date, slot_time), True)
+        dup = book_slot(cust, slot_date, slot_time)
+        check("คนเดิมกดจองช่องเดิมซ้ำไม่ได้ (กันกดปุ่มสองครั้ง)", dup.status_code, 409)
 
         print("\n10) คนที่จ่ายก่อนได้คิวไป คนที่เหลือถูกปฏิเสธตอนจ่าย")
         p1 = c.post(f"/api/bookings/{first['id']}/payment", headers=cust,

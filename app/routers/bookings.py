@@ -1292,6 +1292,28 @@ def create_booking(
         service.duration_minutes, payload.staff_id,
     )
 
+    # ลูกค้าคนเดียวกันมีคิวทับเวลากันเองในร้านเดียวกันไม่ได้
+    # ------------------------------------------------------------------
+    # คิวที่ยังไม่จ่ายไม่ล็อกช่องเวลา (ใครจ่ายก่อนได้ก่อน) _assert_free จึงไม่ชน
+    # ถ้าไม่มีด่านนี้ ลูกค้ากดปุ่มจองสองครั้งจะได้คิวซ้ำสองใบ ร้านเห็นคิวผีในตาราง
+    # ไม่ตรวจกรณีร้านจองแทนลูกค้า เพราะ user_id เป็นของเจ้าของร้าน และจองให้หลายคนพร้อมกันได้
+    if not payload.guest_name:
+        mine = db.scalar(
+            select(Booking.id).where(
+                Booking.user_id == current_user.id,
+                Booking.shop_id == shop.id,
+                Booking.booking_date == payload.booking_date,
+                Booking.status.in_(("pending", "confirmed")),
+                Booking.booking_time < end_time,
+                Booking.end_time > payload.booking_time,
+            ).limit(1)
+        )
+        if mine is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="คุณมีคิวที่ร้านนี้ในช่วงเวลานี้อยู่แล้ว ดูได้ที่หน้าการจองของฉัน",
+            )
+
     # จองแทนลูกค้าที่ไม่มีบัญชี — ทำได้เฉพาะเจ้าของร้านนั้นและผู้ดูแลระบบ
     # ตรวจทั้งชื่อและเบอร์ ไม่งั้นลูกค้าทั่วไปจะแอบยัดเบอร์คนอื่นใส่คิวตัวเองได้
     if payload.guest_name or payload.guest_phone:
