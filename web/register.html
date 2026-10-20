@@ -19,14 +19,26 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202610202300" />
+  <link rel="stylesheet" href="css/app.css?v=202610202500" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
   <div id="navbar"></div>
 
-  <main id="main" class="max-w-md mx-auto px-5 py-16">
-    <div class="card card-pad">
+  <main id="main" class="auth-page">
+    <!-- แผงซ้าย (จอกว้าง) — บอกว่าบัญชีเดียวใช้ได้ทั้งสามบทบาท ช่างจะได้ไม่หาทางเข้าแยก -->
+    <aside class="auth-side" aria-hidden="true">
+      <div class="auth-aurora"><i></i><i></i></div>
+      <p class="hero-slogan">จองง่าย ได้ครบ จบที่เดียว</p>
+      <h2 class="auth-title">บัญชีเดียว<br />ใช้ได้ทั้งสามบทบาท</h2>
+      <ul class="auth-roles">
+        <li><span data-ai="calendar"></span><div><b>ลูกค้า</b><small>จองคิว จ่ายมัดจำ เงินพักที่ระบบจนใช้บริการเสร็จ</small></div></li>
+        <li><span data-ai="shield"></span><div><b>เจ้าของร้าน</b><small>รับคิว จัดการช่าง ดูยอดเงินและโอนเข้าบัญชี</small></div></li>
+        <li><span data-ai="scissors"></span><div><b>ช่าง / พนักงาน</b><small>ดูคิวของตัวเอง แก้โปรไฟล์ ลงวันลา</small></div></li>
+      </ul>
+    </aside>
+    <div class="auth-main">
+    <div class="card card-pad auth-card">
       <h1 class="h1">สมัครสมาชิก</h1>
       <p class="text-sm text-muted mt-1.5">สร้างบัญชีเพื่อจองบริการและติดตามการจองของคุณ</p>
 
@@ -74,13 +86,18 @@
           <p class="hint">อย่างน้อย 8 ตัวอักษร · ภาษาไทยได้ไม่เกิน 24 ตัว</p>
         </div>
 
-        <div>
-          <label class="label" for="role">ประเภทบัญชี</label>
-          <select id="role" name="role" class="select">
-            <option value="customer">ลูกค้า — จองบริการ</option>
-            <option value="owner">เจ้าของร้าน — เปิดร้านรับจอง</option>
-          </select>
-        </div>
+        <!-- ประเภทบัญชี 3 แบบ — "ช่าง" สมัครเป็นบัญชีปกติ แล้วให้ร้านผูกเข้ากับโปรไฟล์ช่างทีหลัง
+             (ไม่เปิดให้เลือกร้านเองตอนสมัคร ไม่งั้นใครก็อ้างเป็นช่างของร้านไหนก็ได้) -->
+        <fieldset class="role-pick">
+          <legend class="label">สมัครเป็น</legend>
+          <label><input type="radio" name="role" value="customer" checked />
+            <span><b>ลูกค้า</b><small>จองคิว จ่ายมัดจำ ดูการจอง</small></span></label>
+          <label><input type="radio" name="role" value="owner" />
+            <span><b>เจ้าของร้าน</b><small>เปิดร้าน รับจอง รับเงิน</small></span></label>
+          <label><input type="radio" name="role" value="staff" />
+            <span><b>ช่าง / พนักงาน</b><small>ดูคิวของตัวเอง แก้โปรไฟล์ ลงวันลา</small></span></label>
+        </fieldset>
+        <p id="staffNote" class="hint" hidden>สมัครเสร็จแล้วส่งชื่อผู้ใช้ให้เจ้าของร้าน ร้านจะผูกบัญชีของคุณเข้ากับโปรไฟล์ช่าง</p>
 
         <button id="submitBtn" type="submit" class="btn btn-primary btn-block">สร้างบัญชี</button>
 
@@ -94,14 +111,16 @@
         <a href="login.html" style="color:var(--navy-800);font-weight:600">เข้าสู่ระบบ</a>
       </p>
     </div>
+    </div>
   </main>
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202610202300"></script>
-  <script src="js/ui.js?v=202610202300"></script>
+  <script src="js/api.js?v=202610202500"></script>
+  <script src="js/ui.js?v=202610202500"></script>
   <script>
     renderNavbar();
+    document.querySelectorAll("[data-ai]").forEach((el) => { el.innerHTML = icon(el.dataset.ai, 20); });
     renderFooter();
     const alertBox = document.getElementById("alert");
 
@@ -152,6 +171,16 @@
       }, 400);
     });
 
+    const pickedRole = () => (document.querySelector('input[name="role"]:checked') || {}).value || "customer";
+    // ลิงก์ register.html?as=staff / ?as=owner เลือกประเภทไว้ให้เลย
+    const wantRole = new URLSearchParams(location.search).get("as");
+    if (["owner", "staff"].includes(wantRole)) {
+      document.querySelector(`input[name="role"][value="${wantRole}"]`).checked = true;
+    }
+    const syncRole = () => { document.getElementById("staffNote").hidden = pickedRole() !== "staff"; };
+    document.querySelectorAll('input[name="role"]').forEach((r) => r.addEventListener("change", syncRole));
+    syncRole();
+
     // ---------- ส่งฟอร์ม ----------
     document.getElementById("registerForm").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -165,7 +194,8 @@
         email: document.getElementById("email").value.trim(),
         password: document.getElementById("password").value,
         full_name: document.getElementById("full_name").value.trim(),
-        role: document.getElementById("role").value,
+        // ช่างสมัครเป็นบัญชีลูกค้าทั่วไป ร้านเป็นคนผูกเข้าโปรไฟล์ช่าง (ดู PUT /api/staff/{id}/account)
+        role: pickedRole() === "owner" ? "owner" : "customer",
       };
       // ส่งเฉพาะตอนที่กรอกจริง — ส่งสตริงว่างไปจะโดน 422 ทั้งที่ช่องนี้ไม่บังคับ
       const bd = document.getElementById("birth_date").value;
@@ -178,7 +208,12 @@
         const res = await apiPost("/api/auth/register", body);
         Auth.save(res.access_token, res.user);
         await Favorites.adopt();   // ของที่กดถูกใจไว้ก่อนสมัครต้องไม่หาย
-        location.href = "./";
+        if (pickedRole() === "staff") {
+          try { localStorage.setItem("bv_staff_intent", "1"); } catch {}
+          location.href = "profile.html#staffWait";
+        } else {
+          location.href = "./";
+        }
       } catch (err) {
         showAlert(alertBox, err.message);
         btnBusy(btn, false);

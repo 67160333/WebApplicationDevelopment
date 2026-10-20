@@ -19,14 +19,26 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202610202300" />
+  <link rel="stylesheet" href="css/app.css?v=202610202500" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
   <div id="navbar"></div>
 
-  <main id="main" class="max-w-md mx-auto px-5 py-16">
-    <div class="card card-pad">
+  <main id="main" class="auth-page">
+    <!-- แผงซ้าย (จอกว้าง) — บอกว่าบัญชีเดียวใช้ได้ทั้งสามบทบาท ช่างจะได้ไม่หาทางเข้าแยก -->
+    <aside class="auth-side" aria-hidden="true">
+      <div class="auth-aurora"><i></i><i></i></div>
+      <p class="hero-slogan">จองง่าย ได้ครบ จบที่เดียว</p>
+      <h2 class="auth-title">บัญชีเดียว<br />ใช้ได้ทั้งสามบทบาท</h2>
+      <ul class="auth-roles">
+        <li><span data-ai="calendar"></span><div><b>ลูกค้า</b><small>จองคิว จ่ายมัดจำ เงินพักที่ระบบจนใช้บริการเสร็จ</small></div></li>
+        <li><span data-ai="shield"></span><div><b>เจ้าของร้าน</b><small>รับคิว จัดการช่าง ดูยอดเงินและโอนเข้าบัญชี</small></div></li>
+        <li><span data-ai="scissors"></span><div><b>ช่าง / พนักงาน</b><small>ดูคิวของตัวเอง แก้โปรไฟล์ ลงวันลา</small></div></li>
+      </ul>
+    </aside>
+    <div class="auth-main">
+    <div class="card card-pad auth-card">
       <h1 class="h1">เข้าสู่ระบบ</h1>
       <p class="text-sm text-muted mt-1.5">เข้าใช้งานเพื่อจองคิวและจัดการการจองของคุณ</p>
 
@@ -56,20 +68,26 @@
         ยังไม่มีบัญชี?
         <a href="register.html" style="color:var(--navy-800);font-weight:600">สมัครสมาชิก</a>
       </p>
+      <p class="text-xs text-muted text-center mt-2">
+        เป็นช่างหรือพนักงานร้าน? <a href="register.html?as=staff" style="color:var(--blue-600)">สมัครบัญชีช่าง</a>
+        · มีบัญชีแล้วเข้าสู่ระบบช่องเดียวกันนี้ได้เลย
+      </p>
     </div>
 
     <!-- บัญชีสำหรับทดสอบระบบ -->
     <div class="card card-pad mt-4" style="background:var(--navy-50);border-color:var(--navy-100)">
       <div id="demoInfo"></div>
     </div>
+    </div>
   </main>
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202610202300"></script>
-  <script src="js/ui.js?v=202610202300"></script>
+  <script src="js/api.js?v=202610202500"></script>
+  <script src="js/ui.js?v=202610202500"></script>
   <script>
     renderNavbar();
+    document.querySelectorAll("[data-ai]").forEach((el) => { el.innerHTML = icon(el.dataset.ai, 20); });
     renderFooter();
 
     // ปุ่มดู/ซ่อนรหัสผ่าน — ช่วยคนที่พิมพ์รหัสยาวแล้วไม่แน่ใจว่าพิมพ์ถูกไหม

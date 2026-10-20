@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202610202300" />
+  <link rel="stylesheet" href="css/app.css?v=202610202500" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -44,6 +44,9 @@
         ส่วนชื่อ ตำแหน่ง และเวลาทำงาน ร้านเป็นคนกำหนด</p>
       <div id="staffBox" class="space-y-4 mt-4"></div>
     </section>
+
+    <!-- บัญชีช่างที่ยังไม่ได้ผูกกับร้าน — โผล่เมื่อสมัครแบบ "ช่าง / พนักงานร้าน" -->
+    <section id="staffWait" class="card card-pad mt-5 staff-wait" hidden></section>
 
     <!-- ความปลอดภัย -->
     <section class="card card-pad mt-5">
@@ -82,8 +85,8 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202610202300"></script>
-  <script src="js/ui.js?v=202610202300"></script>
+  <script src="js/api.js?v=202610202500"></script>
+  <script src="js/ui.js?v=202610202500"></script>
   <script>
     renderNavbar();
     renderFooter();
@@ -221,6 +224,40 @@
       location.href = "index.html";
     });
 
+    // ---------- บัญชีช่างที่รอร้านผูก ----------
+    // ระบบไม่มีบัญชีประเภท "ช่าง" แยก — ช่างใช้บัญชีปกติ แล้วเจ้าของร้านเป็นคนผูกเข้ากับโปรไฟล์ช่าง
+    // (ป้องกันใครก็ได้อ้างตัวเป็นช่างของร้านที่ตัวเองไม่ได้ทำงานอยู่)
+    // กล่องนี้บอกช่างว่าต้องส่งอะไรให้ร้าน และหายเองเมื่อร้านผูกบัญชีแล้ว
+    function paintStaffWait(linked) {
+      const box = document.getElementById("staffWait");
+      let intent = false;
+      try { intent = localStorage.getItem("bv_staff_intent") === "1"; } catch {}
+      if (linked) {
+        try { localStorage.removeItem("bv_staff_intent"); } catch {}
+        box.hidden = true;
+        return;
+      }
+      if (!intent) { box.hidden = true; return; }
+      const u = Auth.user || {};
+      box.hidden = false;
+      box.innerHTML = `
+        <h2 class="h3">บัญชีช่าง — รอร้านผูกบัญชี</h2>
+        <p class="text-sm text-muted mt-1">ส่งชื่อผู้ใช้นี้ให้เจ้าของร้าน เขาจะผูกบัญชีของคุณเข้ากับโปรไฟล์ช่างของร้าน</p>
+        <div class="sw-user">
+          <span class="num">@${esc(u.username || "")}</span>
+          <button type="button" class="btn btn-outline btn-sm" id="swCopy">คัดลอก</button>
+        </div>
+        <ol class="sw-steps">
+          <li>ส่งชื่อผู้ใช้ให้เจ้าของร้าน</li>
+          <li>ร้านไปที่ จัดการร้าน → ช่างในร้าน → แก้ไข → ผูกบัญชี</li>
+          <li>คุณจะได้แจ้งเตือน แล้วส่วนนี้จะกลายเป็นโปรไฟล์ช่าง แก้ประวัติ ใส่รูป ลงวันลา และดูคิวของตัวเองได้</li>
+        </ol>`;
+      document.getElementById("swCopy").addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText(u.username || ""); toast("คัดลอกชื่อผู้ใช้แล้ว"); }
+        catch { toast("คัดลอกไม่สำเร็จ", "error"); }
+      });
+    }
+
     // ---------- โปรไฟล์ช่างของฉัน ----------
     async function loadMyStaff() {
       let list = [];
@@ -231,6 +268,7 @@
       }
       const sec = document.getElementById("staffSection");
       sec.hidden = !list.length;
+      paintStaffWait(list.length > 0);
       if (!list.length) return;
 
       const box = document.getElementById("staffBox");
