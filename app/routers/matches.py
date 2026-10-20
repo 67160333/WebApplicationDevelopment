@@ -453,6 +453,7 @@ def create_request(
     req = MatchRequest(
         user_id=current_user.id,
         sport=payload.sport,
+        province=payload.province,
         district=payload.district,
         play_date=payload.play_date,
         from_time=payload.from_time,
@@ -473,6 +474,7 @@ def create_request(
 )
 def list_requests(
     sport: str | None = Query(None, description="football / badminton / karaoke"),
+    province: str | None = Query(None, description="จังหวัด"),
     district: str | None = Query(None),
     on_date: date_cls | None = Query(None, alias="date"),
     include_full: bool = Query(False, description="รวมโพสต์ที่คนครบแล้วด้วย"),
@@ -487,6 +489,8 @@ def list_requests(
     )
     if sport:
         stmt = stmt.where(MatchRequest.sport == sport)
+    if province:
+        stmt = stmt.where(MatchRequest.province == province)
     if district:
         stmt = stmt.where(MatchRequest.district == district)
     if on_date:

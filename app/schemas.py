@@ -1178,6 +1178,7 @@ class MatchRequestCreate(BaseModel):
     """โพสต์หาคนไปเล่นด้วยกัน โดยยังไม่ต้องจองสนาม"""
 
     sport: Literal["football", "badminton", "karaoke"] = Field(..., examples=["football"])
+    province: str | None = Field(None, max_length=100, examples=["กรุงเทพมหานคร"])
     district: str | None = Field(None, max_length=100, examples=["ลาดพร้าว"])
     play_date: date = Field(..., description="วันที่อยากเล่น")
     from_time: TimeStr = Field(..., examples=["20:00"])
@@ -1193,6 +1194,7 @@ class MatchRequestOut(BaseModel):
     user_id: int
     host_name: str = Field("", description="ชื่อคนโพสต์ นามสกุลย่อเหลือตัวอักษรเดียว")
     sport: str
+    province: str | None = None
     district: str | None = None
     play_date: date
     from_time: TimeStr

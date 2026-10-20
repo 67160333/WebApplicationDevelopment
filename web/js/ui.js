@@ -79,57 +79,46 @@ function icon(name, size = 16, cls = "") {
 
 
 // ============================================================
-// โลโก้ Bookvice
+// โลโก้ Bookvice (ชุดใหม่ ต.ค. 2569)
 // ============================================================
-// ตัว B ประกอบจากห่วงสองวง — ห่วงบนคือปฏิทิน ห่วงล่างคือเครื่องหมายถูก
-// สื่อความหมายตรงตัว: "จอง" (ปฏิทิน) แล้ว "ยืนยันแล้ว" (ถูก)
-//
-// gradient ต้องมี id ไม่ซ้ำในหน้าเดียวกัน ไม่งั้นตัวที่วาดทีหลังจะไปใช้ของตัวแรก
-// จึงสุ่มต่อท้ายทุกครั้งที่เรียก
-function brandMark(size = 28, spine = "#16233F") {
-  // แกนตั้งของตัว B ต้องเปลี่ยนสีตามพื้นหลัง
-  // บนแถบเมนูสีกรมท่า ถ้าใช้สีกรมท่าเหมือนกันจะกลืนหายไปจนเหลือแค่ห่วงสองวง
+// ตัว B สองห่วง — ห่วงบนสีน้ำเงิน→ม่วงมีปฏิทินติ๊กถูก (จองแล้ว)
+// ห่วงล่างสีชมพู→ส้มมีหมุดแผนที่ (ไปที่ร้าน) · สีแบรนด์: #2563EB #8B5CF6 #F472B6 #FBBF24 #34D399
+// gradient ต้องมี id ไม่ซ้ำในหน้าเดียวกัน จึงสุ่มต่อท้ายทุกครั้งที่เรียก
+const BRAND = { blue: "#2563EB", purple: "#8B5CF6", pink: "#F472B6", orange: "#FBBF24", mint: "#34D399" };
+
+function brandMark(size = 28) {
   const g = "bv" + Math.random().toString(36).slice(2, 7);
-
-  // ต่ำกว่า 22px ตารางปฏิทินจะเล็กจนกลายเป็นจุดมั่ว ๆ อ่านไม่ออกว่าคืออะไร
-  // และยังไปกวนรูปทรงตัว B ให้ดูรก จึงตัดทิ้งเมื่อย่อเล็ก เหลือแค่โครง B กับเครื่องหมายถูก
-  // (หลักการเดียวกับโลโก้ที่มีหลายเวอร์ชันตามขนาด — รูปทรงและสีเหมือนกัน ต่างแค่รายละเอียด)
-  const calendar = size < 22 ? "" : `
-      <g fill="#fff">
-        <rect x="15.4" y="10.6" width="12" height="2" rx="1"/>
-        <rect x="15.4" y="15" width="3.2" height="3.2" rx="1"/>
-        <rect x="20.2" y="15" width="3.2" height="3.2" rx="1"/>
-        <rect x="25" y="15" width="3.2" height="3.2" rx="1"/>
-        <rect x="15.4" y="19.8" width="3.2" height="3.2" rx="1"/>
-        <rect x="20.2" y="19.8" width="3.2" height="3.2" rx="1"/>
-      </g>`;
-
+  // ต่ำกว่า 22px รายละเอียดปฏิทินจะเละ เหลือแค่ติ๊กถูกกับหมุด
+  const rings = size < 22 ? "" : `
+      <rect x="15" y="9.2" width="2.2" height="4" rx="1.1" fill="#fff"/>
+      <rect x="22.8" y="9.2" width="2.2" height="4" rx="1.1" fill="#fff"/>`;
   return `
     <svg width="${size}" height="${size}" viewBox="0 0 48 48" fill="none"
          style="display:block;flex-shrink:0" aria-hidden="true">
       <defs>
-        <!-- ไล่จากส้มอ่อนไปส้มเข้ม อยู่ในโทนเดียวกันตลอดเส้น
-             ของเดิมไล่จากส้มไปฟ้าเทา ซึ่งช่วงกลางตกไปอยู่ในสีเทาอมม่วง
-             ทำให้มุมขวาบนดูหม่นเหมือนภาพซีด และไม่เข้ากับครึ่งล่างที่เป็นสีสด -->
-        <linearGradient id="${g}a" x1="11" y1="5" x2="36" y2="27" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#F9AE8B"/><stop offset="1" stop-color="#E8785A"/>
+        <linearGradient id="${g}a" x1="6" y1="4" x2="34" y2="28" gradientUnits="userSpaceOnUse">
+          <stop stop-color="${BRAND.blue}"/><stop offset="1" stop-color="${BRAND.purple}"/>
         </linearGradient>
-        <linearGradient id="${g}b" x1="11" y1="21" x2="38" y2="43" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#3FC0D6"/><stop offset="1" stop-color="#22A898"/>
+        <linearGradient id="${g}b" x1="8" y1="40" x2="42" y2="24" gradientUnits="userSpaceOnUse">
+          <stop stop-color="${BRAND.orange}"/><stop offset=".55" stop-color="${BRAND.pink}"/><stop offset="1" stop-color="#EC4899"/>
         </linearGradient>
       </defs>
-
-      <!-- ห่วงบน: ปฏิทิน -->
-      <path d="M11 5h16a11 11 0 0 1 0 22H11z" fill="url(#${g}a)"/>${calendar}
-
-      <!-- ห่วงล่าง: เครื่องหมายถูก -->
-      <path d="M11 21h18a11 11 0 0 1 0 22H11z" fill="url(#${g}b)"/>
-      <path d="m16.5 32.5 4.5 4.5 9-9" stroke="#fff" stroke-width="3.4"
-            stroke-linecap="round" stroke-linejoin="round"/>
-
-      <!-- แกนตั้งของตัว B -->
-      <rect x="5" y="5" width="6.5" height="38" rx="3.25" fill="${spine}"/>
+      <!-- ห่วงบน + แกน B -->
+      <path d="M6 9a5 5 0 0 1 5-5h15a11.5 11.5 0 0 1 3.6 22.4A12 12 0 0 1 28 44H11a5 5 0 0 1-5-5z" fill="url(#${g}a)"/>
+      <!-- ห่วงล่าง: คลื่นชมพู–ส้มพาดทับ -->
+      <path d="M6 33c7-7 16-10 26-8a12 12 0 0 1-4 19H11a5 5 0 0 1-5-5z" fill="url(#${g}b)"/>
+      <!-- ปฏิทิน -->
+      <rect x="12.5" y="11" width="15" height="13" rx="3.2" fill="#fff"/>${rings}
+      <path d="m16.4 17.6 2.6 2.6 4.8-4.8" stroke="${BRAND.blue}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- หมุดแผนที่ -->
+      <path d="M33.5 27.5a4.6 4.6 0 0 0-4.6 4.6c0 3.4 4.6 7.6 4.6 7.6s4.6-4.2 4.6-7.6a4.6 4.6 0 0 0-4.6-4.6z" fill="#fff"/>
+      <circle cx="33.5" cy="32.1" r="1.7" fill="${BRAND.pink}"/>
     </svg>`;
+}
+
+/** ตัวหนังสือ Bookvice — "Book" สีพื้น + "vice" ไล่สีแบรนด์ */
+function brandWord(cls = "text-xl") {
+  return `<span class="${cls} brand-name">Book<span class="brand-vice">vice</span></span>`;
 }
 
 // ไอคอนประจำหมวดหมู่บริการ
@@ -555,7 +544,7 @@ function renderNavbar(active = "") {
        </div>`;
 
   document.getElementById("navbar").innerHTML = `
-    <header style="background:var(--navy-800)">
+    <header class="site-header">
       <div class="max-w-6xl mx-auto px-5 h-16 flex items-center gap-6">
         ${/* ลิงก์กลับหน้าแรกใช้ "./" ไม่ใช่ "index.html"
               เซิร์ฟเวอร์เสิร์ฟ index.html ที่รากอยู่แล้ว (nginx: index index.html ·
@@ -563,8 +552,8 @@ function renderNavbar(active = "") {
               ถ้าเขียน index.html ไว้ พอผู้ใช้เข้ามาด้วย bookvice.onrender.com
               แล้วกดโลโก้ URL จะยาวขึ้นมาเองโดยไม่จำเป็น */""}
         <a href="./" class="flex items-center gap-2.5 shrink-0 no-underline">
-          ${brandMark(28, "#fff")}
-          <span class="text-xl text-white brand-name">Bookvice</span>
+          ${brandMark(30)}
+          ${brandWord("text-xl text-white")}
         </a>
         ${/* แถบบนเก็บเฉพาะสิ่งที่ต้องใช้ได้จากทุกหน้า
               --------------------------------------------------------------
@@ -738,8 +727,8 @@ function renderFooter() {
         <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-10">
           <div>
             <div class="flex items-center gap-2.5">
-              ${brandMark(26, "#fff")}
-              <span class="text-lg text-white brand-name">Bookvice</span>
+              ${brandMark(28)}
+              ${brandWord("text-lg text-white")}
             </div>
             <p class="text-sm mt-2" style="color:var(--teal-400);font-weight:500">
               จองง่าย ได้ครบ จบที่เดียว

@@ -4082,12 +4082,8 @@ details:not([open]) > *:not(summary) { display: none !important; }
 /* หัวข้อ: แต่ละบรรทัดถูกซ่อนในกรอบ แล้วเลื่อนขึ้นมา (mask reveal) */
 .hero-title .ln { display: block; overflow: hidden; padding-bottom: .06em; }
 .hero-title .ln > span { display: inline-block; }
-.hero-em {
-  font-style: normal;
-  background: linear-gradient(90deg, var(--coral-400), var(--teal-400), var(--coral-400));
-  background-size: 200% 100%;
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-}
+/* คำเน้นในหัวข้อ — สีขาวเหมือนหัวข้อทั้งบรรทัด ไม่ไล่สี */
+.hero-em { font-style: normal; color: #fff; }
 
 /* แสงลอยหลังส่วนหัว */
 .hero-aurora { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
@@ -4137,7 +4133,6 @@ details:not([open]) > *:not(summary) { display: none !important; }
   .hero-title { animation: none; }
   .hero-title .ln > span { animation: mLine .9s cubic-bezier(.2,.8,.2,1) both; }
   .hero-title .ln:nth-child(2) > span { animation-delay: .12s; }
-  .hero-em { animation: mShine 6s linear infinite; }
 
   .hero-aurora i:nth-child(1) { animation: mFloatA 16s ease-in-out infinite alternate; }
   .hero-aurora i:nth-child(2) { animation: mFloatB 20s ease-in-out infinite alternate; }
@@ -4289,3 +4284,41 @@ details:not([open]) > *:not(summary) { display: none !important; }
   .auth-roles li:nth-child(3) { animation-delay: .45s; }
 }
 @media (min-width: 900px) { .auth-side { align-self: start; position: sticky; top: 84px; min-height: 520px; } }
+/* ไฮไลต์ช่องผูกบัญชีตอนกดมาจากปุ่ม "ผูกบัญชี" */
+#stfAcct.flash { animation: mFlash 1.6s ease-out; border-radius: 10px; }
+@keyframes mFlash { 0%,40% { background: var(--blue-50); box-shadow: 0 0 0 6px var(--blue-50); } 100% { background: transparent; box-shadow: none; } }
+
+/* ============================================================
+   แถบบนตามโลโก้ชุดใหม่ — มีสีมากขึ้นแต่ยังอ่านง่าย
+   ============================================================ */
+.site-header {
+  position: relative;
+  background:
+    radial-gradient(600px 120px at 12% -40%, rgba(37,99,235,.55), transparent 70%),
+    radial-gradient(500px 120px at 88% -60%, rgba(244,114,182,.35), transparent 70%),
+    var(--navy-800);
+}
+/* เส้นสีแบรนด์ใต้แถบ น้ำเงิน → ม่วง → ชมพู → ส้ม → มิ้นต์ */
+.site-header::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: linear-gradient(90deg, #2563EB, #8B5CF6, #F472B6, #FBBF24, #34D399, #2563EB);
+  background-size: 200% 100%;
+}
+.brand-vice {
+  background: linear-gradient(90deg, #60A5FA, #A78BFA 35%, #F472B6 65%, #FBBF24);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+/* ลิงก์ที่เลือกอยู่มีขีดสีแบรนด์ใต้ แทนพื้นเทาจาง */
+.nav-link.is-active { position: relative; background: rgba(255,255,255,.12); }
+.nav-link.is-active::after {
+  content: ""; position: absolute; left: 12px; right: 12px; bottom: 3px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, #60A5FA, #F472B6, #FBBF24);
+}
+.site-header .btn-primary {
+  background: linear-gradient(90deg, #2563EB, #8B5CF6);
+  border-color: transparent;
+}
+.site-header .btn-primary:hover { filter: brightness(1.08); }
+@media (prefers-reduced-motion: no-preference) {
+  .site-header::after { animation: mShine 8s linear infinite; }
+}

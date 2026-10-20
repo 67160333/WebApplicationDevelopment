@@ -887,6 +887,8 @@ class MatchRequest(Base):
     # หมวดกีฬาที่ต้องการ (football / badminton / karaoke) เก็บเป็น slug
     # ไม่ผูกกับ category_id เพราะโพสต์เกิดก่อนที่จะเลือกร้าน
     sport: Mapped[str] = mapped_column(String(30), index=True)
+    # จังหวัด — เดิมมีแค่เขต ซึ่งคนต่างจังหวัดใช้ไม่ได้ (โพสต์ "ลาดพร้าว" กับคนเชียงใหม่ปนกัน)
+    province: Mapped[str | None] = mapped_column(String(100), nullable=True)
     district: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     play_date: Mapped[date] = mapped_column(Date, index=True)
     from_time: Mapped[time] = mapped_column(Time)

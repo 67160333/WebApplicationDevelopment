@@ -1295,6 +1295,33 @@ def main():
           len([n for n in items2 if n["kind"] == "booking_reminder"]), 1)
 
     # ==================================================================
+    # ร้านของฉัน — ต้องเห็นร้านที่ปิดชั่วคราวด้วย (บั๊ก "บันทึกแล้วรีเฟรชหาย")
+    # ==================================================================
+    print("\n--- ร้านของฉัน และโพสต์หาคนตามจังหวัด ---")
+    mine0 = c.get("/api/me/shops", headers=owner)
+    check("เจ้าของร้านดึงร้านของตัวเองได้", mine0.status_code, 200)
+    check("ได้เฉพาะร้านของตัวเอง", all(x["owner_id"] == mine0.json()[0]["owner_id"] for x in mine0.json()), True)
+    c.put("/api/shops/1", headers=owner, json={"is_active": False})
+    check("ปิดร้านชั่วคราวแล้ว ร้านยังอยู่ในหน้าจัดการ",
+          any(x["id"] == 1 and x["is_active"] is False for x in c.get("/api/me/shops", headers=owner).json()), True)
+    check("แต่หน้าค้นหาสาธารณะไม่เห็นร้านที่ปิด",
+          any(x["id"] == 1 for x in c.get("/api/shops?limit=100").json()["items"]), False)
+    c.put("/api/shops/1", headers=owner, json={"is_active": True})
+    check("ลูกค้าเรียกร้านของฉันไม่ได้", c.get("/api/me/shops", headers=cust).status_code, 403)
+
+    mr = c.post("/api/match-requests", headers=cust, json={
+        "sport": "football", "province": "เชียงใหม่", "district": "นิมมาน",
+        "play_date": str(date.today() + timedelta(days=2)), "from_time": "19:00", "to_time": "21:00",
+        "need_people": 4,
+    })
+    check("โพสต์หาคนพร้อมจังหวัดได้", mr.status_code, 201)
+    check("โพสต์เก็บจังหวัดไว้", mr.status_code == 201 and mr.json()["province"], "เชียงใหม่")
+    cm = c.get("/api/match-requests?province=เชียงใหม่&include_full=true").json()
+    check("กรองโพสต์ตามจังหวัดได้", bool(cm) and all(x["province"] == "เชียงใหม่" for x in cm), True)
+    check("จังหวัดอื่นไม่เห็นโพสต์นี้",
+          any(x["id"] == mr.json().get("id") for x in c.get("/api/match-requests?province=ภูเก็ต").json()), False)
+
+    # ==================================================================
     # index ชุดใหม่จาก indexing-lab ต้องถูกสร้างจริง และชุดที่ถอดออกต้องไม่กลับมา
     # ==================================================================
     print("\n--- index ของฐานข้อมูล ---")

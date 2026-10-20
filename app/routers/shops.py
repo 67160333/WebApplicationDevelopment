@@ -393,6 +393,24 @@ def list_shops(
     )
 
 
+@router.get("/me/shops", response_model=list[ShopOut], summary="ร้านของฉัน (รวมร้านที่ปิดอยู่)")
+def my_shops(
+    current_user: User = Depends(require_roles("owner", "admin")),
+    db: Session = Depends(get_db),
+):
+    """ร้านทั้งหมดของเจ้าของคนนี้ — ผู้ดูแลระบบได้ทุกร้าน
+
+    ทำไมต้องมีเส้นนี้แยก: หน้าจัดการร้านเคยดึงจาก GET /api/shops แล้วกรอง owner_id เอง
+    แต่เส้นนั้นเป็นหน้าค้นหาสาธารณะ ส่งเฉพาะร้านที่เปิดอยู่และไม่เกิน 100 ร้าน
+    เจ้าของกด "ปิดร้านชั่วคราว" แล้วบันทึก พอรีเฟรชร้านหายไปจากหน้าจัดการทั้งร้าน
+    ดูเหมือนบันทึกแล้วไม่ติด ทั้งที่ข้อมูลอยู่ในฐานข้อมูลครบ
+    """
+    stmt = select(Shop).order_by(Shop.id)
+    if current_user.role != "admin":
+        stmt = stmt.where(Shop.owner_id == current_user.id)
+    return list(db.scalars(stmt).all())
+
+
 @router.get("/shops/provinces", response_model=list[str], summary="รายชื่อจังหวัดที่มีร้านอยู่จริง")
 def list_provinces(db: Session = Depends(get_db)):
     """คืนชื่อจังหวัดของร้านที่เปิดอยู่ เรียงตามตัวอักษรไทย
