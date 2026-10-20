@@ -1192,10 +1192,107 @@ def main():
     check("คนอื่นดูคิวของช่างคนนี้ไม่ได้",
           c.get(f"/api/me/staff/{member['id']}/queue", headers=cust).status_code, 403)
 
+    # ------------------------------------------------------------------
+    # ปฏิทินช่าง — วันลารายวัน
+    # ------------------------------------------------------------------
+    print("\n--- ปฏิทินช่าง (วันลา) ---")
+    lv_day = None
+    for st in range(2, 20):
+        d_, s_, _ = find_free_slot(c, svc1["id"], member["id"], start=st, span=1)
+        if d_ and d_ != q_day:
+            lv_day = d_
+            break
+    if not lv_day:
+        skip("ปฏิทินช่าง", "หาวันว่างของช่างคนนี้ไม่เจอ")
+    else:
+        av_url = f"/api/services/{svc1['id']}/availability?date={lv_day}&staff_id={member['id']}"
+        check("ลูกค้าบันทึกวันลาให้ช่างไม่ได้",
+              c.post(f"/api/staff/{member['id']}/leaves", headers=cust,
+                     json={"leave_date": lv_day}).status_code, 403)
+        check("ลาย้อนหลังไม่ได้",
+              c.post(f"/api/staff/{member['id']}/leaves", headers=stf_hdr,
+                     json={"leave_date": str(date.today() - timedelta(days=1))}).status_code, 422)
+        lv = c.post(f"/api/staff/{member['id']}/leaves", headers=stf_hdr,
+                    json={"leave_date": lv_day, "reason": "ลาป่วย"})
+        check("ช่างบันทึกวันลาของตัวเองได้", lv.status_code, 201)
+        check("บันทึกวันเดิมซ้ำไม่ได้",
+              c.post(f"/api/staff/{member['id']}/leaves", headers=stf_hdr,
+                     json={"leave_date": lv_day}).status_code, 409)
+        av = c.get(av_url).json()
+        check("วันที่ลา หน้าจองไม่มีช่องว่างของช่างคนนี้", av["available_count"], 0)
+        check("หน้าจองบอกเหตุผลว่าช่างหยุด", "หยุด" in (av.get("closed_reason") or ""), True)
+        slot0 = (av["slots"] or [{"time": "10:00:00"}])[0]["time"]
+        check("จองช่างคนนี้ในวันที่ลาไม่ได้",
+              c.post("/api/bookings", headers=cust, json={
+                  "service_id": svc1["id"], "staff_id": member["id"],
+                  "booking_date": lv_day, "booking_time": slot0,
+              }).status_code, 422)
+        if other_member:
+            av_any = c.get(f"/api/services/{svc1['id']}/availability?date={lv_day}").json()
+            check("ไม่ระบุช่าง ร้านยังรับคิวได้ (ช่างคนอื่นยังเข้างาน)",
+                  av_any["available_count"] > 0, True)
+        notes = c.get("/api/notifications?page=1&limit=20", headers=owner).json()["items"]
+        check("เจ้าของร้านได้รับแจ้งเตือนเมื่อช่างลาเอง",
+              any(n["kind"] == "staff_leave" for n in notes), True)
+        lst = c.get(f"/api/staff/{member['id']}/leaves", headers=owner).json()
+        check("เจ้าของร้านเห็นวันลาพร้อมเหตุผล",
+              [(x["leave_date"], x["reason"]) for x in lst], [(lv_day, "ลาป่วย")])
+        check("ลูกค้าดูรายการวันลาไม่ได้ (เหตุผลเป็นเรื่องภายในร้าน)",
+              c.get(f"/api/staff/{member['id']}/leaves", headers=cust).status_code, 403)
+        check("ยกเลิกวันลาได้",
+              c.delete(f"/api/staff/leaves/{lv.json()['id']}", headers=owner).status_code, 200)
+        check("ยกเลิกแล้ววันนั้นกลับมาจองได้", c.get(av_url).json()["available_count"] > 0, True)
+    if q_bk:
+        check("วันที่มีลูกค้าจองช่างไว้แล้ว ลาไม่ได้ (ต้องเลื่อนนัดก่อน)",
+              c.post(f"/api/staff/{member['id']}/leaves", headers=owner,
+                     json={"leave_date": q_day}).status_code, 409)
+
     check("ช่างออกจากร้านเองได้",
           c.delete(f"/api/staff/{member['id']}/account", headers=stf_hdr).status_code, 200)
     check("ออกแล้วไม่เห็นโปรไฟล์ของร้านนั้นอีก",
           c.get("/api/me/staff", headers=stf_hdr).json(), [])
+
+    # ==================================================================
+    # แจ้งเตือนนัดล่วงหน้า 24 ชั่วโมง
+    # ==================================================================
+    print("\n--- เตือนนัดล่วงหน้า ---")
+    from app.routers.bookings import now_local  # noqa: E402
+
+    c.post("/api/auth/register", json={
+        "username": "remindtest", "email": "remindtest@example.com",
+        "password": DEMO_PASSWORD, "full_name": "เตือน นัดหมาย",
+    })
+    rm_hdr = login("remindtest")
+    rm_id = c.get("/api/users/me", headers=rm_hdr).json()["id"]
+
+    def insert_booking(user_id, start_dt, code, status="confirmed"):
+        db = SessionLocal()
+        try:
+            end_dt = start_dt + timedelta(hours=1)
+            b = BK(user_id=user_id, shop_id=1, service_id=svc1["id"], booking_code=code,
+                   booking_date=start_dt.date(), booking_time=start_dt.time().replace(microsecond=0),
+                   end_time=end_dt.time().replace(microsecond=0), status=status, holds_slot=False,
+                   total_price=D("500"), deposit_amount=D("100"))
+            db.add(b)
+            db.commit()
+            return b.id
+        finally:
+            db.close()
+
+    now_ = now_local().replace(second=0, microsecond=0)
+    insert_booking(rm_id, now_ + timedelta(hours=3), "BVREM0001")
+    insert_booking(rm_id, now_ + timedelta(days=3), "BVREM0002")
+    insert_booking(rm_id, now_ + timedelta(hours=5), "BVREM0003", status="pending")
+
+    c.get("/api/notifications/unread-count", headers=rm_hdr)
+    items = c.get("/api/notifications?page=1&limit=20", headers=rm_hdr).json()["items"]
+    rem = [n for n in items if n["kind"] == "booking_reminder"]
+    check("คิวที่ยืนยันแล้วและอีกไม่ถึง 24 ชม. ได้แจ้งเตือน", len(rem), 1)
+    check("แจ้งเตือนบอกรหัสคิวที่ถูกต้อง", bool(rem) and "BVREM0001" in (rem[0]["body"] or ""), True)
+    c.get("/api/notifications/unread-count", headers=rm_hdr)
+    items2 = c.get("/api/notifications?page=1&limit=20", headers=rm_hdr).json()["items"]
+    check("เปิดเว็บซ้ำไม่แจ้งเตือนซ้ำ",
+          len([n for n in items2 if n["kind"] == "booking_reminder"]), 1)
 
     # ==================================================================
     # index ชุดใหม่จาก indexing-lab ต้องถูกสร้างจริง และชุดที่ถอดออกต้องไม่กลับมา

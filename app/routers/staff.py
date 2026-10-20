@@ -37,7 +37,7 @@ from datetime import date
 from sqlalchemy import or_
 
 from app.database import get_db
-from app.models import Booking, Category, Review, Service, Shop, Staff, User
+from app.models import Booking, Category, Review, Service, Shop, Staff, StaffLeave, User
 from app.routers.notifications import notify
 from app.schemas import (
     Message,
@@ -48,6 +48,8 @@ from app.schemas import (
     StaffAccountOut,
     StaffAspects,
     StaffDetail,
+    StaffLeaveCreate,
+    StaffLeaveOut,
     StaffLink,
     StaffOut,
     StaffQueueItem,
@@ -549,3 +551,109 @@ def my_staff_queue(
             note="ซ่อนข้อมูลลูกค้าจริงจากบัญชีทดลอง" if hide else b.note,
         ))
     return out
+
+
+# ============================================================
+# ปฏิทินช่าง — วันลา / ปิดรับคิวรายวัน
+# ============================================================
+# ใครแก้ได้: เจ้าของร้าน ผู้ดูแลระบบ และตัวช่างเองที่ผูกบัญชีไว้ (กติกาเดียวกับแก้โปรไฟล์)
+# ผลต่อการจอง: bookings._staff_works_on ตรวจตารางนี้ด้วย วันที่ลาจึงปิดเองในทุกหน้า
+# ทั้งหน้าดูคิวว่าง การจอง การเลื่อนนัด ผังทรัพยากร และการนับความจุของร้าน
+@router.get(
+    "/staff/{staff_id}/leaves",
+    response_model=list[StaffLeaveOut],
+    summary="ดูวันลาของช่าง (เจ้าของร้าน / ตัวช่าง)",
+)
+def list_staff_leaves(
+    staff_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """เฉพาะวันนี้เป็นต้นไป — เหตุผลการลาเป็นเรื่องภายในร้าน ลูกค้าไม่ต้องเห็น"""
+    member = _get_staff_or_404(db, staff_id)
+    _ensure_can_edit_profile(db, member, current_user)
+    return list(db.scalars(
+        select(StaffLeave)
+        .where(StaffLeave.staff_id == staff_id, StaffLeave.leave_date >= date.today())
+        .order_by(StaffLeave.leave_date)
+    ).all())
+
+
+@router.post(
+    "/staff/{staff_id}/leaves",
+    response_model=StaffLeaveOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="บันทึกวันลาของช่าง",
+)
+def create_staff_leave(
+    payload: StaffLeaveCreate,
+    staff_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    member = _get_staff_or_404(db, staff_id)
+    _ensure_can_edit_profile(db, member, current_user)
+
+    if payload.leave_date < date.today():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="เลือกวันย้อนหลังไม่ได้"
+        )
+    exists = db.scalar(
+        select(StaffLeave.id).where(
+            StaffLeave.staff_id == staff_id, StaffLeave.leave_date == payload.leave_date
+        )
+    )
+    if exists is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="บันทึกวันนี้ไว้แล้ว")
+
+    # มีลูกค้าจองช่างคนนี้วันนั้นอยู่แล้ว ห้ามลาทับเงียบ ๆ
+    # ไม่งั้นลูกค้ามาถึงร้านแล้วไม่เจอช่าง — ร้านต้องย้ายช่างหรือเลื่อนนัดให้ลูกค้าก่อน
+    booked = db.scalar(
+        select(func.count(Booking.id)).where(
+            Booking.staff_id == staff_id,
+            Booking.booking_date == payload.leave_date,
+            Booking.status.in_(("pending", "confirmed")),
+        )
+    ) or 0
+    if booked:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"วันนั้นมีลูกค้าจอง{member.name}ไว้ {booked} คิว "
+                   "ต้องเลื่อนนัดหรือเปลี่ยนช่างให้ลูกค้าก่อนถึงจะลาได้",
+        )
+
+    row = StaffLeave(staff_id=staff_id, leave_date=payload.leave_date, reason=payload.reason)
+    db.add(row)
+
+    # ช่างลาเอง ต้องให้เจ้าของร้านรู้ จะได้วางคนแทน
+    shop = db.get(Shop, member.shop_id)
+    if shop is not None and member.user_id == current_user.id and shop.owner_id != current_user.id:
+        notify(
+            db, shop.owner_id, "staff_leave",
+            f"{member.name} ลางาน {payload.leave_date.strftime('%d/%m/%Y')}",
+            payload.reason or "ระบบปิดรับคิวของช่างคนนี้ในวันนั้นแล้ว",
+            "manage.html",
+        )
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.delete(
+    "/staff/leaves/{leave_id}",
+    response_model=Message,
+    summary="ยกเลิกวันลา (เปิดรับคิวอีกครั้ง)",
+)
+def delete_staff_leave(
+    leave_id: int = Path(..., ge=1),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    row = db.get(StaffLeave, leave_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ไม่พบรายการนี้")
+    member = _get_staff_or_404(db, row.staff_id)
+    _ensure_can_edit_profile(db, member, current_user)
+    db.delete(row)
+    db.commit()
+    return Message(message="เปิดรับคิววันนั้นอีกครั้งแล้ว")

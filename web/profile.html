@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202610031200" />
+  <link rel="stylesheet" href="css/app.css?v=202610201200" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -82,8 +82,8 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202610031200"></script>
-  <script src="js/ui.js?v=202610031200"></script>
+  <script src="js/api.js?v=202610201200"></script>
+  <script src="js/ui.js?v=202610201200"></script>
   <script>
     renderNavbar();
     renderFooter();
@@ -273,6 +273,12 @@
           </form>
 
           <div class="mt-5 pt-4" style="border-top:1px solid var(--border)">
+            <h3 class="h3">วันลา / ปิดรับคิว</h3>
+            <p class="hint" style="margin:2px 0 8px">บันทึกแล้วลูกค้าจะจองคุณวันนั้นไม่ได้ ร้านจะได้รับแจ้งเตือน</p>
+            <div data-leave-box="${m.id}"></div>
+          </div>
+
+          <div class="mt-5 pt-4" style="border-top:1px solid var(--border)">
             <div class="flex items-center justify-between gap-2">
               <h3 class="h3">คิวของฉันที่กำลังจะมาถึง</h3>
               <button type="button" data-leave="${m.id}" class="btn btn-ghost btn-sm">ออกจากร้านนี้</button>
@@ -281,7 +287,10 @@
           </div>
         </div>`).join("");
 
-      list.forEach((m) => loadQueue(m.id));
+      list.forEach((m) => {
+        loadQueue(m.id);
+        renderLeaveEditor(document.querySelector(`[data-leave-box="${m.id}"]`), m.id);
+      });
 
       box.querySelectorAll("[data-form]").forEach((form) =>
         form.addEventListener("submit", async (e) => {

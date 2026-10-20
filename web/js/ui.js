@@ -652,6 +652,7 @@ function bindBell() {
   const KIND_ICON = {
     booking_confirmed: "check", booking_cancelled: "x", booking_completed: "star",
     booking_new: "calendar", booking_moved: "clock", review_reply: "user",
+    staff_leave: "calendar", booking_reminder: "clock",
   };
 
   async function loadList() {
@@ -1799,4 +1800,65 @@ function leaveByText(bookingTime, km, bufferMin = 10) {
   const hh = String(Math.floor(total / 60) % 24).padStart(2, "0");
   const mm = String(total % 60).padStart(2, "0");
   return `${hh}:${mm}`;
+}
+
+/* ============================================================
+ * ปฏิทินช่าง — กล่องบันทึกวันลา ใช้ร่วมกันสองหน้า
+ * ------------------------------------------------------------
+ * manage.html : เจ้าของร้านบันทึกให้ (ในกล่องแก้ไขข้อมูลช่าง)
+ * profile.html: ช่างบันทึกเอง (ในส่วนโปรไฟล์ผู้ให้บริการของฉัน)
+ * เซิร์ฟเวอร์เป็นคนตรวจสิทธิ์และตรวจว่าวันนั้นมีคิวลูกค้าค้างอยู่หรือไม่
+ * ============================================================ */
+async function renderLeaveEditor(box, staffId) {
+  box.innerHTML = loadingHTML();
+  let rows = [];
+  try {
+    rows = await apiGet(`/api/staff/${staffId}/leaves`);
+  } catch (err) {
+    box.innerHTML = `<p class="text-sm" style="color:var(--danger)">${esc(err.message)}</p>`;
+    return;
+  }
+  box.innerHTML = `
+    <div class="leave-form">
+      <input type="date" class="input" data-lv-date min="${localDate()}" aria-label="วันที่ลา" />
+      <input class="input" data-lv-reason maxlength="200" placeholder="เหตุผล (ไม่บังคับ) เช่น ลาป่วย" aria-label="เหตุผล" />
+      <button type="button" class="btn btn-outline" data-lv-add>เพิ่มวันลา</button>
+    </div>
+    ${rows.length
+      ? `<ul class="leave-list">${rows.map((r) => `
+          <li>
+            <span><strong>${esc(thaiDate(r.leave_date))}</strong>
+              ${r.reason ? `<span class="text-muted"> · ${esc(r.reason)}</span>` : ""}</span>
+            <button type="button" class="btn btn-ghost btn-sm" data-lv-del="${r.id}">ยกเลิก</button>
+          </li>`).join("")}</ul>`
+      : `<p class="hint" style="margin-top:8px">ยังไม่มีวันลา</p>`}`;
+
+  box.querySelector("[data-lv-add]").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const d = box.querySelector("[data-lv-date]").value;
+    if (!d) return toast("เลือกวันที่ก่อน", "error");
+    btnBusy(btn, true, "กำลังบันทึก");
+    try {
+      await apiPost(`/api/staff/${staffId}/leaves`, {
+        leave_date: d,
+        reason: box.querySelector("[data-lv-reason]").value.trim() || null,
+      });
+      toast("บันทึกวันลาแล้ว ลูกค้าจะจองช่างคนนี้วันนั้นไม่ได้");
+      renderLeaveEditor(box, staffId);
+    } catch (err) {
+      btnBusy(btn, false);
+      toast(err.message, "error", 6000);
+    }
+  });
+  box.querySelectorAll("[data-lv-del]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      try {
+        await apiDelete(`/api/staff/leaves/${b.dataset.lvDel}`);
+        toast("เปิดรับคิววันนั้นอีกครั้งแล้ว");
+        renderLeaveEditor(box, staffId);
+      } catch (err) {
+        toast(err.message, "error");
+      }
+    })
+  );
 }

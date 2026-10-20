@@ -78,6 +78,8 @@ COLUMNS: list[tuple[str, str, str]] = [
     ("bookings", "dispute_note", "VARCHAR(500)"),
     ("bookings", "dispute_result", "VARCHAR(10)"),
     ("payments", "released_at", "TIMESTAMPTZ"),
+    # แจ้งเตือนนัดล่วงหน้า
+    ("bookings", "reminded_at", "TIMESTAMPTZ"),
     ("payments", "payout_id", "INTEGER"),
     ("shops", "bank_name", "VARCHAR(50)"),
     ("shops", "bank_account_no", "VARCHAR(20)"),

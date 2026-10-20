@@ -420,6 +420,28 @@ class ShopClosure(Base):
     )
 
 
+class StaffLeave(Base):
+    """วันที่ช่างคนหนึ่งลาหรือปิดรับคิว — ปฏิทินช่าง
+
+    ต่างจาก ShopClosure ตรงที่ปิดเฉพาะช่างคนนี้ ร้านยังเปิดและช่างคนอื่นยังรับคิวได้
+    ต่างจาก work_days ตรงที่เป็น "รายวัน" ไม่ใช่วันประจำสัปดาห์ เช่น ลาป่วยวันพุธนี้วันเดียว
+    """
+
+    __tablename__ = "staff_leaves"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    staff_id: Mapped[int] = mapped_column(ForeignKey("staff.id", ondelete="CASCADE"))
+    leave_date: Mapped[date] = mapped_column(Date)
+    reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+    __table_args__ = (
+        # ช่างคนเดียวกัน วันเดียวกัน บันทึกซ้ำไม่ได้
+        # index นี้ขึ้นต้นด้วย staff_id จึงใช้ตอบ "ช่างคนนี้ลาวันนี้ไหม" ได้ตรง ๆ ไม่ต้องมี index แยก
+        Index("uq_staff_leave_date", "staff_id", "leave_date", unique=True),
+    )
+
+
 class Booking(Base):
     """การจองคิว — status: pending / confirmed / completed / cancelled"""
 
@@ -502,6 +524,9 @@ class Booking(Base):
     dropoff_address: Mapped[str | None] = mapped_column(String(300), nullable=True)
     distance_km: Mapped[Decimal | None] = mapped_column(Numeric(6, 2), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+    # ส่งแจ้งเตือน "พรุ่งนี้มีนัด" ให้ลูกค้าไปแล้วเมื่อไหร่ — กันส่งซ้ำ (ดู notifications.send_due_reminders)
+    reminded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # ---- ระบบพักเงิน (ดู app/routers/escrow.py) ----
     # ร้านกด "ให้บริการเสร็จ" เมื่อไหร่ — เริ่มนับเวลา 24 ชั่วโมงก่อนปล่อยเงินให้ร้าน

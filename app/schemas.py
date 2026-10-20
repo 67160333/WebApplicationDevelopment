@@ -823,6 +823,20 @@ class ClosureCreate(BaseModel):
     reason: str | None = Field(None, max_length=200, examples=["ปิดปรับปรุงร้าน"])
 
 
+class StaffLeaveCreate(BaseModel):
+    leave_date: date = Field(..., description="วันที่ช่างลาหรือปิดรับคิว", examples=["2026-11-05"])
+    reason: str | None = Field(None, max_length=200, examples=["ลาป่วย"])
+
+
+class StaffLeaveOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    staff_id: int
+    leave_date: date
+    reason: str | None = None
+
+
 class ClosureOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -3867,3 +3867,13 @@ details:not([open]) > *:not(summary) { display: none !important; }
   .staff-hero { grid-template-columns: 1fr; text-align: center; justify-items: center; }
   .staff-actions { justify-content: center; }
 }
+
+/* ---------- ปฏิทินช่าง (วันลา) ---------- */
+.leave-form { display: grid; grid-template-columns: 150px 1fr auto; gap: 8px; }
+.leave-list { list-style: none; margin: 10px 0 0; padding: 0; }
+.leave-list li {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 0; border-top: 1px solid var(--border); font-size: 14px;
+}
+.leave-list li:first-child { border-top: 0; }
+@media (max-width: 560px) { .leave-form { grid-template-columns: 1fr; } }

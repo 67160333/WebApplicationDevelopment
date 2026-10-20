@@ -9,11 +9,11 @@ from decimal import ROUND_HALF_UP, Decimal
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy import case, func, select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from app.database import get_db
 from app.models import (
-    Booking, MatchJoin, Payment, Review, Service, Shop, ShopClosure, Staff, User,
+    Booking, MatchJoin, Payment, Review, Service, Shop, ShopClosure, Staff, StaffLeave, User,
 )
 from app.schemas import (
     AspectAverages,
@@ -562,13 +562,29 @@ def _work_days(member: Staff) -> set[int] | None:
         return None
 
 
+def _staff_on_leave(member: Staff, on_date: date_cls) -> bool:
+    """ช่างคนนี้ลาหรือปิดรับคิววันนั้นไว้ในปฏิทินช่างหรือไม่
+
+    ดึง session จากตัว member เอง เพื่อไม่ต้องไล่แก้ทุกจุดที่เรียก _staff_works_on
+    ให้ส่ง db เพิ่ม (มีหลายจุด: หน้าจอง จอง เลื่อนนัด ผังทรัพยากร นับความจุ)
+    """
+    db = object_session(member)
+    if db is None:
+        return False
+    return db.scalar(
+        select(StaffLeave.id).where(
+            StaffLeave.staff_id == member.id, StaffLeave.leave_date == on_date
+        ).limit(1)
+    ) is not None
+
+
 def _staff_works_on(member: Staff, on_date: date_cls) -> bool:
-    """ช่างคนนี้เข้างานวันนั้นหรือไม่"""
+    """ช่างคนนี้เข้างานวันนั้นหรือไม่ — ดูทั้งวันทำงานประจำสัปดาห์และวันลา"""
     days = _work_days(member)
-    if days is None:
-        return True
     # Python: Monday=0..Sunday=6 → แปลงเป็น Sunday=0..Saturday=6
-    return ((on_date.weekday() + 1) % 7) in days
+    if days is not None and ((on_date.weekday() + 1) % 7) not in days:
+        return False
+    return not _staff_on_leave(member, on_date)
 
 
 def _windows_for(shop: Shop, member: Staff | None) -> list[tuple[int, int]]:
