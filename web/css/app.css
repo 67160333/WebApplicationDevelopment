@@ -3877,3 +3877,88 @@ details:not([open]) > *:not(summary) { display: none !important; }
 }
 .leave-list li:first-child { border-top: 0; }
 @media (max-width: 560px) { .leave-form { grid-template-columns: 1fr; } }
+
+/* ---------- หน้าโปรไฟล์ช่าง: ส่วนหัวแบบมีรูปปกร้าน ----------
+   รูปปกใช้รูปจริงของร้าน ไม่มีรูปก็เป็นแถบสีกรมท่าเรียบ ๆ
+   รูปคนวางทับขอบล่างของปก ให้อ่านได้ทันทีว่า "คนนี้ ทำงานที่ร้านนี้" */
+.sp-hero { overflow: hidden; padding: 0; }
+.sp-cover {
+  height: 148px;
+  background: var(--navy-800) center / cover no-repeat;
+  position: relative;
+}
+.sp-cover::after {               /* ทำให้รูปปกนิ่งลง ไม่แย่งความสนใจจากชื่อช่าง */
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(12,34,66,.15), rgba(12,34,66,.55));
+}
+.sp-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--s-5);
+  align-items: end;
+  padding: 0 var(--s-6) var(--s-5);
+  margin-top: -52px;
+  position: relative;
+}
+.sp-head .av-2xl { border: 4px solid var(--surface); box-shadow: 0 2px 8px rgba(15,27,45,.12); }
+.sp-who { min-width: 0; padding-top: 60px; }
+.sp-who .h1 { margin: 0; line-height: 1.2; }
+.sp-sub { margin: 4px 0 0; font-size: var(--fs-sm); color: var(--ink-soft); }
+.sp-sub a { color: var(--blue-600); text-decoration: none; }
+.sp-sub a:hover { text-decoration: underline; }
+.sp-rating { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: var(--fs-sm); }
+.sp-rating a { text-decoration: none; }
+.sp-cta { display: flex; gap: var(--s-2); flex-wrap: wrap; justify-content: flex-end; }
+
+.sp-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  margin: 0;
+  border-top: 1px solid var(--border);
+}
+.sp-facts > div { padding: var(--s-4) var(--s-6); border-left: 1px solid var(--border); }
+.sp-facts > div:first-child { border-left: 0; }
+.sp-facts dt { font-size: var(--fs-xs); color: var(--muted); }
+.sp-facts dd { margin: 2px 0 0; font-size: var(--fs-lg); font-weight: 600; color: var(--navy-800); }
+
+.sp-bio { margin: var(--s-2) 0 0; font-size: var(--fs-sm); line-height: 1.75; white-space: pre-line; color: var(--ink-soft); }
+.sp-label { margin: var(--s-5) 0 0; font-size: var(--fs-xs); font-weight: 600; color: var(--ink); }
+
+/* แถบ 7 วัน — วันทำงานทึบ วันหยุดจาง วันนี้มีขีดใต้ */
+.sp-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.sp-week span {
+  display: grid; place-items: center;
+  height: 34px; border-radius: 8px;
+  font-size: var(--fs-xs); color: var(--faint);
+  background: var(--surface-2);
+  text-decoration: line-through;
+}
+.sp-week span.on { background: var(--navy-50); color: var(--navy-800); font-weight: 600; text-decoration: none; }
+.sp-week span.today { box-shadow: inset 0 -2px 0 var(--blue-600); }
+
+.sp-times { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--s-2); }
+.sp-times a {
+  padding: 6px 12px; border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  font-size: var(--fs-sm); color: var(--navy-800); text-decoration: none;
+}
+.sp-times a:hover { border-color: var(--blue-600); color: var(--blue-600); }
+
+.sp-others { display: grid; gap: 10px; margin-top: var(--s-3); }
+.sp-others a { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+.sp-others a > span:last-child { display: flex; flex-direction: column; min-width: 0; font-size: var(--fs-sm); }
+.sp-others a:hover b { color: var(--blue-600); }
+
+@media (min-width: 900px) { .sp-side { position: sticky; top: 80px; } }
+@media (max-width: 720px) {
+  .sp-head { grid-template-columns: auto 1fr; padding: 0 var(--s-4) var(--s-4); }
+  .sp-cta { grid-column: 1 / -1; justify-content: stretch; }
+  .sp-cta .btn { flex: 1; }
+  .sp-facts > div { padding: var(--s-3) var(--s-4); }
+}
+@media (max-width: 480px) {
+  .sp-head { grid-template-columns: 1fr; justify-items: start; }
+  .sp-who { padding-top: 0; }
+}
+.sp-cover.is-plain { height: 96px; background: var(--navy-800); }
+.sp-cover.is-plain::after { display: none; }

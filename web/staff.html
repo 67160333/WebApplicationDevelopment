@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202610201200" />
+  <link rel="stylesheet" href="css/app.css?v=202610201500" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -31,8 +31,8 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202610201200"></script>
-  <script src="js/ui.js?v=202610201200"></script>
+  <script src="js/api.js?v=202610201500"></script>
+  <script src="js/ui.js?v=202610201500"></script>
   <script>
     renderNavbar("");
     renderFooter();
@@ -40,35 +40,66 @@
     const content = document.getElementById("content");
     const staffId = Number(new URLSearchParams(location.search).get("id"));
     const REVIEW_PAGE = 5;
+    const NEXT_FREE_DAYS = 7;          // ไล่หาคิวว่างล่วงหน้ากี่วัน (ยิงทีละวัน หยุดทันทีที่เจอ)
     let profile = null;
     let reviewPage = 1;
 
-    // สีพื้นรูปแทนตัวเมื่อยังไม่มีรูป — สูตรเดียวกับหน้าร้าน (avatarStyle ใน shop.html)
-    // ช่างคนเดิมจึงได้สีเดิมทั้งสองหน้า
+    // สีพื้นรูปแทนตัวเมื่อยังไม่มีรูป — สูตรเดียวกับหน้าร้าน ช่างคนเดิมจึงได้สีเดิมทั้งสองหน้า
     const AV_COLORS = [
       ["#1a63d8", "#4f8ff0"], ["#0f7b6c", "#2fae9c"], ["#8a4bd3", "#b183ea"],
       ["#c2571f", "#e88b4d"], ["#0f294b", "#2f5f96"], ["#b3355f", "#e07a9d"],
     ];
-    function avatarHTML(p) {
+    function avatarHTML(p, cls = "av-2xl") {
       if (p.photo_url) {
-        return `<span class="av-2xl has-photo"><img src="${esc(fileUrl(p.photo_url))}" alt="${esc(p.name)}" /></span>`;
+        return `<span class="${cls} has-photo"><img src="${esc(fileUrl(p.photo_url))}" alt="${esc(p.name)}" /></span>`;
       }
       let h = 0;
       for (const ch of p.name) h = (h * 31 + ch.charCodeAt(0)) % 9973;
       const [a, b] = AV_COLORS[h % AV_COLORS.length];
-      return `<span class="av-2xl" style="background:linear-gradient(135deg,${a},${b})">${esc(p.name.trim().charAt(0))}</span>`;
+      return `<span class="${cls}" style="background:linear-gradient(135deg,${a},${b})">${esc(p.name.trim().charAt(0))}</span>`;
     }
 
-    function workText(p) {
-      let days = "ทุกวันที่ร้านเปิด";
-      if (p.work_days) {
-        const list = p.work_days.split(",").map(Number).sort((a, b) => a - b);
-        days = list.length === 7 ? "ทุกวัน" : list.map((d) => DOW_TH_FULL[d]).join(" ");
+    // ---------- ตารางทำงานรายสัปดาห์ ----------
+    // วันที่ช่างเข้างาน = วันที่ช่างเลือกไว้ (ว่าง = ทุกวัน) และร้านต้องไม่หยุดประจำวันนั้นด้วย
+    function weekHTML(p, shop) {
+      const mine = p.work_days ? p.work_days.split(",").map(Number) : [0, 1, 2, 3, 4, 5, 6];
+      const shopOff = (shop && shop.closed_weekdays ? shop.closed_weekdays.split(",") : []).map(Number);
+      const open = (d) => mine.includes(d) && !shopOff.includes(d);
+      const today = new Date().getDay();
+      const start = p.work_start || (shop && shop.open_time);
+      const end = p.work_end || (shop && shop.close_time);
+      return `
+        <div class="sp-week">
+          ${["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"].map((d, i) => `
+            <span class="${open(i) ? "on" : ""} ${i === today ? "today" : ""}"
+                  title="${DOW_TH_FULL[i]}${open(i) ? "" : " · หยุด"}">${d}</span>`).join("")}
+        </div>
+        ${start && end ? `<p class="text-sm mt-3"><span class="num">${shortTime(start)}–${shortTime(end)}</span> น.</p>` : ""}`;
+    }
+
+    // ---------- ตัวเลขจากงานจริง ----------
+    // ช่องที่ยังไม่มีข้อมูลไม่ต้องโชว์ — เลข 0 อ่านแล้วเหมือนช่างฝีมือแย่ ทั้งที่แค่เพิ่งเริ่มใช้ระบบ
+    function factsHTML(p) {
+      const cells = [];
+      if (p.experience_years) cells.push([`${p.experience_years} ปี`, "ประสบการณ์"]);
+      if (p.jobs_done) cells.push([p.jobs_done, "งานที่ทำเสร็จ"]);
+      if (p.total_customers) cells.push([p.total_customers, "ลูกค้าที่ดูแล"]);
+      if (p.repeat_rate !== null && p.repeat_rate !== undefined) cells.push([`${p.repeat_rate}%`, "กลับมาใช้ซ้ำ"]);
+      if (p.months_with_shop) {
+        cells.push([p.months_with_shop >= 12 ? `${Math.floor(p.months_with_shop / 12)} ปี` : `${p.months_with_shop} เดือน`, "อยู่กับร้านนี้"]);
       }
-      const time = p.work_start || p.work_end
-        ? `${p.work_start ? shortTime(p.work_start) : "เปิดร้าน"}–${p.work_end ? shortTime(p.work_end) : "ปิดร้าน"} น.`
-        : "ตามเวลาเปิดร้าน";
-      return `${days} · ${time}`;
+      // ข้อมูลเดียวไม่ต้องทำเป็นแถบ ให้ไปต่อท้ายบรรทัดชื่อร้านแทน (ดู subFact) ไม่งั้นแถบโล่งทั้งแถว
+      if (cells.length < 2) return "";
+      return `<dl class="sp-facts">${cells.slice(0, 4).map(([v, t]) =>
+        `<div><dt>${t}</dt><dd class="num">${v}</dd></div>`).join("")}</dl>`;
+    }
+
+    function subFact(p) {
+      if (p.experience_years || p.jobs_done || p.total_customers) return "";
+      if (!p.months_with_shop) return "";
+      return p.months_with_shop >= 12
+        ? ` · อยู่กับร้าน ${Math.floor(p.months_with_shop / 12)} ปี`
+        : ` · อยู่กับร้าน ${p.months_with_shop} เดือน`;
     }
 
     function aspectsHTML(a) {
@@ -78,31 +109,14 @@
       ].filter(([, v]) => v !== null && v !== undefined);
       if (!rows.length) return "";
       return `
-        <section class="card card-pad">
-          <h2 class="h3">คะแนนรายด้าน</h2>
-          <div class="sa-rows mt-3">
-            ${rows.map(([label, v]) => `
-              <div class="sa-row">
-                <span class="sa-name">${label}</span>
-                <span class="sa-bar"><i style="width:${(v / 5 * 100).toFixed(0)}%"></i></span>
-                <b class="num">${Number(v).toFixed(1)}</b>
-              </div>`).join("")}
-          </div>
-        </section>`;
-    }
-
-    // ตัวเลขทุกช่องคำนวณจากงานจริง ช่องที่ยังไม่มีข้อมูลพอให้ซ่อน
-    // ดีกว่าโชว์ 0 ซึ่งอ่านแล้วเหมือนช่างแย่ ทั้งที่จริงแค่ยังไม่มีใครมาใช้บริการ
-    function statsHTML(p) {
-      const cells = [[p.jobs_done, "งานที่ทำเสร็จ"]];
-      if (p.total_customers) cells.push([p.total_customers, "ลูกค้าที่เคยดูแล"]);
-      if (p.repeat_rate !== null && p.repeat_rate !== undefined) cells.push([`${p.repeat_rate}%`, "ลูกค้ากลับมาซ้ำ"]);
-      if (p.experience_years) cells.push([`${p.experience_years} ปี`, "ประสบการณ์"]);
-      else if (p.months_with_shop) {
-        cells.push([p.months_with_shop >= 12 ? `${Math.floor(p.months_with_shop / 12)} ปี` : `${p.months_with_shop} เดือน`, "อยู่กับร้านนี้"]);
-      }
-      return `<div class="stat-row">${cells.map(([v, t]) =>
-        `<div class="stat-cell"><b class="num">${v}</b><span>${t}</span></div>`).join("")}</div>`;
+        <div class="sa-rows mt-4">
+          ${rows.map(([label, v]) => `
+            <div class="sa-row">
+              <span class="sa-name">${label}</span>
+              <span class="sa-bar"><i style="width:${(v / 5 * 100).toFixed(0)}%"></i></span>
+              <b class="num">${Number(v).toFixed(1)}</b>
+            </div>`).join("")}
+        </div>`;
     }
 
     async function load() {
@@ -111,86 +125,109 @@
         return;
       }
       content.innerHTML = loadingHTML();
+      let shop = null;
       try {
         profile = await apiGet(`/api/staff/${staffId}`);
+        // ข้อมูลร้าน: รูปปก วันหยุดประจำ และช่างคนอื่น — โหลดไม่ได้ก็ยังแสดงโปรไฟล์ได้
+        shop = await apiGet(`/api/shops/${profile.shop_id}`).catch(() => null);
       } catch (err) {
         content.innerHTML = emptyHTML("user", "ไม่พบผู้ให้บริการ", err.message);
         return;
       }
       const p = profile;
       document.title = `${p.name} · ${p.shop_name} | Bookvice`;
-      const where = [p.shop_district, p.shop_province].filter(Boolean).join(" ");
+      const where = [p.shop_district, p.shop_province].filter(Boolean).join(", ");
       const tags = (p.specialties || "").split(",").map((x) => x.trim()).filter(Boolean);
       const bookUrl = `shop.html?id=${p.shop_id}&staff=${p.id}`;
+      const others = ((shop && shop.staff) || []).filter((x) => x.id !== p.id && x.is_active);
+      const cover = shop && shop.cover_url ? fileUrl(shop.cover_url) : null;
 
       content.innerHTML = `
-        <section class="card card-pad">
-          <div class="staff-hero">
+        <section class="card sp-hero">
+          <div class="sp-cover ${cover ? "" : "is-plain"}" ${cover ? `style="background-image:url('${esc(cover)}')"` : ""}></div>
+          <div class="sp-head">
             ${avatarHTML(p)}
-            <div class="who">
-              ${p.position ? `<div class="pos">${esc(p.position)}</div>` : ""}
-              <h1 class="h1" style="margin-top:2px">${esc(p.name)}</h1>
-              <div class="where">
-                <a href="shop.html?id=${p.shop_id}">${esc(p.shop_name)}</a>${where ? ` · ${esc(where)}` : ""}
-              </div>
-              <div class="flex items-center gap-2 mt-2 flex-wrap">
+            <div class="sp-who">
+              <h1 class="h1">${esc(p.name)}</h1>
+              <p class="sp-sub">
+                ${p.position ? `${esc(p.position)} · ` : ""}<a href="shop.html?id=${p.shop_id}">${esc(p.shop_name)}</a>
+                ${where ? `<span class="text-muted"> · ${esc(where)}</span>` : ""}<span class="text-muted">${subFact(p)}</span>
+              </p>
+              <p class="sp-rating">
                 ${p.rating_count
                   ? `${starRow(p.rating_avg, 14)}
-                     <span class="text-sm num">${Number(p.rating_avg).toFixed(1)}</span>
-                     <span class="text-sm text-muted">· ${p.rating_count} รีวิว</span>`
-                  : `<span class="text-sm text-muted">ยังไม่มีรีวิว</span>`}
-              </div>
-              <div class="staff-actions">
-                ${p.is_active
-                  ? `<a href="${bookUrl}" class="btn btn-primary">จองกับ${esc(p.name)}</a>`
-                  : `<span class="badge badge-cancelled">พักงานอยู่ ยังไม่รับคิว</span>`}
-                <button id="shareBtn" class="btn btn-outline">คัดลอกลิงก์โปรไฟล์</button>
-              </div>
+                     <b class="num">${Number(p.rating_avg).toFixed(1)}</b>
+                     <a href="#reviewsBox" class="text-muted">${p.rating_count} รีวิว</a>`
+                  : `<span class="text-muted">ยังไม่มีรีวิว</span>`}
+              </p>
+            </div>
+            <div class="sp-cta">
+              ${p.is_active
+                ? `<a href="${bookUrl}" class="btn btn-primary">จองคิวกับ${esc(p.name)}</a>`
+                : `<span class="badge badge-cancelled">พักงานอยู่ ยังไม่รับคิว</span>`}
+              <button id="shareBtn" class="btn btn-outline" type="button">คัดลอกลิงก์</button>
             </div>
           </div>
-          <div class="mt-5 pt-5" style="border-top:1px solid var(--border)">${statsHTML(p)}</div>
+          ${factsHTML(p)}
         </section>
 
         <div class="staff-cols">
           <div class="space-y-4">
-            ${p.bio || tags.length ? `
-              <section class="card card-pad">
-                <h2 class="h3">เกี่ยวกับ${esc(p.name)}</h2>
-                ${p.bio ? `<p class="text-sm mt-2" style="white-space:pre-line">${esc(p.bio)}</p>` : ""}
-                ${tags.length ? `
-                  <p class="label mt-4">ความถนัด</p>
-                  <div class="svc-tags">${tags.map((t) => `<span class="svc-tag">${esc(t)}</span>`).join("")}</div>` : ""}
-              </section>` : ""}
-
-            ${p.top_services && p.top_services.length ? `
-              <section class="card card-pad">
-                <h2 class="h3">บริการที่ทำบ่อยที่สุด</h2>
-                <p class="hint">นับจากงานที่ทำเสร็จจริงในระบบ</p>
-                <div class="svc-tags">${p.top_services.map((s) =>
-                  `<span class="svc-tag">${esc(s.name)} <b class="num">${s.count}</b></span>`).join("")}</div>
-              </section>` : ""}
-
             <section class="card card-pad">
-              <h2 class="h3">รีวิวถึง${esc(p.name)}</h2>
-              <div id="reviews" class="mt-2"></div>
-              <button id="moreReviews" class="btn btn-ghost btn-sm mt-2" hidden>ดูรีวิวเพิ่ม</button>
+              <h2 class="h3">เกี่ยวกับ${esc(p.name)}</h2>
+              ${p.bio
+                ? `<p class="sp-bio">${esc(p.bio)}</p>`
+                : `<p class="text-sm text-muted mt-2">ยังไม่ได้เขียนแนะนำตัว</p>`}
+              ${tags.length ? `
+                <h3 class="sp-label">ความถนัด</h3>
+                <div class="svc-tags">${tags.map((t) => `<span class="svc-tag">${esc(t)}</span>`).join("")}</div>` : ""}
+              ${p.top_services && p.top_services.length ? `
+                <h3 class="sp-label">ทำบ่อยที่สุด <span class="text-muted" style="font-weight:400">(นับจากงานจริง)</span></h3>
+                <div class="svc-tags">${p.top_services.map((s) =>
+                  `<span class="svc-tag">${esc(s.name)} <b class="num">${s.count}</b></span>`).join("")}</div>` : ""}
+            </section>
+
+            <section class="card card-pad" id="reviewsBox">
+              <div class="flex items-baseline justify-between gap-2">
+                <h2 class="h3">รีวิว</h2>
+                ${p.rating_count ? `<span class="text-sm text-muted">${p.rating_count} รายการ</span>` : ""}
+              </div>
+              ${aspectsHTML(p.aspects)}
+              <div id="reviews" class="mt-3"></div>
+              <button id="moreReviews" class="btn btn-ghost btn-sm mt-2" style="display:none">ดูรีวิวเพิ่ม</button>
             </section>
           </div>
 
-          <aside class="space-y-4">
-            ${aspectsHTML(p.aspects)}
-            <section class="card card-pad">
-              <h2 class="h3">วันเวลาทำงาน</h2>
-              <p class="text-sm mt-2">${workText(p)}</p>
-            </section>
+          <aside class="space-y-4 sp-side">
             ${p.is_active && p.services && p.services.length ? `
               <section class="card card-pad">
-                <h2 class="h3">จองบริการกับ${esc(p.name)}</h2>
-                <div class="mt-2">${p.services.map((s) => `
+                <h2 class="h3">คิวว่างเร็วที่สุด</h2>
+                <div id="nextFree" class="mt-2"><p class="text-sm text-muted">กำลังหาช่องว่าง</p></div>
+              </section>` : ""}
+
+            <section class="card card-pad">
+              <h2 class="h3">วันทำงาน</h2>
+              <div class="mt-3">${weekHTML(p, shop)}</div>
+            </section>
+
+            ${p.is_active && p.services && p.services.length ? `
+              <section class="card card-pad">
+                <h2 class="h3">บริการและราคา</h2>
+                <div class="mt-1">${p.services.map((s) => `
                   <a class="svc-line" href="${bookUrl}&service=${s.id}">
                     <span class="n text-sm">${esc(s.name)}
-                      <span class="text-xs text-muted">· ${durationText(s.duration_minutes)}</span></span>
+                      <span class="block text-xs text-muted">${durationText(s.duration_minutes)}</span></span>
                     <span class="num text-sm font-medium">฿${baht(s.price)}</span>
+                  </a>`).join("")}</div>
+              </section>` : ""}
+
+            ${others.length ? `
+              <section class="card card-pad">
+                <h2 class="h3">คนอื่นใน ${esc(p.shop_name)}</h2>
+                <div class="sp-others">${others.slice(0, 6).map((o) => `
+                  <a href="staff.html?id=${o.id}">
+                    ${avatarHTML(o, "av-lg")}
+                    <span><b>${esc(o.name)}</b><span class="text-xs text-muted">${esc(o.position || "")}</span></span>
                   </a>`).join("")}</div>
               </section>` : ""}
           </aside>
@@ -200,7 +237,7 @@
         const btn = e.currentTarget;
         try {
           await navigator.clipboard.writeText(location.href);
-          toast("คัดลอกลิงก์แล้ว ส่งให้เพื่อนหรือใส่ในโซเชียลได้เลย");
+          toast("คัดลอกลิงก์แล้ว");
         } catch {
           toast("คัดลอกไม่สำเร็จ ลองคัดลอกจากแถบที่อยู่แทน", "error");
         }
@@ -208,6 +245,33 @@
       });
       document.getElementById("moreReviews").addEventListener("click", () => loadReviews(reviewPage + 1));
       loadReviews(1);
+      if (p.is_active && p.services && p.services.length) loadNextFree(p, bookUrl);
+    }
+
+    // หาวันแรกที่ช่างคนนี้ว่าง ใช้บริการแรกของร้านเป็นตัวตั้ง
+    // ใช้ API เดียวกับหน้าจอง วันลา วันหยุดร้าน และคิวที่จ่ายแล้วจึงถูกตัดออกให้ครบ
+    async function loadNextFree(p, bookUrl) {
+      const box = document.getElementById("nextFree");
+      const svc = p.services[0];
+      for (let d = 0; d < NEXT_FREE_DAYS; d++) {
+        const day = localDate(dateAfter(d));
+        try {
+          const av = await apiGet(`/api/services/${svc.id}/availability?date=${day}&staff_id=${p.id}`);
+          const free = (av.slots || []).filter((x) => x.available);
+          if (!free.length) continue;
+          const label = d === 0 ? "วันนี้" : d === 1 ? "พรุ่งนี้" : thaiDate(day);
+          box.innerHTML = `
+            <p class="text-sm"><b>${label}</b> <span class="text-muted">· ${esc(svc.name)}</span></p>
+            <div class="sp-times">${free.slice(0, 6).map((x) =>
+              `<a class="num" href="${bookUrl}&service=${svc.id}&date=${day}">${shortTime(x.time)}</a>`).join("")}</div>
+            ${free.length > 6 ? `<p class="text-xs text-muted mt-2">และอีก ${free.length - 6} ช่วงในวันนั้น</p>` : ""}`;
+          return;
+        } catch {
+          break;
+        }
+      }
+      box.innerHTML = `<p class="text-sm text-muted">ไม่มีช่องว่างใน ${NEXT_FREE_DAYS} วันข้างหน้า</p>
+        <a href="${bookUrl}" class="text-sm">ดูตารางทั้งหมด</a>`;
     }
 
     async function loadReviews(page) {
@@ -229,9 +293,11 @@
             ${r.comment ? `<p class="text-sm mt-1.5">${esc(r.comment)}</p>` : ""}
             ${r.reply ? `<p class="text-xs text-muted mt-1">ร้านตอบ: ${esc(r.reply)}</p>` : ""}
           </div>`).join("");
-        if (page === 1) box.innerHTML = html || `<p class="text-sm text-muted">ยังไม่มีรีวิว</p>`;
-        else box.insertAdjacentHTML("beforeend", html);
-        more.hidden = page >= rv.total_pages;
+        if (page === 1) {
+          box.innerHTML = html || `<p class="text-sm text-muted">ยังไม่มีใครรีวิว — ใช้บริการแล้วกลับมาเล่าให้คนอื่นฟังได้ที่หน้าการจองของฉัน</p>`;
+        } else box.insertAdjacentHTML("beforeend", html);
+        // ใช้ style แทน hidden เพราะ .btn ตั้ง display ไว้ ทำให้ attribute hidden ไม่มีผล
+        more.style.display = page >= rv.total_pages ? "none" : "";
       } catch (err) {
         if (page === 1) box.innerHTML = `<p class="text-sm" style="color:var(--danger)">${esc(err.message)}</p>`;
         else toast(err.message, "error");
