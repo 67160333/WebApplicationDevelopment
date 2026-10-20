@@ -168,10 +168,7 @@ const BrowsePage = (() => {
           .map((s) => [s.province, s.district || ""]);
 
         if (provSel) {
-          [...new Set(_areaPairs.map(([p]) => p))]
-            .sort((a, b) => a.localeCompare(b, "th"))
-            .forEach((p) => provSel.add(new Option(p, p)));
-          provSel.value = params.get("province") || "";
+          fillProvinceSelect(provSel, [...new Set(_areaPairs.map(([p]) => p))], params.get("province") || "");
         }
         fillDistricts(params.get("district") || "");
       } catch {}
@@ -287,6 +284,9 @@ const BrowsePage = (() => {
           : myPos
           ? emptyHTML("mapPin", `ไม่มีที่ไหนในรัศมี ${nearRadius} กิโลเมตร`,
               "กดปุ่มใกล้ฉันอีกครั้งเพื่อดูทั้งหมดโดยไม่จำกัดระยะทาง")
+          : $("fProvince") && $("fProvince").value && !_areaPairs.some(([p]) => p === $("fProvince").value)
+          ? emptyHTML("mapPin", `ยังไม่มีร้านใน${$("fProvince").value}`,
+              "ถ้าคุณเป็นเจ้าของร้านในจังหวัดนี้ สมัครแล้วเปิดร้านแรกบน Bookvice ได้ฟรี")
           : emptyHTML("search",
               availMode ? (cfg.emptyAvail || "ไม่มีที่ไหนว่างในวันนั้น") : (cfg.empty || "ไม่พบที่ตรงกับเงื่อนไข"),
               availMode ? "ลองเลือกวันอื่น หรือกดดูทั้งหมด" : "ลองปรับตัวกรองหรือใช้คำค้นอื่น");

@@ -16,20 +16,33 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202610201500" />
+  <link rel="stylesheet" href="css/app.css?v=202610202300" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
   <div id="navbar"></div>
 
   <main id="main" class="max-w-4xl mx-auto px-5 py-12">
-    <h1 class="h1">หาคนไปเล่นด้วยกัน</h1>
-    <p class="text-sm text-muted mt-1.5" style="max-width:56ch">
-      สนามบอลราคาเป็นพัน คนเดียวจองไม่ไหว และไม่มีใครอยากจ่ายก่อนแล้วค่อยลุ้นว่าจะมีคนมา
-      ที่นี่จึงกลับลำดับใหม่ — <b>โพสต์หาคนก่อน พอครบแล้วค่อยจองสนาม</b>
-    </p>
+    <section class="grp-hero grp-play">
+      <div class="grp-hero-in">
+        <span class="grp-ic" data-ic="football"></span>
+        <div>
+          <h1 class="h1 grp-h1">หาคนไปเล่นด้วยกัน</h1>
+          <p class="grp-lead">
+            สนามบอลราคาเป็นพัน คนเดียวจองไม่ไหว และไม่มีใครอยากจ่ายก่อนแล้วค่อยลุ้นว่าจะมีคนมา
+            ที่นี่จึงกลับลำดับใหม่
+          </p>
+        </div>
+      </div>
+      <!-- สามขั้นของหน้านี้ ให้คนเข้ามาครั้งแรกรู้ทันทีว่าต้องทำอะไร -->
+      <ol class="cm-steps">
+        <li><b>1</b><span>โพสต์ว่าจะเล่นอะไร วันไหน ขาดกี่คน</span></li>
+        <li><b>2</b><span>คนที่ว่างกด "สนใจ" เข้ามา</span></li>
+        <li><b>3</b><span>คนครบแล้วค่อยจองสนาม หารค่าสนามกัน</span></li>
+      </ol>
+    </section>
 
-    <div class="card p-5 mt-8">
+    <div class="card p-5 mt-5">
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <div class="font-semibold">โพสต์ของคุณ</div>
         <button id="btnNew" class="btn btn-primary btn-sm">โพสต์หาคน</button>
@@ -83,10 +96,11 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202610201500"></script>
-  <script src="js/ui.js?v=202610201500"></script>
+  <script src="js/api.js?v=202610202300"></script>
+  <script src="js/ui.js?v=202610202300"></script>
   <script>
     renderNavbar("community");
+    document.querySelectorAll("[data-ic]").forEach((el) => { el.innerHTML = icon(el.dataset.ic, 26); });
     renderFooter();
     prefetchOnHover();
 

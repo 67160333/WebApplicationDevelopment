@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202610201500" />
+  <link rel="stylesheet" href="css/app.css?v=202610202300" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -222,8 +222,8 @@
     </div>
   </div>
 
-  <script src="js/api.js?v=202610201500"></script>
-  <script src="js/ui.js?v=202610201500"></script>
+  <script src="js/api.js?v=202610202300"></script>
+  <script src="js/ui.js?v=202610202300"></script>
   <script>
     renderNavbar("manage");
     renderFooter();
@@ -329,7 +329,7 @@
             <div class="grid sm:grid-cols-2 gap-4">
               <div>
                 <label class="label" for="nsProvince">จังหวัด</label>
-                <input id="nsProvince" class="input" required value="กรุงเทพมหานคร" maxlength="100" />
+                <select id="nsProvince" class="select" required>${provinceOptions()}</select>
               </div>
               <div>
                 <label class="label" for="nsDistrict">เขต / อำเภอ</label>
@@ -1774,6 +1774,11 @@
       }
     }
 
+    // ตัวเลือกจังหวัด 77 จังหวัด — ร้านเก่าที่สะกดจังหวัดไม่ตรงรายการ ยังเห็นค่าเดิมเป็นตัวเลือกแรก
+    function provinceOptions(current = "กรุงเทพมหานคร") {
+      const list = current && !TH_PROVINCES.includes(current) ? [current, ...TH_PROVINCES] : TH_PROVINCES;
+      return list.map((p) => `<option value="${esc(p)}" ${p === current ? "selected" : ""}>${esc(p)}</option>`).join("");
+    }
     // ---------- กล่องเพิ่ม/แก้ไขช่าง ----------
     const stfModal = document.getElementById("stfModal");
     const stfAlert = document.getElementById("stfAlert");
@@ -1948,7 +1953,7 @@
                    แล้วต้องรอดูว่าจังหวัดอะไร คือการให้อ่านย้อนทาง -->
               <div>
                 <label class="label" for="iProv">จังหวัด</label>
-                <input id="iProv" class="input" value="${esc(shop.province || "")}" maxlength="100" />
+                <select id="iProv" class="select">${provinceOptions(shop.province)}</select>
               </div>
               <div>
                 <label class="label" for="iDist">เขต / อำเภอ</label>

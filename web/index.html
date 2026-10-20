@@ -20,7 +20,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202610201500" />
+  <link rel="stylesheet" href="css/app.css?v=202610202300" />
 </head>
 <body>
   <a href="#main" class="skip-link">ข้ามไปเนื้อหาหลัก</a>
@@ -29,6 +29,10 @@
   <!-- ========== ส่วนหัว ========== -->
   <section class="hero">
     <div class="hero-grid"></div>
+    <!-- แสงสองดวงสีจากโลโก้ (ส้มปะการัง / เขียวมิ้นต์) ลอยช้า ๆ อยู่หลังข้อความ -->
+    <div class="hero-aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+    <!-- กองการ์ดร้านจริง 3 ใบด้านขวา — เติมจาก API หลังโหลดร้าน (paintHeroStack) -->
+    <div class="hero-stack" id="heroStack" aria-hidden="true"></div>
     <!-- ลำดับในส่วนหัว: พาดหัว → คำอธิบาย → ช่องค้นหา → ตัวเลขยืนยัน
          =========================================================
          ของเดิมการ์ดค้นหาลอยอยู่นอกส่วนหัวแล้วดึงขึ้นมาด้วย margin-top:-58px
@@ -40,8 +44,8 @@
       <!-- คุมจุดตัดบรรทัดเอง ไม่ปล่อยให้เบราว์เซอร์ตัดกลางวลีจนอ่านสะดุด -->
       <p class="hero-slogan">จองง่าย ได้ครบ จบที่เดียว</p>
       <h1 class="hero-title">
-        จองคิวร้าน สนาม และช่าง<br class="hidden sm:block" />
-        ได้ในไม่กี่นาที
+        <span class="ln"><span>จองคิวร้าน สนาม และช่าง</span></span>
+        <span class="ln"><span>ได้ใน<em class="hero-em">ไม่กี่นาที</em></span></span>
       </h1>
       <p class="hero-sub">
         ดูช่วงเวลาที่ว่างจริงของแต่ละร้าน แต่ละช่าง และแต่ละคอร์ท เลือกเวลาที่สะดวก
@@ -159,8 +163,8 @@
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202610201500"></script>
-  <script src="js/ui.js?v=202610201500"></script>
+  <script src="js/api.js?v=202610202300"></script>
+  <script src="js/ui.js?v=202610202300"></script>
   <script>
     renderNavbar("home");
     renderFooter();
@@ -303,18 +307,13 @@
         await Promise.resolve(catsReady).catch(() => {});
 
         // เติมรายชื่อจังหวัดลงช่องค้นหา
-        // ถามจาก API ที่ตอบเฉพาะจังหวัดที่มีร้านจริง ไม่ใช่รายชื่อ 77 จังหวัด
-        // สำเร็จรูป เพราะเลือกจังหวัดที่ไม่มีร้านแล้วได้หน้าว่างเปล่า
-        // คือการให้คนเลือกทางที่รู้อยู่แล้วว่าตัน
+        // ครบ 77 จังหวัด แยกกลุ่ม "มีร้านในระบบ" ขึ้นก่อน (ดู fillProvinceSelect ใน api.js)
         //
         // ไม่ดึงจาก res.items เพราะหน้านี้โหลดมาแค่ 12 ร้าน
         // จังหวัดของร้านที่อยู่หน้าถัดไปจะหายจากดรอปดาวน์
         apiGet("/api/shops/provinces")
-          .then((list) => {
-            const sel = document.getElementById("sProvince");
-            list.forEach((p) => sel.add(new Option(p, p)));
-          })
-          .catch(() => {});   // ดรอปดาวน์ว่าง = ค้นทุกจังหวัด ยังใช้เว็บต่อได้
+          .catch(() => [])    // ถามไม่ได้ก็ยังโชว์ครบ 77 จังหวัด แค่ไม่แยกกลุ่ม
+          .then((list) => fillProvinceSelect(document.getElementById("sProvince"), list));
 
         if (!res.items.length) {
           box.innerHTML = emptyHTML("search", "ยังไม่มีร้านในระบบ");
@@ -335,6 +334,7 @@
           ...s,
           priceFrom: s.price_from != null ? Number(s.price_from) : null,
         }));
+        paintHeroStack(res.items);
         document.getElementById("shopFeature").innerHTML = featureCard(priced[0]);
         box.innerHTML = priced.slice(1).map(shopCard).join("");
         revealOnScroll("#shops .reveal");
@@ -355,6 +355,35 @@
           btnBusy(e.currentTarget, true, "กำลังลองใหม่");
           loadShops();
         });
+      }
+    }
+
+    // กองการ์ดในส่วนหัว — ร้านจริงที่มีรูปปก 3 ร้านแรก สลับใบหน้าทุก 3.5 วินาที
+    // เป็นของตกแต่ง (aria-hidden) ข้อมูลเดียวกันอยู่ในส่วน "ร้านที่ได้คะแนนสูงที่สุด" ข้างล่างแล้ว
+    function paintHeroStack(items) {
+      const box = document.getElementById("heroStack");
+      const pick = items.filter((s) => s.cover_url).slice(0, 3);
+      if (pick.length < 2) return;
+      box.innerHTML = `<div class="hs-bob"><div class="hs-tilt">${pick.map((s, i) => {
+        const st = shopStatus(s);
+        return `
+          <a class="hs-card" data-i="${i}" href="shop.html?id=${s.id}" tabindex="-1">
+            <span class="hs-img"><img src="${esc(fileUrl(s.cover_url))}" alt="" loading="lazy"
+              onerror="this.parentNode.classList.add('is-failed');this.remove()" /></span>
+            <span class="hs-body">
+              <b>${esc(s.name)}</b>
+              <span class="hs-meta">${s.rating_count ? `★ ${Number(s.rating_avg).toFixed(1)} · ` : ""}${esc(s.district || s.province || "")}</span>
+              <span class="hs-st ${st.cls}">${esc(st.text)}</span>
+            </span>
+          </a>`;
+      }).join("")}</div></div>`;
+      const cards = [...box.querySelectorAll(".hs-card")];
+      let front = 0;
+      const place = () => cards.forEach((c, i) => c.dataset.pos = (i - front + cards.length) % cards.length);
+      place();
+      box.classList.add("is-ready");
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setInterval(() => { front = (front + 1) % cards.length; place(); }, 3500);
       }
     }
 

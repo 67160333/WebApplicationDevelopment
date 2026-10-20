@@ -1862,3 +1862,162 @@ async function renderLeaveEditor(box, staffId) {
     })
   );
 }
+
+/* ============================================================
+ * ชั้นการเคลื่อนไหว — คู่กับส่วน "ชั้นการเคลื่อนไหว" ท้าย css/app.css
+ * ============================================================ */
+
+/** แถบโหลดบาง ๆ ด้านบน — วิ่งเมื่อมีคำขอ API ค้าง หรือกดลิงก์ไปหน้าอื่น
+ *  ช่วยตอน Render ตื่นช้า ผู้ใช้เห็นว่าเว็บกำลังทำงาน ไม่ใช่ค้าง */
+const TopBar = (() => {
+  let el = null;
+  let hideTimer = null;
+  const node = () => {
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "topbar";
+      el.setAttribute("aria-hidden", "true");
+      document.body.appendChild(el);
+    }
+    return el;
+  };
+  return {
+    start() {
+      if (!document.body) return;
+      clearTimeout(hideTimer);
+      const b = node();
+      b.classList.remove("done");
+      void b.offsetWidth;            // บังคับให้เบราว์เซอร์เริ่มแอนิเมชันใหม่จากศูนย์
+      b.classList.add("run");
+    },
+    done() {
+      if (!el) return;
+      el.classList.remove("run");
+      el.classList.add("done");
+      hideTimer = setTimeout(() => el && el.classList.remove("done"), 700);
+    },
+  };
+})();
+window.TopBar = TopBar;
+
+/** นับเลขขึ้นจาก 0 — ใช้กับตัวเลขข้อเท็จจริงในส่วนหัว ไม่ใช้กับราคา (ราคาต้องนิ่ง) */
+function countUp(el) {
+  if (el.dataset.counted) return;
+  const raw = el.textContent.trim();
+  const m = raw.match(/^([\d,]+(?:\.\d+)?)(.*)$/);
+  if (!m) return;
+  el.dataset.counted = "1";
+  const target = Number(m[1].replace(/,/g, ""));
+  if (!target) return;
+  const decimals = (m[1].split(".")[1] || "").length;
+  const suffix = m[2];
+  const t0 = performance.now();
+  const dur = 900;
+  el.classList.add("m-count");
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / dur);
+    const eased = 1 - Math.pow(1 - k, 3);
+    el.textContent = (target * eased).toLocaleString("th-TH", {
+      minimumFractionDigits: decimals, maximumFractionDigits: decimals,
+    }) + suffix;
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function initMotion() {
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // กดลิงก์ไปหน้าอื่นในเว็บเดียวกัน → แถบโหลดวิ่งทันที ไม่ต้องรอหน้าใหม่
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest("a[href]");
+    if (!a || a.target || e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+    const href = a.getAttribute("href");
+    if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return;
+    if (a.origin !== location.origin) return;
+    TopBar.start();
+  });
+  // กลับมาด้วยปุ่มย้อนกลับ หน้าเดิมถูกดึงจากแคช แถบต้องหยุด
+  window.addEventListener("pageshow", () => TopBar.done());
+
+  if (reduce) return;
+
+  // ไฟตามเมาส์ในส่วนหัวหน้าแรก — เฉพาะอุปกรณ์ที่มีเมาส์
+  const hero = document.querySelector(".hero");
+  if (hero && window.matchMedia("(pointer: fine)").matches) {
+    let raf = 0;
+    hero.addEventListener("pointermove", (e) => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const r = hero.getBoundingClientRect();
+        hero.style.setProperty("--mx", `${((e.clientX - r.left) / r.width) * 100}%`);
+        hero.style.setProperty("--my", `${((e.clientY - r.top) / r.height) * 100}%`);
+      });
+    });
+  }
+
+  // กองการ์ดในส่วนหัวเอียงตามเมาส์ (3D) และส่วนหัวเลื่อนช้ากว่าหน้า (parallax)
+  if (hero) {
+    const fine = window.matchMedia("(pointer: fine)").matches;
+    if (fine) {
+      hero.addEventListener("pointermove", (e) => {
+        const t = hero.querySelector(".hs-tilt");
+        if (!t) return;
+        const r = hero.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width - .5;
+        const y = (e.clientY - r.top) / r.height - .5;
+        t.style.setProperty("--ry", `${(x * 18).toFixed(2)}deg`);
+        t.style.setProperty("--rx", `${(-y * 14).toFixed(2)}deg`);
+      });
+      hero.addEventListener("pointerleave", () => {
+        const t = hero.querySelector(".hs-tilt");
+        if (t) { t.style.setProperty("--ry", "0deg"); t.style.setProperty("--rx", "0deg"); }
+      });
+    }
+    const inner = hero.querySelector(".hero-inner");
+    const aurora = hero.querySelector(".hero-aurora");
+    let pr = 0;
+    window.addEventListener("scroll", () => {
+      if (pr) return;
+      pr = requestAnimationFrame(() => {
+        pr = 0;
+        const y = Math.min(window.scrollY, hero.offsetHeight);
+        if (inner) { inner.style.transform = `translateY(${y * .18}px)`; inner.style.opacity = String(1 - y / hero.offsetHeight * .6); }
+        if (aurora) aurora.style.transform = `translateY(${y * .35}px)`;
+      });
+    }, { passive: true });
+  }
+
+  // การ์ดร้านเอียงตามเมาส์เล็กน้อย (micro interaction แบบ 3D) — เฉพาะเครื่องที่มีเมาส์
+  if (window.matchMedia("(pointer: fine)").matches) {
+    document.addEventListener("pointermove", (e) => {
+      const c = e.target.closest && e.target.closest(".shop-card, .shop-feature");
+      if (!c) return;
+      c.classList.add("tilt");
+      const r = c.getBoundingClientRect();
+      c.style.setProperty("--ry", `${(((e.clientX - r.left) / r.width) - .5) * 6}deg`);
+      c.style.setProperty("--rx", `${(.5 - ((e.clientY - r.top) / r.height)) * 6}deg`);
+    });
+    document.addEventListener("pointerout", (e) => {
+      const c = e.target.closest && e.target.closest(".tilt");
+      if (c && !c.contains(e.relatedTarget)) { c.style.setProperty("--rx", "0deg"); c.style.setProperty("--ry", "0deg"); }
+    });
+  }
+
+  // ตัวเลขที่เพิ่งถูกเติมลงหน้า (หลัง API ตอบ) ให้นับขึ้น
+  const COUNT_SEL = ".hero-facts b, .sp-facts dd";
+  document.querySelectorAll(COUNT_SEL).forEach(countUp);
+  new MutationObserver((list) => {
+    for (const m of list) {
+      m.addedNodes.forEach((n) => {
+        if (n.nodeType !== 1) return;
+        if (n.matches && n.matches(COUNT_SEL)) countUp(n);
+        n.querySelectorAll && n.querySelectorAll(COUNT_SEL).forEach(countUp);
+      });
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+}
+
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initMotion);
+else initMotion();

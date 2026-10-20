@@ -19,7 +19,7 @@
        IBM Plex Sans Thai เป็นตัวสำรอง ใช้เมื่อยังไม่ได้วางไฟล์ฟอนต์หลัก -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700&display=optional" rel="stylesheet" />
-  <link rel="stylesheet" href="css/app.css?v=202610201500" />
+  <link rel="stylesheet" href="css/app.css?v=202610202300" />
 
   <script>
     // ลิงก์เก่าแบบ shops.html?group=play ต้องยังใช้ได้
@@ -42,28 +42,36 @@
   <div id="navbar"></div>
 
   <main id="main" class="max-w-6xl mx-auto px-5 py-10">
-    <h1 class="h1">ค้นหาทุกหมวดรวมกัน</h1>
-    <p class="text-sm text-muted mt-1.5" style="max-width:60ch">
-      หน้านี้ค้นข้ามทั้ง 12 หมวดพร้อมกัน เหมาะเวลาที่ยังไม่รู้ว่าอยากได้อะไรแน่ ๆ
-      ถ้ารู้อยู่แล้วว่าจะจองอะไร เข้าหน้าของกลุ่มนั้นจะเจอตัวกรองที่ตรงกว่า
-    </p>
-
-    <nav class="grp-switch" style="border-top:none;padding-top:0;margin-top:14px"
-         id="groupLinks" aria-label="ไปยังกลุ่มบริการ"></nav>
+    <!-- หัวหน้าแบบเดียวกับหน้ากลุ่ม (care/play/auto/come) แต่ใช้พื้นกรมท่า
+         เพราะเป็นหน้ารวมทุกกลุ่ม ไม่ใช่กลุ่มใดกลุ่มหนึ่ง -->
+    <section class="grp-hero grp-all">
+      <div class="grp-hero-in">
+        <span class="grp-ic" data-ic="search"></span>
+        <div>
+          <h1 class="h1 grp-h1">ค้นหาทุกหมวดรวมกัน</h1>
+          <p class="grp-lead">
+            ค้นข้ามทั้ง 12 หมวดพร้อมกัน เหมาะเวลาที่ยังไม่รู้ว่าอยากได้อะไรแน่ ๆ
+            · รู้อยู่แล้วว่าจะจองอะไร เลือกกลุ่มด้านล่างจะเจอตัวกรองที่ตรงกว่า
+          </p>
+        </div>
+      </div>
+      <nav class="grp-switch" id="groupLinks" aria-label="ไปยังกลุ่มบริการ"></nav>
+    </section>
 
     <div id="browse"></div>
   </main>
 
   <div id="footer"></div>
 
-  <script src="js/api.js?v=202610201500"></script>
-  <script src="js/ui.js?v=202610201500"></script>
-  <script src="js/browse.js?v=202610201500"></script>
+  <script src="js/api.js?v=202610202300"></script>
+  <script src="js/ui.js?v=202610202300"></script>
+  <script src="js/browse.js?v=202610202300"></script>
   <script>
     renderNavbar("shops");
     renderFooter();
     prefetchOnHover();
 
+    document.querySelectorAll("[data-ic]").forEach((el) => { el.innerHTML = icon(el.dataset.ic, 26); });
     document.getElementById("groupLinks").innerHTML = GROUPS
       .map((g) => `<a href="${g.key}.html">${icon(g.icon, 15)} ${esc(g.name)}</a>`)
       .join("");
