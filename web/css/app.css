@@ -4298,11 +4298,10 @@ details:not([open]) > *:not(summary) { display: none !important; }
     radial-gradient(500px 120px at 88% -60%, rgba(244,114,182,.35), transparent 70%),
     var(--navy-800);
 }
-/* เส้นสีแบรนด์ใต้แถบ น้ำเงิน → ม่วง → ชมพู → ส้ม → มิ้นต์ */
+/* เส้นใต้แถบบน — สีฟ้าสีเดียว */
 .site-header::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
-  background: linear-gradient(90deg, #2563EB, #8B5CF6, #F472B6, #FBBF24, #34D399, #2563EB);
-  background-size: 200% 100%;
+  background: #3B82F6;
 }
 .brand-vice {
   background: linear-gradient(90deg, #60A5FA, #A78BFA 35%, #F472B6 65%, #FBBF24);
@@ -4320,5 +4319,4 @@ details:not([open]) > *:not(summary) { display: none !important; }
 }
 .site-header .btn-primary:hover { filter: brightness(1.08); }
 @media (prefers-reduced-motion: no-preference) {
-  .site-header::after { animation: mShine 8s linear infinite; }
 }
